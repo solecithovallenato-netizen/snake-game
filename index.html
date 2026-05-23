@@ -3,32 +3,32 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>贪吃蛇 · Neon Arcade</title>
+<title>贪吃蛇</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Noto+Sans+SC:wght@300;400;700&display=swap');
-
   :root {
-    --bg-deep: #0a0a14;
-    --neon-green: #39ff14;
-    --neon-green-dim: #1a8c0a;
-    --neon-pink: #ff2d95;
-    --neon-cyan: #00e5ff;
-    --neon-yellow: #ffe600;
-    --panel-bg: rgba(10, 10, 30, 0.75);
-    --panel-border: rgba(57, 255, 20, 0.2);
-    --text-primary: #e0e0f0;
-    --text-dim: #6060a0;
+    --bg: #1a1a1e;
+    --surface: rgba(28, 28, 34, 0.85);
+    --accent: #c9a96e;
+    --accent-dim: rgba(201, 169, 110, 0.2);
+    --gold: #d4af6c;
+    --text: #e8e4df;
+    --text-dim: #72706b;
+    --danger: #c9514a;
+    --radius: 16px;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
-    background: var(--bg-deep);
+    background: var(--bg);
+    background-image:
+      repeating-linear-gradient(0deg, transparent, transparent 40px, rgba(255,255,255,0.008) 40px, rgba(255,255,255,0.008) 41px),
+      repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(255,255,255,0.008) 40px, rgba(255,255,255,0.008) 41px);
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    font-family: 'Noto Sans SC', 'Orbitron', sans-serif;
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
     overflow-x: hidden; overflow-y: auto;
     user-select: none;
     -webkit-user-select: none;
@@ -36,118 +36,77 @@
     cursor: default;
   }
 
-  /* Hide cursor over game area */
   .game-wrapper { cursor: none; }
   .game-wrapper .overlay.active { cursor: default; }
   .game-wrapper .overlay.active .btn { cursor: pointer; }
   .game-wrapper .overlay.active .name-input { cursor: text; }
-
-  /* Restore cursor on interactive elements */
   .btn, .lb-btn, .dpad-btn, .name-input, .lb-close { cursor: pointer; }
 
-  /* Animated starfield background */
-  .starfield {
-    position: fixed; inset: 0; z-index: 0;
-    pointer-events: none;
-    cursor: default;
-  }
-  .starfield canvas { display: block; pointer-events: none; }
-
-  /* Main container */
   .container {
     position: relative; z-index: 1;
     display: flex; flex-direction: column; align-items: center;
     gap: 24px;
   }
 
-  /* Title */
   .title {
-    font-family: 'Orbitron', sans-serif;
-    font-size: clamp(28px, 5vw, 48px);
-    font-weight: 900;
-    letter-spacing: 6px;
-    text-transform: uppercase;
-    background: linear-gradient(180deg, var(--neon-green) 0%, var(--neon-cyan) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    filter: drop-shadow(0 0 20px rgba(57, 255, 20, 0.5));
-    animation: titlePulse 3s ease-in-out infinite;
-  }
-  @keyframes titlePulse {
-    0%, 100% { filter: drop-shadow(0 0 20px rgba(57, 255, 20, 0.5)); }
-    50% { filter: drop-shadow(0 0 40px rgba(57, 255, 20, 0.8)) drop-shadow(0 0 80px rgba(0, 229, 255, 0.4)); }
+    font-size: clamp(28px, 5vw, 46px);
+    font-weight: 300;
+    letter-spacing: 10px;
+    color: var(--text);
   }
 
-  /* Glass panel for scores */
   .score-panel {
-    display: flex; gap: 32px;
-    background: var(--panel-bg);
+    display: flex; gap: 40px;
+    background: var(--surface);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid var(--panel-border);
-    border-radius: 20px;
-    padding: 16px 36px;
-    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(57, 255, 20, 0.1);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--radius);
+    padding: 14px 36px;
+    box-shadow: 0 2px 24px rgba(0,0,0,0.3);
   }
   .score-item {
     display: flex; flex-direction: column; align-items: center;
-    gap: 4px;
+    gap: 2px;
   }
   .score-label {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 11px; font-weight: 500;
-    letter-spacing: 3px;
+    font-size: 10px; font-weight: 500;
+    letter-spacing: 4px;
     color: var(--text-dim);
     text-transform: uppercase;
   }
   .score-value {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 32px; font-weight: 700;
-    color: var(--neon-green);
-    text-shadow: 0 0 12px rgba(57, 255, 20, 0.6);
-    transition: all 0.15s ease;
+    font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
+    font-size: 34px; font-weight: 500;
+    color: var(--text);
     min-width: 60px; text-align: center;
+    transition: all 0.15s ease;
   }
-  .score-value.pop {
-    animation: scorePop 0.3s ease-out;
-  }
+  .score-value.pop { animation: scorePop 0.3s ease-out; }
   @keyframes scorePop {
     0% { transform: scale(1); }
-    40% { transform: scale(1.35); }
+    40% { transform: scale(1.3); }
     100% { transform: scale(1); }
   }
-  .score-value.high {
-    color: var(--neon-yellow);
-    text-shadow: 0 0 12px rgba(255, 230, 0, 0.6);
-  }
+  .score-value.high { color: var(--gold); }
 
-  /* Game canvas wrapper */
   .game-wrapper {
     position: relative;
-    border-radius: 16px;
+    border-radius: var(--radius);
     overflow: hidden;
-    box-shadow:
-      0 0 0 2px rgba(57, 255, 20, 0.15),
-      0 0 60px rgba(57, 255, 20, 0.08),
-      0 20px 60px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 12px 48px rgba(0,0,0,0.5);
     transition: box-shadow 0.5s ease;
   }
   .game-wrapper.game-over-glow {
-    box-shadow:
-      0 0 0 2px rgba(255, 45, 149, 0.4),
-      0 0 60px rgba(255, 45, 149, 0.2),
-      0 20px 60px rgba(0, 0, 0, 0.6);
-    transition: box-shadow 0.8s ease;
+    box-shadow: 0 0 0 1px rgba(201,81,74,0.3), 0 12px 48px rgba(0,0,0,0.5);
   }
 
   canvas#gameCanvas {
     display: block;
-    background: #0d0d24;
-    border-radius: 16px;
+    background: #16161c;
+    border-radius: var(--radius);
   }
 
-  /* Overlay */
   .overlay {
     position: absolute;
     inset: 0;
@@ -156,86 +115,68 @@
     justify-content: center;
     align-items: center;
     gap: 20px;
-    background: rgba(10, 10, 30, 0.85);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border-radius: 16px;
+    background: rgba(22, 22, 28, 0.92);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border-radius: var(--radius);
     opacity: 0; pointer-events: none;
-    transition: opacity 0.5s ease;
+    transition: opacity 0.4s ease;
   }
-  .overlay.active {
-    opacity: 1; pointer-events: auto;
-  }
+  .overlay.active { opacity: 1; pointer-events: auto; }
 
   .overlay-title {
-    font-family: 'Orbitron', sans-serif;
-    font-size: clamp(24px, 4vw, 40px);
-    font-weight: 900;
+    font-size: clamp(22px, 4vw, 34px);
+    font-weight: 300;
     letter-spacing: 4px;
-    color: var(--neon-pink);
-    text-shadow: 0 0 40px rgba(255, 45, 149, 0.6);
-    animation: overlayTitleIn 0.5s ease-out;
+    color: var(--text);
+    animation: overlayTitleIn 0.4s ease-out;
   }
   @keyframes overlayTitleIn {
-    0% { transform: translateY(-20px); opacity: 0; }
+    0% { transform: translateY(-16px); opacity: 0; }
     100% { transform: translateY(0); opacity: 1; }
   }
 
   .overlay-score {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 18px;
-    color: var(--text-primary);
-    letter-spacing: 3px;
+    font-size: 16px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
   }
   .overlay-score span {
-    color: var(--neon-yellow);
-    font-size: 48px; font-weight: 900;
-    text-shadow: 0 0 24px rgba(255, 230, 0, 0.5);
+    color: var(--gold);
+    font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
+    font-size: 48px; font-weight: 500;
   }
 
   .btn {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 14px; font-weight: 700;
-    letter-spacing: 3px;
+    font-size: 13px; font-weight: 500;
+    letter-spacing: 4px;
     text-transform: uppercase;
-    padding: 14px 40px;
-    border: 1px solid var(--neon-green);
+    padding: 13px 38px;
+    border: 1px solid rgba(255,255,255,0.15);
     border-radius: 50px;
-    background: rgba(57, 255, 20, 0.08);
-    color: var(--neon-green);
+    background: transparent;
+    color: var(--text);
     cursor: pointer;
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
+    transition: all 0.25s ease;
   }
-  .btn::before {
-    content: '';
-    position: absolute; inset: 0;
-    background: linear-gradient(135deg, transparent 0%, rgba(57, 255, 20, 0.15) 50%, transparent 100%);
-    transform: translateX(-100%);
-    transition: transform 0.5s ease;
-  }
-  .btn:hover::before { transform: translateX(100%); }
   .btn:hover {
-    background: rgba(57, 255, 20, 0.15);
-    box-shadow: 0 0 30px rgba(57, 255, 20, 0.3), inset 0 0 20px rgba(57, 255, 20, 0.1);
-    transform: translateY(-2px);
+    border-color: var(--accent);
+    color: var(--accent);
+    transform: translateY(-1px);
   }
-  .btn:active { transform: translateY(0) scale(0.97); }
+  .btn:active { transform: translateY(0) scale(0.98); }
 
   .hint {
-    font-family: 'Noto Sans SC', sans-serif;
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-dim);
-    letter-spacing: 1px;
-    animation: fadeInOut 3s ease-in-out infinite;
+    letter-spacing: 2px;
+    animation: fadeHint 3s ease-in-out infinite;
   }
-  @keyframes fadeInOut {
-    0%, 100% { opacity: 0.4; }
-    50% { opacity: 1; }
+  @keyframes fadeHint {
+    0%, 100% { opacity: 0.35; }
+    50% { opacity: 0.8; }
   }
 
-  /* Mobile controls */
   .mobile-controls {
     display: none;
     width: 100%; max-width: 400px;
@@ -250,20 +191,21 @@
   }
   .dpad-btn {
     aspect-ratio: 1;
-    border: 1px solid rgba(57, 255, 20, 0.25);
-    border-radius: 16px;
-    background: var(--panel-bg);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    background: var(--surface);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     display: flex; justify-content: center; align-items: center;
-    font-size: 24px; color: var(--neon-green);
+    font-size: 20px; color: var(--text-dim);
     cursor: pointer;
     transition: all 0.15s ease;
     -webkit-tap-highlight-color: transparent;
   }
   .dpad-btn:active {
-    background: rgba(57, 255, 20, 0.2);
-    box-shadow: 0 0 20px rgba(57, 255, 20, 0.3);
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: var(--accent);
     transform: scale(0.92);
   }
   .dpad-up { grid-area: up; }
@@ -271,98 +213,89 @@
   .dpad-right { grid-area: right; }
   .dpad-down { grid-area: down; }
 
-  /* Leaderboard button */
   .lb-btn {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 12px; font-weight: 700;
-    letter-spacing: 2px;
-    padding: 10px 24px;
-    border: 1px solid var(--neon-cyan);
+    font-size: 11px; font-weight: 500;
+    letter-spacing: 3px;
+    padding: 9px 22px;
+    border: 1px solid rgba(255,255,255,0.1);
     border-radius: 50px;
-    background: rgba(0, 229, 255, 0.08);
-    color: var(--neon-cyan);
+    background: transparent;
+    color: var(--text-dim);
     cursor: pointer;
-    transition: all 0.3s ease;
-    text-shadow: 0 0 8px rgba(0, 229, 255, 0.4);
+    transition: all 0.25s ease;
   }
   .lb-btn:hover {
-    background: rgba(0, 229, 255, 0.15);
-    box-shadow: 0 0 24px rgba(0, 229, 255, 0.25);
-    transform: translateY(-2px);
+    border-color: var(--accent);
+    color: var(--accent);
+    transform: translateY(-1px);
   }
-  .lb-btn:active { transform: translateY(0) scale(0.97); }
+  .lb-btn:active { transform: translateY(0) scale(0.98); }
 
-  /* Leaderboard modal */
   .lb-modal-bg {
     position: fixed; inset: 0; z-index: 100;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(4px);
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(3px);
     display: flex; justify-content: center; align-items: center;
     opacity: 0; pointer-events: none;
-    transition: opacity 0.3s ease;
+    transition: opacity 0.25s ease;
   }
   .lb-modal-bg.active { opacity: 1; pointer-events: auto; }
 
   .lb-modal {
-    background: var(--panel-bg);
+    background: var(--surface);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
-    border: 1px solid rgba(0, 229, 255, 0.2);
-    border-radius: 24px;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--radius);
     padding: 32px;
     width: min(420px, 90vw);
     max-height: 80vh;
     overflow-y: auto;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(0, 229, 255, 0.08);
-    transform: translateY(20px);
-    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    transform: translateY(16px);
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
   }
   .lb-modal-bg.active .lb-modal { transform: translateY(0); }
 
   .lb-modal-title {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 24px; font-weight: 900;
-    letter-spacing: 4px;
+    font-size: 22px; font-weight: 300;
+    letter-spacing: 6px;
     text-align: center;
-    color: var(--neon-cyan);
-    text-shadow: 0 0 16px rgba(0, 229, 255, 0.4);
+    color: var(--text);
     margin-bottom: 24px;
   }
 
   .lb-row {
     display: flex; align-items: center; gap: 12px;
     padding: 10px 16px;
-    border-radius: 12px;
-    margin-bottom: 6px;
-    transition: all 0.2s ease;
+    border-radius: 10px;
+    margin-bottom: 4px;
+    transition: background 0.2s ease;
   }
-  .lb-row:hover { background: rgba(255, 255, 255, 0.04); }
-  .lb-row.top1 { background: rgba(255, 215, 0, 0.1); border: 1px solid rgba(255, 215, 0, 0.2); }
-  .lb-row.top2 { background: rgba(192, 192, 192, 0.08); border: 1px solid rgba(192, 192, 192, 0.15); }
-  .lb-row.top3 { background: rgba(205, 127, 50, 0.08); border: 1px solid rgba(205, 127, 50, 0.15); }
+  .lb-row:hover { background: rgba(255, 255, 255, 0.03); }
+  .lb-row.top1 { background: rgba(212, 175, 108, 0.08); }
+  .lb-row.top2 { background: rgba(180, 180, 180, 0.05); }
+  .lb-row.top3 { background: rgba(180, 140, 100, 0.05); }
 
   .lb-rank {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 18px; font-weight: 900;
+    font-size: 16px; font-weight: 600;
     width: 36px; text-align: center;
     color: var(--text-dim);
   }
-  .lb-row.top1 .lb-rank { color: #ffd700; text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
-  .lb-row.top2 .lb-rank { color: #c0c0c0; text-shadow: 0 0 8px rgba(192, 192, 192, 0.4); }
-  .lb-row.top3 .lb-rank { color: #cd7f32; text-shadow: 0 0 8px rgba(205, 127, 50, 0.4); }
+  .lb-row.top1 .lb-rank { color: var(--gold); }
+  .lb-row.top2 .lb-rank { color: #b0b0b0; }
+  .lb-row.top3 .lb-rank { color: #b48c64; }
 
   .lb-name {
     flex: 1;
-    font-family: 'Noto Sans SC', sans-serif;
-    font-size: 14px; font-weight: 500;
-    color: var(--text-primary);
+    font-size: 14px; font-weight: 400;
+    color: var(--text);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .lb-score {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 16px; font-weight: 700;
-    color: var(--neon-green);
-    text-shadow: 0 0 8px rgba(57, 255, 20, 0.4);
+    font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
+    font-size: 15px; font-weight: 500;
+    color: var(--accent);
   }
 
   .lb-empty {
@@ -372,55 +305,51 @@
 
   .lb-loading {
     text-align: center; padding: 32px 0;
-    color: var(--neon-cyan); font-size: 14px;
-    animation: fadeInOut 1.5s ease-in-out infinite;
+    color: var(--text-dim); font-size: 14px;
+    animation: fadeHint 1.5s ease-in-out infinite;
   }
 
   .lb-close {
     display: block; margin: 20px auto 0;
   }
 
-  /* Name input on game over */
   .name-input {
-    font-family: 'Orbitron', 'Noto Sans SC', sans-serif;
-    font-size: 16px; font-weight: 500;
-    letter-spacing: 2px;
+    font-size: 15px; font-weight: 400;
+    letter-spacing: 1px;
     text-align: center;
     padding: 10px 20px;
     width: 200px;
-    border: 1px solid var(--neon-cyan);
+    border: 1px solid rgba(255,255,255,0.1);
     border-radius: 50px;
-    background: rgba(0, 0, 0, 0.4);
-    color: var(--neon-cyan);
+    background: rgba(0, 0, 0, 0.3);
+    color: var(--text);
     outline: none;
-    transition: all 0.3s ease;
+    transition: all 0.25s ease;
   }
   .name-input:focus {
-    border-color: var(--neon-green);
-    box-shadow: 0 0 20px rgba(57, 255, 20, 0.2);
+    border-color: var(--accent);
   }
-  .name-input::placeholder { color: rgba(96, 96, 160, 0.6); }
+  .name-input::placeholder { color: var(--text-dim); }
 
   .submit-status {
-    font-family: 'Noto Sans SC', sans-serif;
-    font-size: 13px;
-    min-height: 20px;
-    color: var(--neon-cyan);
+    font-size: 12px;
+    min-height: 18px;
+    color: var(--text-dim);
     transition: all 0.3s ease;
   }
-  .submit-status.error { color: var(--neon-pink); }
-  .submit-status.success { color: var(--neon-green); }
+  .submit-status.error { color: var(--danger); }
+  .submit-status.success { color: var(--accent); }
 
   @media (max-width: 640px), (hover: none) and (pointer: coarse) {
     .mobile-controls { display: block; }
     .container { gap: 16px; padding: 12px; }
-    .score-panel { padding: 12px 24px; gap: 20px; }
-    .score-value { font-size: 26px; }
-    .title { font-size: 24px; letter-spacing: 4px; }
+    .score-panel { padding: 10px 24px; gap: 24px; }
+    .score-value { font-size: 28px; }
+    .title { font-size: 22px; letter-spacing: 6px; }
     .hint { display: none; }
     body { cursor: auto; }
     .lb-modal { padding: 20px; }
-    .lb-modal-title { font-size: 20px; }
+    .lb-modal-title { font-size: 18px; }
   }
 </style>
 </head>
@@ -434,9 +363,6 @@
     <button class="btn lb-close" id="btnLbClose">关 闭</button>
   </div>
 </div>
-
-<!-- Starfield background -->
-<div class="starfield"><canvas id="stars"></canvas></div>
 
 <div class="container">
   <h1 class="title">贪 吃 蛇</h1>
@@ -474,48 +400,6 @@
 </div>
 
 <script>
-// ── Starfield Background ──────────────────────────────
-(function starfield() {
-  const canvas = document.getElementById('stars');
-  const ctx = canvas.getContext('2d');
-  let stars = [];
-  let w, h;
-
-  function resize() {
-    w = canvas.width = window.innerWidth;
-    h = canvas.height = window.innerHeight;
-  }
-  resize();
-  window.addEventListener('resize', resize);
-
-  for (let i = 0; i < 150; i++) {
-    stars.push({
-      x: Math.random() * 2000, y: Math.random() * 2000,
-      r: Math.random() * 1.5 + 0.3,
-      speed: Math.random() * 0.3 + 0.05,
-      opacity: Math.random() * 0.6 + 0.2,
-      twinkle: Math.random() * Math.PI * 2,
-      twinkleSpeed: Math.random() * 0.02 + 0.005,
-    });
-  }
-
-  function draw() {
-    ctx.clearRect(0, 0, w, h);
-    for (const s of stars) {
-      s.twinkle += s.twinkleSpeed;
-      const alpha = s.opacity + Math.sin(s.twinkle) * 0.2;
-      ctx.fillStyle = `rgba(180,200,255,${Math.max(0.05, alpha)})`;
-      ctx.beginPath();
-      ctx.arc(s.x % w, s.y % h, s.r, 0, Math.PI * 2);
-      ctx.fill();
-      s.y += s.speed;
-      if (s.y > h + 5) { s.y = -5; s.x = Math.random() * w; }
-    }
-    requestAnimationFrame(draw);
-  }
-  draw();
-})();
-
 // ── Leaderboard (Firebase + localStorage) ──────────────
 const FB_DB = 'https://snake-leaderboard-c6832-default-rtdb.firebaseio.com';
 const LB_KEY = 'snakeLeaderboard';
@@ -587,17 +471,16 @@ function mergeScoresFB(local, remote) {
   const btnLbClose = document.getElementById('btnLbClose');
 
   const GRID = 20;
-  const COLS = 20;
-  const ROWS = 20;
-  const SIZE = GRID * COLS; // 400px
+  const COLS = 25;
+  const ROWS = 25;
+  const SIZE = GRID * COLS; // 500px
 
   canvas.width = SIZE;
   canvas.height = SIZE;
 
   let snake, food, direction, nextDirection, score, highScore;
   let gameLoop, gameRunning, gameSpeed;
-  let particles = [];
-  let gridOffset = 0;
+  let obstacles = [];
 
   // Touch handling
   let touchStartX, touchStartY;
@@ -605,6 +488,44 @@ function mergeScoresFB(local, remote) {
   // Load high score
   highScore = parseInt(localStorage.getItem('snakeHighScore') || '0', 10);
   highScoreEl.textContent = highScore;
+
+  function generateObstacles() {
+    obstacles = [];
+    const occupied = new Set();
+    // Reserve area around snake start (center, 3-cell radius)
+    const cx = Math.floor(COLS / 2);
+    const cy = Math.floor(ROWS / 2);
+    for (let dx = -3; dx <= 3; dx++) {
+      for (let dy = -3; dy <= 3; dy++) {
+        occupied.add(`${cx + dx},${cy + dy}`);
+      }
+    }
+
+    const groups = 8;
+    for (let g = 0; g < groups; g++) {
+      const len = 2 + Math.floor(Math.random() * 3); // 2-4 cells
+      const horizontal = Math.random() < 0.5;
+      let placed = false;
+      for (let attempt = 0; attempt < 50 && !placed; attempt++) {
+        const sx = Math.floor(Math.random() * COLS);
+        const sy = Math.floor(Math.random() * ROWS);
+        const cells = [];
+        let valid = true;
+        for (let i = 0; i < len && valid; i++) {
+          const x = horizontal ? sx + i : sx;
+          const y = horizontal ? sy : sy + i;
+          if (x < 0 || x >= COLS || y < 0 || y >= ROWS) { valid = false; break; }
+          if (occupied.has(`${x},${y}`)) { valid = false; break; }
+          cells.push({ x, y });
+        }
+        if (valid && cells.length === len) {
+          for (const c of cells) occupied.add(`${c.x},${c.y}`);
+          obstacles.push(...cells);
+          placed = true;
+        }
+      }
+    }
+  }
 
   function init() {
     const cx = Math.floor(COLS / 2);
@@ -617,14 +538,17 @@ function mergeScoresFB(local, remote) {
     nextDirection = { x: 1, y: 0 };
     score = 0;
     gameSpeed = 130;
-    particles = [];
     scoreEl.textContent = '0';
     scoreEl.classList.remove('pop');
+    generateObstacles();
     spawnFood();
   }
 
   function spawnFood() {
-    const occupied = new Set(snake.map(s => `${s.x},${s.y}`));
+    const occupied = new Set([
+      ...snake.map(s => `${s.x},${s.y}`),
+      ...obstacles.map(o => `${o.x},${o.y}`),
+    ]);
     let pos;
     do {
       pos = { x: Math.floor(Math.random() * COLS), y: Math.floor(Math.random() * ROWS) };
@@ -632,56 +556,14 @@ function mergeScoresFB(local, remote) {
     food = pos;
   }
 
-  function spawnParticles(x, y) {
-    const colors = ['#39ff14', '#00e5ff', '#ffe600', '#ff2d95', '#ffffff'];
-    for (let i = 0; i < 12; i++) {
-      const angle = (Math.PI * 2 / 12) * i + Math.random() * 0.3;
-      const speed = 1.5 + Math.random() * 4;
-      particles.push({
-        x: x * GRID + GRID / 2, y: y * GRID + GRID / 2,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        life: 1,
-        decay: 0.015 + Math.random() * 0.03,
-        color: colors[Math.floor(Math.random() * colors.length)],
-        r: 1.5 + Math.random() * 2.5,
-      });
-    }
-  }
-
-  function updateParticles() {
-    for (let i = particles.length - 1; i >= 0; i--) {
-      const p = particles[i];
-      p.x += p.vx;
-      p.y += p.vy;
-      p.life -= p.decay;
-      if (p.life <= 0) particles.splice(i, 1);
-    }
-  }
-
-  function drawParticles(ctx) {
-    for (const p of particles) {
-      ctx.save();
-      ctx.globalAlpha = p.life;
-      ctx.fillStyle = p.color;
-      ctx.shadowColor = p.color;
-      ctx.shadowBlur = 6 * p.life;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    }
-  }
-
   function draw() {
-    // Grid background with subtle animation
-    ctx.fillStyle = '#0d0d24';
+    // Background
+    ctx.fillStyle = '#16161c';
     ctx.fillRect(0, 0, SIZE, SIZE);
 
-    // Grid lines
-    gridOffset = (gridOffset + 0.15) % GRID;
-    ctx.strokeStyle = 'rgba(57, 255, 20, 0.04)';
-    ctx.lineWidth = 1;
+    // Subtle grid
+    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+    ctx.lineWidth = 0.5;
     for (let x = 0; x <= COLS; x++) {
       const px = x * GRID;
       ctx.beginPath();
@@ -697,32 +579,26 @@ function mergeScoresFB(local, remote) {
       ctx.stroke();
     }
 
-    // Food with glow pulse
-    const pulse = 1 + Math.sin(Date.now() * 0.006) * 0.3;
+    // Obstacles
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    for (const ob of obstacles) {
+      ctx.beginPath();
+      ctx.roundRect(ob.x * GRID + 2, ob.y * GRID + 2, GRID - 4, GRID - 4, 4);
+      ctx.fill();
+    }
+
+    // Food — golden diamond
     const fx = food.x * GRID + GRID / 2;
     const fy = food.y * GRID + GRID / 2;
-
-    // Outer glow
-    const glowGrad = ctx.createRadialGradient(fx, fy, 2, fx, fy, 18 * pulse);
-    glowGrad.addColorStop(0, 'rgba(255, 45, 149, 0.6)');
-    glowGrad.addColorStop(1, 'rgba(255, 45, 149, 0)');
-    ctx.fillStyle = glowGrad;
+    const fs = 6;
+    ctx.fillStyle = '#c9a96e';
     ctx.beginPath();
-    ctx.arc(fx, fy, 18 * pulse, 0, Math.PI * 2);
+    ctx.moveTo(fx, fy - fs);
+    ctx.lineTo(fx + fs, fy);
+    ctx.lineTo(fx, fy + fs);
+    ctx.lineTo(fx - fs, fy);
+    ctx.closePath();
     ctx.fill();
-
-    // Food body
-    const foodGrad = ctx.createRadialGradient(fx - 2, fy - 2, 1, fx, fy, 8);
-    foodGrad.addColorStop(0, '#ff6bb5');
-    foodGrad.addColorStop(0.7, '#ff2d95');
-    foodGrad.addColorStop(1, '#b8005c');
-    ctx.fillStyle = foodGrad;
-    ctx.shadowColor = 'rgba(255, 45, 149, 0.8)';
-    ctx.shadowBlur = 10;
-    ctx.beginPath();
-    ctx.arc(fx, fy, 7, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.shadowBlur = 0;
 
     // Snake
     for (let i = snake.length - 1; i >= 0; i--) {
@@ -730,73 +606,46 @@ function mergeScoresFB(local, remote) {
       const sx = seg.x * GRID, sy = seg.y * GRID;
       const t = i / Math.max(snake.length - 1, 1);
 
-      // Segment size - head bigger, tail smaller
-      const pad = i === 0 ? 1 : 2 + t * 2;
-      const radius = i === 0 ? 8 : 6 - t * 2;
+      const pad = i === 0 ? 1.5 : 2 + t * 1.5;
+      const radius = i === 0 ? 7 : 5 - t * 2;
 
-      // Color gradient from head (bright neon) to tail (dimmer)
-      const r = Math.round(57 - t * 40);
-      const g = Math.round(255 - t * 100);
-      const b = Math.round(20 + t * 40);
-      const alpha = 1 - t * 0.35;
-
-      // Glow on head
-      if (i === 0) {
-        ctx.fillStyle = 'rgba(57, 255, 20, 0.3)';
-        ctx.beginPath();
-        ctx.arc(sx + GRID / 2, sy + GRID / 2, 14, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // Body gradient
-      const segGrad = ctx.createLinearGradient(sx, sy, sx + GRID, sy + GRID);
-      segGrad.addColorStop(0, `rgba(${r + 30},${g + 20},${b},${alpha})`);
-      segGrad.addColorStop(1, `rgba(${r},${g},${b},${alpha})`);
-      ctx.fillStyle = segGrad;
-
-      ctx.shadowColor = i === 0
-        ? 'rgba(57, 255, 20, 0.9)'
-        : 'rgba(57, 255, 20, 0.2)';
-      ctx.shadowBlur = i === 0 ? 12 : 3;
+      // Head brighter gold, tail fades darker
+      const lightness = 68 - t * 28;
+      ctx.fillStyle = `hsl(40, 40%, ${lightness}%)`;
 
       ctx.beginPath();
       ctx.roundRect(sx + pad, sy + pad, GRID - pad * 2, GRID - pad * 2, radius);
       ctx.fill();
     }
-    ctx.shadowBlur = 0;
 
     // Eyes on head
     const head = snake[0];
     const hx = head.x * GRID, hy = head.y * GRID;
     let eye1, eye2;
     if (direction.x === 1) {
-      eye1 = { x: hx + 14, y: hy + 6 };
-      eye2 = { x: hx + 14, y: hy + 14 };
+      eye1 = { x: hx + 13, y: hy + 5 };
+      eye2 = { x: hx + 13, y: hy + 15 };
     } else if (direction.x === -1) {
-      eye1 = { x: hx + 6, y: hy + 6 };
-      eye2 = { x: hx + 6, y: hy + 14 };
+      eye1 = { x: hx + 7, y: hy + 5 };
+      eye2 = { x: hx + 7, y: hy + 15 };
     } else if (direction.y === -1) {
-      eye1 = { x: hx + 6, y: hy + 6 };
-      eye2 = { x: hx + 14, y: hy + 6 };
+      eye1 = { x: hx + 5, y: hy + 7 };
+      eye2 = { x: hx + 15, y: hy + 7 };
     } else {
-      eye1 = { x: hx + 6, y: hy + 14 };
-      eye2 = { x: hx + 14, y: hy + 14 };
+      eye1 = { x: hx + 5, y: hy + 13 };
+      eye2 = { x: hx + 15, y: hy + 13 };
     }
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = '#1a1a1e';
     [eye1, eye2].forEach(e => {
       ctx.beginPath();
-      ctx.arc(e.x, e.y, 3, 0, Math.PI * 2);
+      ctx.arc(e.x, e.y, 3.5, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#0a0a20';
+      ctx.fillStyle = '#e8e4df';
       ctx.beginPath();
-      ctx.arc(e.x + direction.x, e.y + direction.y, 1.5, 0, Math.PI * 2);
+      ctx.arc(e.x + direction.x * 0.5, e.y + direction.y * 0.5, 1.2, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = '#1a1a1e';
     });
-
-    // Particles
-    drawParticles(ctx);
-    updateParticles();
   }
 
   function step() {
@@ -807,6 +656,11 @@ function mergeScoresFB(local, remote) {
     // Wall collision
     if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS) {
       return gameOver();
+    }
+
+    // Obstacle collision
+    for (const ob of obstacles) {
+      if (ob.x === head.x && ob.y === head.y) return gameOver();
     }
 
     // Self collision
@@ -822,7 +676,6 @@ function mergeScoresFB(local, remote) {
       scoreEl.classList.remove('pop');
       void scoreEl.offsetWidth;
       scoreEl.classList.add('pop');
-      spawnParticles(food.x, food.y);
       spawnFood();
       // Speed up
       gameSpeed = Math.max(50, 130 - Math.floor(score / 50) * 6);
@@ -887,14 +740,16 @@ function mergeScoresFB(local, remote) {
       setTimeout(() => nameInput.focus(), 100);
     }
 
-    // Flash the snake red
+    // Flash the game wrapper
     let flashes = 0;
     const flashInterval = setInterval(() => {
-      canvas.style.filter = flashes % 2 === 0 ? 'brightness(1.3) hue-rotate(290deg)' : 'none';
+      wrapper.style.boxShadow = flashes % 2 === 0
+        ? '0 0 0 1px rgba(201,81,74,0.4), 0 12px 48px rgba(0,0,0,0.5)'
+        : '0 0 0 1px rgba(255,255,255,0.06), 0 12px 48px rgba(0,0,0,0.5)';
       flashes++;
       if (flashes >= 6) {
         clearInterval(flashInterval);
-        canvas.style.filter = 'none';
+        wrapper.style.boxShadow = '0 0 0 1px rgba(255,255,255,0.06), 0 12px 48px rgba(0,0,0,0.5)';
       }
     }, 120);
   }
@@ -909,7 +764,6 @@ function mergeScoresFB(local, remote) {
     gameRunning = true;
     wrapper.classList.remove('game-over-glow');
     overlay.classList.remove('active');
-    canvas.style.filter = 'none';
     clearInterval(gameLoop);
     gameLoop = setInterval(tick, gameSpeed);
     draw();
