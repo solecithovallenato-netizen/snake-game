@@ -720,7 +720,7 @@
 <!-- History modal -->
 <div class="history-modal-bg" id="historyModalBg">
   <div class="history-modal">
-    <div class="history-modal-title">历史战绩</div>
+    <div class="history-modal-title" id="historyModalTitle">个人信息</div>
     <div id="historyContent"><div class="lb-loading">加载中...</div></div>
     <button class="btn lb-close" id="btnHistoryClose">关 闭</button>
   </div>
@@ -1917,6 +1917,7 @@ function mergeScoresFB(local, remote) {
 
   async function renderHistory() {
     const content = document.getElementById('historyContent');
+    const title = document.getElementById('historyModalTitle');
     content.innerHTML = '<div class="lb-loading">加载中...</div>';
 
     const platform = getAuthPlatform();
@@ -1925,14 +1926,14 @@ function mergeScoresFB(local, remote) {
     const qqInfo = getQQInfo();
     const list = gameHistory();
 
-    // Fetch friend data and scores in parallel
+    title.textContent = '个人信息';
+
     const [friends, requests, remote] = await Promise.all([
       getMyFriends(),
       getMyRequests(),
       fetchFirebase(),
     ]);
 
-    // Build friend score map
     const scoreMap = {};
     if (remote) {
       for (const s of remote) {
@@ -1941,16 +1942,21 @@ function mergeScoresFB(local, remote) {
       }
     }
 
-    // ── Header: avatar + name + ID ──
+    // ── Header card ──
     const avatarHtml = qqInfo && qqInfo.avatar
-      ? `<img src="${qqInfo.avatar}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;" alt="">`
-      : `<span style="font-size:18px;">${name.charAt(0).toUpperCase()}</span>`;
+      ? `<img src="${qqInfo.avatar}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;" alt="">`
+      : `<span style="font-size:20px;">${name.charAt(0).toUpperCase()}</span>`;
+
+    const idHtml = myId
+      ? `<div style="margin-top:4px;"><span style="font-family:SF Mono,Cascadia Code,Consolas,monospace;font-size:20px;font-weight:500;color:var(--gold);letter-spacing:2px;">${myId}</span></div>`
+      : '<div style="margin-top:4px;font-size:11px;color:var(--text-dim);">获取 ID 中...</div>';
 
     let headerSection = `
-      <div style="text-align:center;margin-bottom:12px;">
-        <div class="player-avatar" style="width:48px;height:48px;margin:0 auto 6px;display:flex;justify-content:center;align-items:center;">${avatarHtml}</div>
+      <div style="background:rgba(255,255,255,0.02);border-radius:14px;padding:16px;text-align:center;margin-bottom:14px;">
+        <div style="width:52px;height:52px;margin:0 auto 8px;border-radius:50%;overflow:hidden;display:flex;justify-content:center;align-items:center;background:var(--accent-dim);">${avatarHtml}</div>
         <div style="font-size:16px;color:var(--text);font-weight:400;">${escapeHtml(name)}</div>
-        ${myId ? `<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">ID ${myId}</div>` : ''}
+        ${idHtml}
+        <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">${platform === 'qq' ? 'QQ 登录' : '游客'}</div>
       </div>`;
 
     // ── Friend requests ──
@@ -1973,15 +1979,19 @@ function mergeScoresFB(local, remote) {
     if (friends.length > 0) {
       friendSection = `<div class="friend-list-title">好友 (${friends.length})</div>`
         + friends.map(f => {
-          const fs = scoreMap[f.name] || '-';
+          const fs = scoreMap[f.name];
           return `<div class="friend-row">
             <div class="friend-row-avatar">${f.avatar ? `<img src="${f.avatar}" alt="">` : f.name.charAt(0).toUpperCase()}</div>
             <span class="friend-row-name">${escapeHtml(f.name)}</span>
-            <span class="friend-row-score">${fs}</span>
+            <span class="friend-row-score">${fs !== undefined ? fs : '-'}</span>
           </div>`;
         }).join('');
     } else if (myId) {
-      friendSection = '<div class="friend-empty" style="margin-bottom:12px;">还没有好友<br>去排行榜添加吧</div>';
+      friendSection = `
+        <div style="text-align:center;padding:12px;background:rgba(255,255,255,0.02);border-radius:12px;margin-bottom:14px;">
+          <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px;">还没有好友</div>
+          <button class="add-friend-btn" id="btnAddFriendInline">+ 添加好友</button>
+        </div>`;
     }
 
     // ── Game history ──
@@ -2003,22 +2013,24 @@ function mergeScoresFB(local, remote) {
       }).join('');
 
       statsSection = `
-        <div class="history-stats">
-          <div class="history-stat">
-            <div class="history-stat-val">${total}</div>
-            <div class="history-stat-label">总局数</div>
+        <div style="border-top:1px solid rgba(255,255,255,0.04);padding-top:12px;margin-top:4px;">
+          <div class="history-stats">
+            <div class="history-stat">
+              <div class="history-stat-val">${total}</div>
+              <div class="history-stat-label">总局数</div>
+            </div>
+            <div class="history-stat">
+              <div class="history-stat-val">${best}</div>
+              <div class="history-stat-label">最高分</div>
+            </div>
+            <div class="history-stat">
+              <div class="history-stat-val">${avg}</div>
+              <div class="history-stat-label">均分</div>
+            </div>
           </div>
-          <div class="history-stat">
-            <div class="history-stat-val">${best}</div>
-            <div class="history-stat-label">最高分</div>
-          </div>
-          <div class="history-stat">
-            <div class="history-stat-val">${avg}</div>
-            <div class="history-stat-label">均分</div>
-          </div>
-        </div>
-        <div class="history-list-title">最近 10 局</div>
-        ${rows}`;
+          <div class="history-list-title">最近 10 局</div>
+          ${rows}
+        </div>`;
     }
 
     const bindRow = platform === 'guest'
@@ -2032,6 +2044,18 @@ function mergeScoresFB(local, remote) {
       ${bindRow}
       ${statsSection}
     `;
+
+    // Inline add friend button
+    const btnInline = document.getElementById('btnAddFriendInline');
+    if (btnInline) {
+      btnInline.addEventListener('click', () => {
+        document.getElementById('historyModalBg').classList.remove('active');
+        document.getElementById('addFriendBg').classList.add('active');
+        document.getElementById('friendSearch').value = '';
+        document.getElementById('searchHints').innerHTML = '';
+        setTimeout(() => document.getElementById('friendSearch').focus(), 100);
+      });
+    }
 
     // Accept/reject handlers
     content.querySelectorAll('.request-accept').forEach(btn => {
