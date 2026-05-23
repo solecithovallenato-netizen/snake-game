@@ -356,6 +356,25 @@
   }
   .name-input::placeholder { color: var(--text-dim); }
 
+  .welcome-text {
+    font-size: 15px; font-weight: 300;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+  }
+  .welcome-text span {
+    color: var(--accent);
+    font-weight: 400;
+  }
+  .name-change-link {
+    font-size: 10px; color: var(--text-dim);
+    letter-spacing: 2px;
+    background: none; border: none;
+    cursor: pointer;
+    margin-top: -10px; margin-bottom: 4px;
+    transition: color 0.2s;
+  }
+  .name-change-link:hover { color: var(--accent); }
+
   .submit-status {
     font-size: 12px;
     min-height: 18px;
@@ -412,11 +431,7 @@
 
   <div class="game-wrapper" id="gameWrapper">
     <canvas id="gameCanvas"></canvas>
-    <div class="overlay active" id="overlay">
-      <div class="overlay-title">贪 吃 蛇</div>
-      <button class="btn" id="btnStart">开始游戏</button>
-      <p class="hint">方向键 / WASD 操控</p>
-    </div>
+    <div class="overlay active" id="overlay"></div>
   </div>
 
   <div class="mobile-controls">
@@ -601,7 +616,6 @@ function mergeScoresFB(local, remote) {
   const ctx = canvas.getContext('2d');
   const wrapper = document.getElementById('gameWrapper');
   const overlay = document.getElementById('overlay');
-  const btnStart = document.getElementById('btnStart');
   const scoreEl = document.getElementById('score');
   const highScoreEl = document.getElementById('highScore');
   const btnLeaderboard = document.getElementById('btnLeaderboard');
@@ -965,55 +979,26 @@ function mergeScoresFB(local, remote) {
       highScoreEl.textContent = highScore;
     }
 
-    const savedName = localStorage.getItem('snakePlayerName') || '';
+    // Auto-submit with saved name
+    const savedName = localStorage.getItem('snakePlayerName') || 'Player';
+    (async () => {
+      const localRank = addToLocal(savedName, score);
+      const ok = await submitToFirebase(savedName, score);
+      if (ok) saveDisplayName(savedName);
+      else addPending(savedName, score);
+    })();
 
-    // Update overlay content with name input
     overlay.innerHTML = `
       <div class="overlay-title">游戏结束</div>
       <div class="overlay-score">得分 <span>${score}</span></div>
-      <input class="name-input" id="nameInput" type="text" maxlength="20" placeholder="输入昵称" value="${savedName}" autocomplete="off">
-      <div class="submit-status" id="submitStatus"></div>
-      <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
-        <button class="btn" id="btnSubmit">提交分数</button>
-        <button class="btn" id="btnRestart">再来一局</button>
-      </div>
+      <div class="welcome-text"><span>${escapeHtml(savedName)}</span></div>
+      <button class="name-change-link" id="btnChangeName">改名</button>
+      <button class="btn" id="btnRestart">再来一局</button>
     `;
     overlay.classList.add('active');
 
-    const nameInput = document.getElementById('nameInput');
-    const submitStatus = document.getElementById('submitStatus');
-
     document.getElementById('btnRestart').addEventListener('click', startGame);
-
-    document.getElementById('btnSubmit').addEventListener('click', async () => {
-      const name = nameInput.value.trim() || 'Player';
-      localStorage.setItem('snakePlayerName', name);
-      submitStatus.textContent = '提交中...';
-      submitStatus.className = 'submit-status';
-
-      const localRank = addToLocal(name, score);
-      const ok = await submitToFirebase(name, score);
-
-      if (ok) {
-        saveDisplayName(name);
-        submitStatus.textContent = '提交成功！全局排名已同步';
-        submitStatus.className = 'submit-status success';
-        document.getElementById('btnSubmit').disabled = true;
-      } else {
-        addPending(name, score);
-        submitStatus.textContent = '服务器无响应，已暂存本地，打开排行榜自动重试';
-        submitStatus.className = 'submit-status error';
-        // Allow retry
-        const btnSubmit = document.getElementById('btnSubmit');
-        btnSubmit.textContent = '重试提交';
-        btnSubmit.disabled = false;
-      }
-    });
-
-    // Auto-focus name input on desktop
-    if (window.innerWidth > 640) {
-      setTimeout(() => nameInput.focus(), 100);
-    }
+    document.getElementById('btnChangeName').addEventListener('click', showNamePrompt);
 
     // Flash the game wrapper
     let flashes = 0;
@@ -1027,6 +1012,70 @@ function mergeScoresFB(local, remote) {
         wrapper.style.boxShadow = '0 0 0 1px rgba(255,255,255,0.06), 0 12px 48px rgba(0,0,0,0.5)';
       }
     }, 120);
+  }
+
+  function showNamePrompt() {
+    const savedName = localStorage.getItem('snakePlayerName') || '';
+    overlay.innerHTML = `
+      <div class="overlay-title">你的名字</div>
+      <input class="name-input" id="nameInput" type="text" maxlength="20" placeholder="输入昵称" value="${savedName}" autocomplete="off">
+      <p class="hint">2-20 个字符</p>
+      <button class="btn" id="btnSaveName">确 认</button>
+    `;
+    overlay.classList.add('active');
+
+    const nameInput = document.getElementById('nameInput');
+    setTimeout(() => nameInput.focus(), 100);
+
+    document.getElementById('btnSaveName').addEventListener('click', () => {
+      const name = nameInput.value.trim().slice(0, 20) || 'Player';
+      localStorage.setItem('snakePlayerName', name);
+      saveDisplayName(name);
+      showStartScreen();
+    });
+
+    nameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('btnSaveName').click();
+    });
+  }
+
+  function showStartScreen() {
+    const savedName = localStorage.getItem('snakePlayerName');
+    if (savedName) {
+      overlay.innerHTML = `
+        <div class="overlay-title">贪 吃 蛇</div>
+        <div class="welcome-text"><span>${escapeHtml(savedName)}</span></div>
+        <button class="name-change-link" id="btnChangeName">改名</button>
+        <button class="btn" id="btnStart">开始游戏</button>
+        <p class="hint">方向键 / WASD 操控</p>
+      `;
+      overlay.classList.add('active');
+      document.getElementById('btnStart').addEventListener('click', startGame);
+      document.getElementById('btnChangeName').addEventListener('click', showNamePrompt);
+    } else {
+      overlay.innerHTML = `
+        <div class="overlay-title">贪 吃 蛇</div>
+        <input class="name-input" id="nameInput" type="text" maxlength="20" placeholder="输入你的名字" autocomplete="off">
+        <p class="hint">2-20 个字符</p>
+        <button class="btn" id="btnSaveName">开始游戏</button>
+      `;
+      overlay.classList.add('active');
+
+      const nameInput = document.getElementById('nameInput');
+      setTimeout(() => nameInput.focus(), 100);
+
+      const doSave = () => {
+        const name = nameInput.value.trim().slice(0, 20) || 'Player';
+        localStorage.setItem('snakePlayerName', name);
+        saveDisplayName(name);
+        startGame();
+      };
+
+      document.getElementById('btnSaveName').addEventListener('click', doSave);
+      nameInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') doSave();
+      });
+    }
   }
 
   function tick() {
@@ -1198,8 +1247,8 @@ function mergeScoresFB(local, remote) {
   // Pre-init auth (non-blocking)
   getAuthToken();
 
-  // Start button
-  btnStart.addEventListener('click', startGame);
+  // Show start screen (handles name flow)
+  showStartScreen();
 
   // Draw initial state
   draw();
