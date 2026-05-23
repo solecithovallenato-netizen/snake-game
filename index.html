@@ -1023,6 +1023,7 @@ async function ensureUserId() {
       if (typeof val === 'number') nextId = val;
     } else {
       lastError = '读取ID计数器失败 (HTTP ' + res.status + ')';
+      return null;
     }
 
     // Write reverse index
@@ -1035,6 +1036,7 @@ async function ensureUserId() {
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
       lastError = '写入用户索引失败 (HTTP ' + res.status + '): ' + errText.slice(0, 100);
+      return null;
     }
 
     // Increment counter
@@ -1047,6 +1049,7 @@ async function ensureUserId() {
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
       lastError = '更新计数器失败 (HTTP ' + res.status + '): ' + errText.slice(0, 100);
+      return null;
     }
 
     const userId = String(nextId).padStart(6, '0');
@@ -2144,7 +2147,18 @@ function mergeScoresFB(local, remote) {
   async function showHistory() {
     const modal = document.getElementById('historyModalBg');
     modal.classList.add('active');
-    if (!getMyUserId()) await ensureUserId();
+    const myId = getMyUserId();
+    if (myId) {
+      // Verify stored ID actually exists in Firebase
+      const lookup = await lookupByUserId(myId);
+      if (!lookup || !lookup.uid) {
+        // Stale ID from a failed write — clear it
+        localStorage.removeItem(USER_ID_KEY);
+        await ensureUserId();
+      }
+    } else {
+      await ensureUserId();
+    }
     renderHistory();
   }
 
