@@ -398,10 +398,30 @@
     .countdown-number { font-size: 64px; }
     .countdown-go { font-size: 48px; }
     .btn { padding: 11px 28px; font-size: 12px; letter-spacing: 3px; }
+    .qq-login-btn { padding: 12px 36px; font-size: 14px; }
     .lb-btn { font-size: 10px; padding: 7px 16px; }
     .player-bar { top: 8px; right: 8px; }
     .history-modal { padding: 20px; max-height: 70vh; }
     .history-modal-title { font-size: 18px; }
+  }
+
+  .qq-login-btn {
+    background: linear-gradient(135deg, #12b7f5, #0d8bcc);
+    border-color: rgba(18, 183, 245, 0.3);
+    color: #fff;
+  }
+  .qq-login-btn:hover {
+    border-color: #12b7f5;
+    box-shadow: 0 0 24px rgba(18, 183, 245, 0.2);
+    color: #fff;
+  }
+  .guest-btn {
+    border: 1px solid rgba(255,255,255,0.08);
+    color: var(--text-dim);
+  }
+  .guest-btn:hover {
+    border-color: rgba(255,255,255,0.2);
+    color: var(--text);
   }
 
   /* Player bar */
@@ -1304,7 +1324,21 @@ function mergeScoresFB(local, remote) {
   function showStartScreen() {
     updatePlayerBar();
     const savedName = localStorage.getItem('snakePlayerName');
-    if (savedName) {
+    const platform = getAuthPlatform();
+
+    if (platform === 'qq') {
+      overlay.innerHTML = `
+        <div class="overlay-title">贪 吃 蛇</div>
+        <div class="welcome-text"><span>${escapeHtml(savedName)}</span></div>
+        <button class="btn" id="btnStart">开始游戏</button>
+        <p class="hint">方向键 / WASD 操控</p>
+      `;
+      overlay.classList.add('active');
+      document.getElementById('btnStart').addEventListener('click', startGame);
+      return;
+    }
+
+    if (savedName && platform === 'guest') {
       overlay.innerHTML = `
         <div class="overlay-title">贪 吃 蛇</div>
         <div class="welcome-text"><span>${escapeHtml(savedName)}</span></div>
@@ -1315,7 +1349,34 @@ function mergeScoresFB(local, remote) {
       overlay.classList.add('active');
       document.getElementById('btnStart').addEventListener('click', startGame);
       document.getElementById('btnChangeName').addEventListener('click', showNamePrompt);
-    } else {
+      return;
+    }
+
+    // New user — show QQ + guest options
+    overlay.innerHTML = `
+      <div class="overlay-title">贪 吃 蛇</div>
+      <button class="btn qq-login-btn" id="btnQQLogin">QQ 登录</button>
+      <button class="btn guest-btn" id="btnGuestLogin">游客登录</button>
+      <p class="hint">QQ 登录可跨设备同步数据</p>
+    `;
+    overlay.classList.add('active');
+
+    document.getElementById('btnQQLogin').addEventListener('click', async () => {
+      overlay.innerHTML = '<div class="overlay-title">登录中...</div>';
+      const ok = await qqLogin();
+      if (!ok) {
+        showStartScreen();
+        return;
+      }
+      const hist = gameHistory();
+      if (hist.length > 0) {
+        showMergePrompt();
+      } else {
+        showStartScreen();
+      }
+    });
+
+    document.getElementById('btnGuestLogin').addEventListener('click', () => {
       overlay.innerHTML = `
         <div class="overlay-title">贪 吃 蛇</div>
         <input class="name-input" id="nameInput" type="text" maxlength="20" placeholder="输入你的名字" autocomplete="off">
@@ -1339,7 +1400,7 @@ function mergeScoresFB(local, remote) {
       nameInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') doSave();
       });
-    }
+    });
   }
 
   // ── History & Player Bar ─────────────────────────────
