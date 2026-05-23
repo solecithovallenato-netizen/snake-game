@@ -516,31 +516,60 @@
   draw();
 })();
 
-// ── Leaderboard (localStorage) ─────────────────────────
+// ── Leaderboard (Firebase + localStorage) ──────────────
+const FB_DB = 'https://snake-leaderboard-c6832-default-rtdb.firebaseio.com';
 const LB_KEY = 'snakeLeaderboard';
 const LB_MAX = 50;
 
-function loadScores() {
+function localScores() {
   try { return JSON.parse(localStorage.getItem(LB_KEY) || '[]'); }
   catch (e) { return []; }
 }
 
-function saveScores(scores) {
+function saveLocal(scores) {
   try { localStorage.setItem(LB_KEY, JSON.stringify(scores)); }
   catch (e) { /* quota exceeded */ }
 }
 
-function submitScore(name, score) {
-  const scores = loadScores();
-  scores.push({ name: String(name).trim().slice(0, 20) || 'Player', score: Math.floor(score), time: Date.now() });
-  scores.sort((a, b) => b.score - a.score);
-  if (scores.length > LB_MAX) scores.length = LB_MAX;
-  saveScores(scores);
-  return scores.findIndex(e => e.score === Math.floor(score)) + 1;
+function addToLocal(name, score) {
+  const list = localScores();
+  list.push({ name: String(name).trim().slice(0, 20) || 'Player', score: Math.floor(score), time: Date.now() });
+  list.sort((a, b) => b.score - a.score);
+  if (list.length > LB_MAX) list.length = LB_MAX;
+  saveLocal(list);
+  return list.findIndex(e => e.score === Math.floor(score)) + 1;
 }
 
-function getLeaderboard() {
-  return loadScores().slice(0, 10);
+async function fetchFirebase() {
+  try {
+    const res = await fetch(`${FB_DB}/scores.json?orderBy=%22score%22&limitToLast=50`, { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) throw new Error('fail');
+    const obj = await res.json();
+    if (!obj) return [];
+    return Object.values(obj).sort((a, b) => b.score - a.score);
+  } catch (e) { return null; }
+}
+
+async function submitToFirebase(name, score) {
+  try {
+    const res = await fetch(`${FB_DB}/scores.json`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: String(name).trim().slice(0, 20) || 'Player', score: Math.floor(score), time: Date.now() }),
+      signal: AbortSignal.timeout(5000),
+    });
+    return res.ok;
+  } catch (e) { return false; }
+}
+
+function mergeScoresFB(local, remote) {
+  const map = new Map();
+  for (const e of local) map.set(`${e.name}__${e.score}`, e);
+  for (const e of remote) {
+    const k = `${e.name}__${e.score}`;
+    if (!map.has(k) || e.time > map.get(k).time) map.set(k, e);
+  }
+  return [...map.values()].sort((a, b) => b.score - a.score).slice(0, 10);
 }
 
 // ── Snake Game ────────────────────────────────────────
@@ -835,11 +864,20 @@ function getLeaderboard() {
 
     document.getElementById('btnRestart').addEventListener('click', startGame);
 
-    document.getElementById('btnSubmit').addEventListener('click', () => {
+    document.getElementById('btnSubmit').addEventListener('click', async () => {
       const name = nameInput.value.trim() || 'Player';
       localStorage.setItem('snakePlayerName', name);
-      const rank = submitScore(name, score);
-      submitStatus.textContent = `提交成功！排名第 ${rank} 名`;
+      submitStatus.textContent = '提交中...';
+      submitStatus.className = 'submit-status';
+
+      const localRank = addToLocal(name, score);
+      const ok = await submitToFirebase(name, score);
+
+      if (ok) {
+        submitStatus.textContent = `提交成功！全局排名已同步`;
+      } else {
+        submitStatus.textContent = `已保存！本地排名第 ${localRank} 名（联网后同步）`;
+      }
       submitStatus.className = 'submit-status success';
       document.getElementById('btnSubmit').disabled = true;
     });
@@ -980,15 +1018,24 @@ function getLeaderboard() {
   wrapper.addEventListener('wheel', e => e.preventDefault(), { passive: false });
 
   // ── Leaderboard Modal ───────────────────────────────
-  function renderLeaderboard() {
-    const data = getLeaderboard();
+  async function renderLeaderboard() {
+    lbContent.innerHTML = '<div class="lb-loading">加载中...</div>';
+
+    const local = localScores();
+    const remote = await fetchFirebase();
+    const data = mergeScoresFB(local, remote || []);
 
     if (data.length === 0) {
       lbContent.innerHTML = '<div class="lb-empty">还没有记录<br>快来拿下第一名吧！</div>';
       return;
     }
 
-    lbContent.innerHTML = data.map((entry, i) => {
+    let hint = '';
+    if (!remote) {
+      hint = '<div style="text-align:center;font-size:11px;color:var(--text-dim);margin-bottom:12px;">（显示本地记录，联网后可同步全局排行）</div>';
+    }
+
+    lbContent.innerHTML = hint + data.map((entry, i) => {
       let topClass = '';
       let rankIcon = String(i + 1);
       if (i === 0) { topClass = 'top1'; rankIcon = '👑'; }
