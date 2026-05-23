@@ -26,7 +26,7 @@
       repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(255,255,255,0.008) 40px, rgba(255,255,255,0.008) 41px);
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
     min-height: 100vh;
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
     overflow-x: hidden; overflow-y: auto;
@@ -34,61 +34,75 @@
     -webkit-user-select: none;
     -webkit-tap-highlight-color: transparent;
     cursor: default;
+    padding: 32px 24px;
   }
 
+  /* ── Lobby Layout ── */
+  .lobby {
+    display: flex; gap: 28px;
+    width: 100%; max-width: 1100px;
+    align-items: flex-start;
+  }
+  .lobby-left {
+    flex: 0 0 55%;
+    display: flex; flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+  }
+  .lobby-right {
+    flex: 0 0 45%;
+    min-width: 300px;
+    position: sticky; top: 32px;
+  }
+
+  .lobby-title {
+    font-size: clamp(20px, 3vw, 28px);
+    font-weight: 300;
+    letter-spacing: 8px;
+    color: var(--text);
+    text-align: left;
+  }
+
+  /* ── Player Card ── */
+  .player-card {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--surface);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: var(--radius);
+    padding: 10px 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+  }
+  .player-card:hover {
+    border-color: rgba(255,255,255,0.1);
+    box-shadow: 0 2px 16px rgba(0,0,0,0.2);
+  }
+  .player-info {
+    display: flex; flex-direction: column;
+  }
+  .player-name {
+    font-size: 14px; font-weight: 500;
+    color: var(--text);
+    letter-spacing: 1px;
+  }
+  .player-id {
+    font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
+    font-size: 12px; color: var(--gold);
+    letter-spacing: 1px;
+  }
+  .player-platform {
+    font-size: 10px; color: var(--text-dim);
+    letter-spacing: 1px;
+  }
+
+  /* ── Game Wrapper ── */
   .game-wrapper { cursor: none; }
   .game-wrapper .overlay.active { cursor: default; }
   .game-wrapper .overlay.active .btn { cursor: pointer; }
   .game-wrapper .overlay.active .name-input { cursor: text; }
-  .btn, .lb-btn, .dpad-btn, .name-input, .lb-close { cursor: pointer; }
-
-  .container {
-    position: relative; z-index: 1;
-    display: flex; flex-direction: column; align-items: center;
-    gap: 24px;
-  }
-
-  .title {
-    font-size: clamp(28px, 5vw, 46px);
-    font-weight: 300;
-    letter-spacing: 10px;
-    color: var(--text);
-  }
-
-  .score-panel {
-    display: flex; gap: 40px;
-    background: var(--surface);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: var(--radius);
-    padding: 14px 36px;
-    box-shadow: 0 2px 24px rgba(0,0,0,0.3);
-  }
-  .score-item {
-    display: flex; flex-direction: column; align-items: center;
-    gap: 2px;
-  }
-  .score-label {
-    font-size: 10px; font-weight: 500;
-    letter-spacing: 4px;
-    color: var(--text-dim);
-    text-transform: uppercase;
-  }
-  .score-value {
-    font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
-    font-size: 34px; font-weight: 500;
-    color: var(--text);
-    min-width: 60px; text-align: center;
-    transition: all 0.15s ease;
-  }
-  .score-value.pop { animation: scorePop 0.3s ease-out; }
-  @keyframes scorePop {
-    0% { transform: scale(1); }
-    40% { transform: scale(1.3); }
-    100% { transform: scale(1); }
-  }
-  .score-value.high { color: var(--gold); }
+  .btn, .dpad-btn, .name-input { cursor: pointer; }
 
   .game-wrapper {
     position: relative;
@@ -111,6 +125,64 @@
     box-shadow: 0 0 0 1px rgba(201,81,74,0.3), 0 12px 48px rgba(0,0,0,0.5);
   }
   .game-wrapper.game-over-glow::before { opacity: 0; }
+
+  /* ── Score Items ── */
+  .score-item {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 2px;
+  }
+  .score-label {
+    font-size: 10px; font-weight: 500;
+    letter-spacing: 3px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+  .score-value {
+    font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
+    font-size: 28px; font-weight: 500;
+    color: var(--text);
+    min-width: 60px; text-align: center;
+    transition: all 0.15s ease;
+  }
+  .score-value.pop { animation: scorePop 0.3s ease-out; }
+  @keyframes scorePop {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.3); }
+    100% { transform: scale(1); }
+  }
+  .score-value.high { color: var(--gold); }
+
+  /* ── Action Bar ── */
+  .action-bar {
+    display: flex; align-items: center; gap: 20px;
+  }
+  .score-bar {
+    display: flex; gap: 24px;
+    background: var(--surface);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: var(--radius);
+    padding: 10px 24px;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar-panel {
+    background: var(--surface);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: var(--radius);
+    padding: 24px;
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+  }
+  .sidebar-title {
+    font-size: 18px; font-weight: 300;
+    letter-spacing: 4px;
+    text-align: center;
+    color: var(--text);
+    margin-bottom: 16px;
+  }
 
   canvas#gameCanvas {
     display: block;
@@ -266,57 +338,7 @@
   .dpad-right { grid-area: right; }
   .dpad-down { grid-area: down; }
 
-  .lb-btn {
-    font-size: 11px; font-weight: 500;
-    letter-spacing: 3px;
-    padding: 9px 22px;
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 50px;
-    background: transparent;
-    color: var(--text-dim);
-    cursor: pointer;
-    transition: all 0.25s ease;
-  }
-  .lb-btn:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-    transform: translateY(-1px);
-  }
-  .lb-btn:active { transform: translateY(0) scale(0.98); }
-
-  .lb-modal-bg {
-    position: fixed; inset: 0; z-index: 100;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(3px);
-    display: flex; justify-content: center; align-items: center;
-    opacity: 0; pointer-events: none;
-    transition: opacity 0.25s ease;
-  }
-  .lb-modal-bg.active { opacity: 1; pointer-events: auto; }
-
-  .lb-modal {
-    background: var(--surface);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: var(--radius);
-    padding: 32px;
-    width: min(420px, 90vw);
-    max-height: 80vh;
-    overflow-y: auto;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
-    transform: translateY(16px);
-    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-  .lb-modal-bg.active .lb-modal { transform: translateY(0); }
-
-  .lb-modal-title {
-    font-size: 22px; font-weight: 300;
-    letter-spacing: 6px;
-    text-align: center;
-    color: var(--text);
-    margin-bottom: 24px;
-  }
+  /* lb-row, lb-rank, lb-name, lb-score — kept for sidebar leaderboard content */
 
   .lb-row {
     display: flex; align-items: center; gap: 12px;
@@ -362,9 +384,7 @@
     animation: fadeHint 1.5s ease-in-out infinite;
   }
 
-  .lb-close {
-    display: block; margin: 20px auto 0;
-  }
+  .lb-close { display: block; margin: 20px auto 0; }
 
   .name-input {
     font-size: 15px; font-weight: 400;
@@ -412,25 +432,28 @@
   .submit-status.error { color: var(--danger); }
   .submit-status.success { color: var(--accent); }
 
+  @media (max-width: 768px) {
+    .lobby { flex-direction: column; padding: 0; }
+    .lobby-left { flex: 1; }
+    .lobby-right { flex: 1; min-width: 0; position: static; }
+    .lobby-right .sidebar-panel { max-height: 50vh; }
+    .score-value { font-size: 22px; }
+    .lobby-title { font-size: 20px; letter-spacing: 5px; text-align: center; }
+    .action-bar { flex-wrap: wrap; justify-content: center; }
+    .player-card { justify-content: center; }
+    .game-wrapper { max-width: calc(100vw - 16px); }
+  }
   @media (max-width: 640px), (hover: none) and (pointer: coarse) {
     .mobile-controls { display: block; }
-    .container { gap: 12px; padding: 8px; }
-    .score-panel { padding: 8px 20px; gap: 20px; }
-    .score-value { font-size: 24px; }
-    .title { font-size: 20px; letter-spacing: 5px; margin-top: 4px; }
     .hint { display: none; }
-    body { cursor: auto; }
-    .lb-modal { padding: 20px; }
-    .lb-modal-title { font-size: 18px; }
-    .game-wrapper { max-width: calc(100vw - 16px); }
+    body { cursor: auto; padding: 8px; }
     .countdown-number { font-size: 64px; }
     .countdown-go { font-size: 48px; }
     .btn { padding: 11px 28px; font-size: 12px; letter-spacing: 3px; }
     .qq-login-btn { padding: 12px 36px; font-size: 14px; }
-    .lb-btn { font-size: 10px; padding: 7px 16px; }
-    .player-bar { top: 8px; right: 8px; }
     .history-modal { padding: 20px; max-height: 70vh; }
     .history-modal-title { font-size: 18px; }
+    .sidebar-panel { padding: 16px; }
   }
 
   .qq-login-btn {
@@ -452,28 +475,7 @@
     color: var(--text);
   }
 
-  /* Player bar */
-  .player-bar {
-    position: fixed;
-    top: 20px; right: 24px;
-    z-index: 50;
-    display: flex; align-items: center;
-    gap: 10px;
-    background: var(--surface);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 50px;
-    padding: 6px 18px 6px 6px;
-    box-shadow: 0 2px 16px rgba(0,0,0,0.3);
-    cursor: pointer;
-    transition: all 0.25s ease;
-  }
-  .player-bar:hover {
-    border-color: rgba(255,255,255,0.12);
-    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
-  }
-
+  /* Player avatar (used in player-card and modals) */
   .player-avatar {
     width: 32px; height: 32px;
     border-radius: 50%;
@@ -482,13 +484,6 @@
     font-size: 13px; font-weight: 500;
     color: var(--accent);
     letter-spacing: 1px;
-  }
-  .player-bar-name {
-    font-size: 13px; font-weight: 400;
-    color: var(--text);
-    letter-spacing: 1px;
-    max-width: 100px;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
 
   /* History modal */
@@ -738,12 +733,7 @@
 </head>
 <body>
 
-<!-- Player bar -->
-<div class="player-bar" id="playerBar" style="display:none;position:relative;">
-  <div class="player-avatar" id="playerAvatar"></div>
-  <span class="player-bar-name" id="playerBarName"></span>
-  <div class="request-badge" id="requestBadge"></div>
-</div>
+<!-- Player card integrated into lobby left -->
 
 <!-- History modal -->
 <div class="history-modal-bg" id="historyModalBg">
@@ -772,48 +762,64 @@
   </div>
 </div>
 
-<!-- Leaderboard modal -->
-<div class="lb-modal-bg" id="lbModalBg">
-  <div class="lb-modal">
-    <div class="lb-modal-title">排 行 榜</div>
-    <div class="lb-tabs">
-      <button class="lb-tab active" data-tab="all" id="tabAll">全 部</button>
-      <button class="lb-tab" data-tab="friends" id="tabFriends">好 友</button>
+<!-- Lobby -->
+<div class="lobby" id="lobby">
+  <div class="lobby-left">
+    <h1 class="lobby-title">贪 吃 蛇</h1>
+
+    <div class="player-card" id="playerCard" style="display:none;">
+      <div class="player-avatar" id="playerAvatar"></div>
+      <div class="player-info">
+        <span class="player-name" id="playerName"></span>
+        <span class="player-id" id="playerIdDisplay"></span>
+        <span class="player-platform" id="playerPlatform"></span>
+      </div>
+      <div class="request-badge" id="requestBadge"></div>
     </div>
-    <div id="lbContent"><div class="lb-loading">加载中...</div></div>
-    <button class="add-friend-btn" id="btnAddFriend">+ 添加好友</button>
-    <button class="btn lb-close" id="btnLbClose">关 闭</button>
-    <div style="text-align:center;margin-top:8px;"><button class="name-change-link" id="btnClearScores" style="color:var(--danger);">重置排行榜</button></div>
-  </div>
-</div>
 
-<div class="container">
-  <h1 class="title">贪 吃 蛇</h1>
-
-  <div class="score-panel">
-    <div class="score-item">
-      <span class="score-label">得 分</span>
-      <span class="score-value" id="score">0</span>
+    <div class="game-wrapper" id="gameWrapper">
+      <canvas id="gameCanvas"></canvas>
+      <div class="overlay active" id="overlay"></div>
     </div>
-    <div class="score-item">
-      <span class="score-label">最 高</span>
-      <span class="score-value high" id="highScore">0</span>
+
+    <div class="action-bar">
+      <div class="score-bar">
+        <div class="score-item">
+          <span class="score-label">得 分</span>
+          <span class="score-value" id="score">0</span>
+        </div>
+        <div class="score-item">
+          <span class="score-label">最 高</span>
+          <span class="score-value high" id="highScore">0</span>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="btnStartLobby">开始游戏</button>
+    </div>
+
+    <p class="hint" id="gameHint">方向键 / WASD 操控</p>
+
+    <div class="mobile-controls">
+      <div class="dpad">
+        <button class="dpad-btn dpad-up">▲</button>
+        <button class="dpad-btn dpad-left">◀</button>
+        <button class="dpad-btn dpad-right">▶</button>
+        <button class="dpad-btn dpad-down">▼</button>
+      </div>
     </div>
   </div>
 
-  <button class="lb-btn" id="btnLeaderboard">排 行 榜</button>
-
-  <div class="game-wrapper" id="gameWrapper">
-    <canvas id="gameCanvas"></canvas>
-    <div class="overlay active" id="overlay"></div>
-  </div>
-
-  <div class="mobile-controls">
-    <div class="dpad">
-      <button class="dpad-btn dpad-up">▲</button>
-      <button class="dpad-btn dpad-left">◀</button>
-      <button class="dpad-btn dpad-right">▶</button>
-      <button class="dpad-btn dpad-down">▼</button>
+  <div class="lobby-right">
+    <div class="sidebar-panel" id="sidebarPanel">
+      <div class="sidebar-title">排 行 榜</div>
+      <div class="lb-tabs">
+        <button class="lb-tab active" data-tab="all" id="tabAll">全 部</button>
+        <button class="lb-tab" data-tab="friends" id="tabFriends">好 友</button>
+      </div>
+      <div id="lbContent"><div class="lb-loading">加载中...</div></div>
+      <button class="add-friend-btn" id="btnAddFriend">+ 添加好友</button>
+      <div style="text-align:center;margin-top:8px;">
+        <button class="name-change-link" id="btnClearScores" style="color:var(--danger);">重置排行榜</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1344,10 +1350,7 @@ function mergeScoresFB(local, remote) {
   const overlay = document.getElementById('overlay');
   const scoreEl = document.getElementById('score');
   const highScoreEl = document.getElementById('highScore');
-  const btnLeaderboard = document.getElementById('btnLeaderboard');
-  const lbModalBg = document.getElementById('lbModalBg');
   const lbContent = document.getElementById('lbContent');
-  const btnLbClose = document.getElementById('btnLbClose');
 
   const GRID = 20;
   const COLS = 25;
@@ -1723,11 +1726,13 @@ function mergeScoresFB(local, remote) {
       <div class="overlay-score">得分 <span>${score}</span></div>
       <div class="welcome-text"><span>${escapeHtml(savedName)}</span></div>
       <button class="name-change-link" id="btnChangeName">改名</button>
-      <button class="btn btn-primary" id="btnRestart">再来一局</button>
     `;
     overlay.classList.add('active');
 
-    document.getElementById('btnRestart').addEventListener('click', startGame);
+    const btnLobby = document.getElementById('btnStartLobby');
+    btnLobby.textContent = '再来一局';
+    btnLobby.style.display = '';
+    document.getElementById('gameHint').style.display = '';
     document.getElementById('btnChangeName').addEventListener('click', showNamePrompt);
 
     // Flash the game wrapper
@@ -1836,11 +1841,13 @@ function mergeScoresFB(local, remote) {
     if (platform === 'qq') {
       overlay.innerHTML = `
         <div class="overlay-title">${escapeHtml(savedName)}</div>
-        <button class="btn btn-primary" id="btnStart">开始游戏</button>
         <p class="hint">方向键 / WASD 操控</p>
       `;
       overlay.classList.add('active');
-      document.getElementById('btnStart').addEventListener('click', startGame);
+      const btnLobby = document.getElementById('btnStartLobby');
+      btnLobby.textContent = '开始游戏';
+      btnLobby.style.display = '';
+      document.getElementById('gameHint').style.display = '';
       return;
     }
 
@@ -1848,11 +1855,13 @@ function mergeScoresFB(local, remote) {
       overlay.innerHTML = `
         <div class="overlay-title">${escapeHtml(savedName)}</div>
         <button class="name-change-link" id="btnChangeName">改名</button>
-        <button class="btn btn-primary" id="btnStart">开始游戏</button>
         <p class="hint">方向键 / WASD 操控</p>
       `;
       overlay.classList.add('active');
-      document.getElementById('btnStart').addEventListener('click', startGame);
+      const btnLobby = document.getElementById('btnStartLobby');
+      btnLobby.textContent = '开始游戏';
+      btnLobby.style.display = '';
+      document.getElementById('gameHint').style.display = '';
       document.getElementById('btnChangeName').addEventListener('click', showNamePrompt);
       return;
     }
@@ -1865,6 +1874,9 @@ function mergeScoresFB(local, remote) {
       <p class="hint">QQ 登录可跨设备同步数据</p>
     `;
     overlay.classList.add('active');
+
+    document.getElementById('btnStartLobby').style.display = 'none';
+    document.getElementById('gameHint').style.display = 'none';
 
     document.getElementById('btnQQLogin').addEventListener('click', async () => {
       overlay.innerHTML = '<div class="overlay-title">登录中...</div>';
@@ -1924,17 +1936,27 @@ function mergeScoresFB(local, remote) {
 
   function updatePlayerBar() {
     const name = localStorage.getItem('snakePlayerName');
-    const bar = document.getElementById('playerBar');
+    const card = document.getElementById('playerCard');
     const avatar = document.getElementById('playerAvatar');
-    const nameEl = document.getElementById('playerBarName');
+    const nameEl = document.getElementById('playerName');
+    const idEl = document.getElementById('playerIdDisplay');
+    const platformEl = document.getElementById('playerPlatform');
 
     if (!name) {
-      bar.style.display = 'none';
+      card.style.display = 'none';
       return;
     }
 
-    bar.style.display = 'flex';
+    card.style.display = 'flex';
     nameEl.textContent = name;
+
+    // Show ID
+    const myId = getMyUserId();
+    if (idEl) idEl.textContent = myId ? 'ID: ' + myId : '';
+
+    // Show platform
+    const platform = getAuthPlatform();
+    if (platformEl) platformEl.textContent = platform === 'qq' ? 'QQ 登录' : '游客';
 
     const qqInfo = getQQInfo();
     if (qqInfo && qqInfo.avatar) {
@@ -2172,7 +2194,7 @@ function mergeScoresFB(local, remote) {
   }
 
   // Player bar click → show history
-  document.getElementById('playerBar').addEventListener('click', showHistory);
+  document.getElementById('playerCard').addEventListener('click', showHistory);
 
   // History modal close
   document.getElementById('btnHistoryClose').addEventListener('click', () => {
@@ -2219,6 +2241,8 @@ function mergeScoresFB(local, remote) {
     wrapper.classList.remove('game-over-glow');
     clearInterval(gameLoop);
     draw();
+    document.getElementById('btnStartLobby').style.display = 'none';
+    document.getElementById('gameHint').style.display = 'none';
     showCountdown(() => {
       gameLoop = setInterval(tick, gameSpeed);
     });
@@ -2256,12 +2280,6 @@ function mergeScoresFB(local, remote) {
       if (e.key === 'Escape') { document.getElementById('historyModalBg').classList.remove('active'); }
       return;
     }
-    // Leaderboard modal open — Esc closes it
-    if (lbModalBg.classList.contains('active')) {
-      if (e.key === 'Escape') { lbModalBg.classList.remove('active'); }
-      return;
-    }
-
     // Pause toggle
     if (gameRunning && (e.key === 'p' || e.key === 'P' || e.key === 'Escape')) {
       e.preventDefault();
@@ -2575,10 +2593,11 @@ function mergeScoresFB(local, remote) {
     if (e.target === e.currentTarget) e.currentTarget.classList.remove('active');
   });
 
-  btnLeaderboard.addEventListener('click', () => {
-    lbModalBg.classList.add('active');
-    renderLeaderboard('all');
-  });
+  // Auto-load leaderboard into sidebar
+  renderLeaderboard('all');
+
+  // Start game button in lobby action bar
+  document.getElementById('btnStartLobby').addEventListener('click', startGame);
 
   // Tab switching
   document.getElementById('tabAll').addEventListener('click', () => renderLeaderboard('all'));
@@ -2640,14 +2659,6 @@ function mergeScoresFB(local, remote) {
     if (e.target === e.currentTarget) e.currentTarget.classList.remove('active');
   });
 
-  btnLbClose.addEventListener('click', () => {
-    lbModalBg.classList.remove('active');
-  });
-
-  lbModalBg.addEventListener('click', (e) => {
-    if (e.target === lbModalBg) lbModalBg.classList.remove('active');
-  });
-
   document.getElementById('btnClearScores').addEventListener('click', async () => {
     if (!confirm('确定要清除所有排行榜记录吗？此操作不可撤销。')) return;
     const ok = await clearAllScores();
@@ -2668,10 +2679,6 @@ function mergeScoresFB(local, remote) {
     const addFriendBg = document.getElementById('addFriendBg');
     if (addFriendBg.classList.contains('active')) {
       if (e.key === 'Escape') { addFriendBg.classList.remove('active'); }
-      return;
-    }
-    if (lbModalBg.classList.contains('active')) {
-      if (e.key === 'Escape') { lbModalBg.classList.remove('active'); }
       return;
     }
   });
