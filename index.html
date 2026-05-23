@@ -433,6 +433,7 @@
 // ── Leaderboard (Firebase + localStorage) ──────────────
 const FB_DB = 'https://snake-leaderboard-c6832-default-rtdb.firebaseio.com';
 const LB_KEY = 'snakeLeaderboard';
+const PENDING_KEY = 'snakePendingScores';
 const LB_MAX = 50;
 
 function localScores() {
@@ -443,6 +444,21 @@ function localScores() {
 function saveLocal(scores) {
   try { localStorage.setItem(LB_KEY, JSON.stringify(scores)); }
   catch (e) { /* quota exceeded */ }
+}
+
+function pendingScores() {
+  try { return JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); }
+  catch (e) { return []; }
+}
+
+function addPending(name, score) {
+  const list = pendingScores();
+  list.push({ name: String(name).trim().slice(0, 20) || 'Player', score: Math.floor(score), time: Date.now() });
+  try { localStorage.setItem(PENDING_KEY, JSON.stringify(list)); } catch (e) {}
+}
+
+function clearPending() {
+  try { localStorage.removeItem(PENDING_KEY); } catch (e) {}
 }
 
 function addToLocal(name, score) {
@@ -886,12 +902,18 @@ function mergeScoresFB(local, remote) {
       const ok = await submitToFirebase(name, score);
 
       if (ok) {
-        submitStatus.textContent = `提交成功！全局排名已同步`;
+        submitStatus.textContent = '提交成功！全局排名已同步';
+        submitStatus.className = 'submit-status success';
+        document.getElementById('btnSubmit').disabled = true;
       } else {
-        submitStatus.textContent = `已保存！本地排名第 ${localRank} 名（联网后同步）`;
+        addPending(name, score);
+        submitStatus.textContent = '服务器无响应，已暂存本地，打开排行榜自动重试';
+        submitStatus.className = 'submit-status error';
+        // Allow retry
+        const btnSubmit = document.getElementById('btnSubmit');
+        btnSubmit.textContent = '重试提交';
+        btnSubmit.disabled = false;
       }
-      submitStatus.className = 'submit-status success';
-      document.getElementById('btnSubmit').disabled = true;
     });
 
     // Auto-focus name input on desktop
@@ -1089,8 +1111,36 @@ function mergeScoresFB(local, remote) {
   wrapper.addEventListener('wheel', e => e.preventDefault(), { passive: false });
 
   // ── Leaderboard Modal ───────────────────────────────
+  async function syncPending() {
+    const pending = pendingScores();
+    if (pending.length === 0) return true;
+
+    let synced = 0;
+    for (const entry of pending) {
+      const ok = await submitToFirebase(entry.name, entry.score);
+      if (ok) synced++;
+    }
+
+    if (synced === pending.length) {
+      clearPending();
+      return true;
+    }
+    // Keep unsynced ones (partial failure unlikely, but handle it)
+    if (synced > 0) {
+      const remaining = pending.slice(synced);
+      try { localStorage.setItem(PENDING_KEY, JSON.stringify(remaining)); } catch (e) {}
+    }
+    return synced === pending.length;
+  }
+
   async function renderLeaderboard() {
     lbContent.innerHTML = '<div class="lb-loading">加载中...</div>';
+
+    // Try to sync pending scores first
+    const pending = pendingScores();
+    if (pending.length > 0) {
+      await syncPending();
+    }
 
     const local = localScores();
     const remote = await fetchFirebase();
@@ -1101,12 +1151,17 @@ function mergeScoresFB(local, remote) {
       return;
     }
 
-    let hint = '';
-    if (!remote) {
-      hint = '<div style="text-align:center;font-size:11px;color:var(--text-dim);margin-bottom:12px;">（显示本地记录，联网后可同步全局排行）</div>';
+    let status = '';
+    const stillPending = pendingScores().length;
+    if (!remote && stillPending === 0) {
+      status = '<div style="text-align:center;font-size:11px;color:var(--text-dim);margin-bottom:12px;">无法连接服务器，显示本地记录</div>';
+    } else if (!remote && stillPending > 0) {
+      status = '<div style="text-align:center;font-size:11px;color:var(--danger);margin-bottom:12px;">无法连接服务器，' + stillPending + ' 条记录待同步</div>';
+    } else if (stillPending > 0) {
+      status = '<div style="text-align:center;font-size:11px;color:var(--accent);margin-bottom:12px;">已同步全局排行</div>';
     }
 
-    lbContent.innerHTML = hint + data.map((entry, i) => {
+    lbContent.innerHTML = status + data.map((entry, i) => {
       let topClass = '';
       let rankIcon = String(i + 1);
       if (i === 0) { topClass = 'top1'; rankIcon = '👑'; }
