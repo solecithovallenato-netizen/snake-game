@@ -955,6 +955,7 @@ async function qqLogin() {
           currentUid = ret.openid;
           localStorage.setItem('snakePlayerName', qqInfo.nickname);
           updatePlayerBar();
+          ensureUserId();
           resolve(true);
         } else {
           resolve(false);
@@ -1859,6 +1860,7 @@ function mergeScoresFB(local, remote) {
         localStorage.setItem('snakePlayerName', name);
         saveDisplayName(name);
         updatePlayerBar();
+        ensureUserId();
         startGame();
       };
 
