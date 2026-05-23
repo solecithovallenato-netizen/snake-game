@@ -656,6 +656,7 @@ async function getAuthToken() {
         auth.idToken = data.id_token;
         auth.refreshToken = data.refresh_token;
         auth.expiresAt = now + parseInt(data.expires_in) * 1000;
+        auth.platform = auth.platform || 'guest';
         localStorage.setItem(AUTH_KEY, JSON.stringify(auth));
         currentUid = auth.localId;
         currentIdToken = data.id_token;
@@ -679,6 +680,7 @@ async function getAuthToken() {
         idToken: data.idToken,
         refreshToken: data.refreshToken,
         expiresAt: now + parseInt(data.expiresIn) * 1000,
+        platform: 'guest',
       };
       localStorage.setItem(AUTH_KEY, JSON.stringify(auth));
       currentUid = data.localId;
@@ -688,6 +690,31 @@ async function getAuthToken() {
   } catch (e) {}
 
   return null; // offline — use localStorage fallback
+}
+
+function getAuthPlatform() {
+  try {
+    const auth = JSON.parse(localStorage.getItem(AUTH_KEY));
+    return (auth && auth.platform) ? auth.platform : 'guest';
+  } catch (e) { return 'guest'; }
+}
+
+function getQQInfo() {
+  try {
+    const auth = JSON.parse(localStorage.getItem(AUTH_KEY));
+    return (auth && auth.qqInfo) || null;
+  } catch (e) { return null; }
+}
+
+function saveQQInfo(info) {
+  try {
+    const auth = JSON.parse(localStorage.getItem(AUTH_KEY));
+    if (auth) {
+      auth.qqInfo = info;
+      auth.platform = 'qq';
+      localStorage.setItem(AUTH_KEY, JSON.stringify(auth));
+    }
+  } catch (e) {}
 }
 
 // Save display name per-user to RTDB
