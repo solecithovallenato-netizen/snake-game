@@ -1003,16 +1003,18 @@ async function ensureUserId() {
   if (getMyUserId()) return getMyUserId();
 
   try {
-    const token = await getAuthToken();
-    if (!token) throw new Error('无法获取登录凭证——可能代理拦截了Google服务');
+    // Try to get auth token for the uid field, but don't require it
+    let token = null;
+    try { token = await getAuthToken(); } catch (e) {}
+    const authParam = token ? `?auth=${token}` : '';
 
     const uid = currentUid || 'anon';
     const name = localStorage.getItem('snakePlayerName') || 'Player';
     const qqInfo = getQQInfo();
     const avatar = qqInfo ? qqInfo.avatar : '';
 
-    // Read counter
-    let res = await fetch(`${FB_DB}/meta/nextId.json?auth=${token}`, {
+    // Read counter (no auth needed — rules allow public read)
+    let res = await fetch(`${FB_DB}/meta/nextId.json`, {
       signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) throw new Error('读取ID计数器失败 HTTP ' + res.status);
@@ -1020,8 +1022,8 @@ async function ensureUserId() {
     const val = await res.json();
     if (typeof val === 'number') nextId = val;
 
-    // Write reverse index
-    res = await fetch(`${FB_DB}/userIdIndex/${nextId}.json?auth=${token}`, {
+    // Write reverse index (no auth needed — rules allow public write to userIdIndex)
+    res = await fetch(`${FB_DB}/userIdIndex/${nextId}.json${authParam}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ uid, name, avatar }),
@@ -1032,8 +1034,8 @@ async function ensureUserId() {
       throw new Error('写入用户索引失败 HTTP ' + res.status + ' ' + errText.slice(0, 80));
     }
 
-    // Increment counter
-    res = await fetch(`${FB_DB}/meta/nextId.json?auth=${token}`, {
+    // Increment counter (no auth needed — rules allow public write to meta)
+    res = await fetch(`${FB_DB}/meta/nextId.json${authParam}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(nextId + 1),
