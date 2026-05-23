@@ -50,6 +50,11 @@
   .top-row {
     display: flex; align-items: center; gap: 12px;
   }
+  .player-card { flex: 1; }
+  .score-inline {
+    display: flex; gap: 16px;
+    flex-shrink: 0;
+  }
   .lb-btn-icon {
     flex-shrink: 0;
     width: 48px; height: 48px;
@@ -165,18 +170,7 @@
   }
   .score-value.high { color: var(--gold); }
 
-  /* ── Action Bar ── */
-  .action-bar {
-    display: flex; align-items: center; gap: 20px;
-  }
-  .score-bar {
-    display: flex; gap: 24px;
-    background: var(--surface);
-    backdrop-filter: blur(16px);
-    border: 1px solid rgba(255,255,255,0.05);
-    border-radius: var(--radius);
-    padding: 10px 24px;
-  }
+
 
   canvas#gameCanvas {
     display: block;
@@ -460,7 +454,7 @@
     .lobby-left { gap: 10px; }
     .score-value { font-size: 22px; }
     .lobby-title { font-size: 20px; letter-spacing: 5px; text-align: center; }
-    .action-bar { flex-wrap: wrap; justify-content: center; }
+    .score-inline { gap: 10px; }
     .player-card { justify-content: center; }
     .game-wrapper { max-width: calc(100vw - 16px); }
     .diff-card { padding: 10px 14px; min-width: 60px; }
@@ -820,15 +814,7 @@
         </div>
         <div class="request-badge" id="requestBadge"></div>
       </div>
-    </div>
-
-    <div class="game-wrapper" id="gameWrapper">
-      <canvas id="gameCanvas"></canvas>
-      <div class="overlay active" id="overlay"></div>
-    </div>
-
-    <div class="action-bar">
-      <div class="score-bar">
+      <div class="score-inline" id="scoreInline">
         <div class="score-item">
           <span class="score-label">得 分</span>
           <span class="score-value" id="score">0</span>
@@ -838,7 +824,11 @@
           <span class="score-value high" id="highScore">0</span>
         </div>
       </div>
-      <button class="btn btn-primary" id="btnStartLobby">开始游戏</button>
+    </div>
+
+    <div class="game-wrapper" id="gameWrapper">
+      <canvas id="gameCanvas"></canvas>
+      <div class="overlay active" id="overlay"></div>
     </div>
 
     <p class="hint" id="gameHint">方向键 / WASD 操控</p>
@@ -1784,13 +1774,11 @@ function mergeScoresFB(local, remote) {
       <div class="overlay-score">得分 <span>${score}</span></div>
       <div class="welcome-text"><span>${escapeHtml(savedName)}</span></div>
       <button class="name-change-link" id="btnChangeName">改名</button>
+      <button class="btn btn-primary" id="btnRestart">再来一局</button>
     `;
     overlay.classList.add('active');
 
-    const btnLobby = document.getElementById('btnStartLobby');
-    btnLobby.textContent = '再来一局';
-    btnLobby.style.display = '';
-    document.getElementById('gameHint').style.display = '';
+    document.getElementById('btnRestart').addEventListener('click', startGame);
     document.getElementById('btnChangeName').addEventListener('click', showNamePrompt);
 
     // Flash the game wrapper
@@ -1926,14 +1914,12 @@ function mergeScoresFB(local, remote) {
       overlay.innerHTML = `
         <div class="overlay-title">${escapeHtml(savedName)}</div>
         <div class="diff-selector">${renderDiffCards()}</div>
+        <button class="btn btn-primary" id="btnStart">开始游戏</button>
         <p class="hint">方向键 / WASD 操控</p>
       `;
       overlay.classList.add('active');
       bindDiffCards();
-      const btnLobby = document.getElementById('btnStartLobby');
-      btnLobby.textContent = '开始游戏';
-      btnLobby.style.display = '';
-      document.getElementById('gameHint').style.display = '';
+      document.getElementById('btnStart').addEventListener('click', startGame);
       return;
     }
 
@@ -1942,14 +1928,12 @@ function mergeScoresFB(local, remote) {
         <div class="overlay-title">${escapeHtml(savedName)}</div>
         <div class="diff-selector">${renderDiffCards()}</div>
         <button class="name-change-link" id="btnChangeName">改名</button>
+        <button class="btn btn-primary" id="btnStart">开始游戏</button>
         <p class="hint">方向键 / WASD 操控</p>
       `;
       overlay.classList.add('active');
       bindDiffCards();
-      const btnLobby = document.getElementById('btnStartLobby');
-      btnLobby.textContent = '开始游戏';
-      btnLobby.style.display = '';
-      document.getElementById('gameHint').style.display = '';
+      document.getElementById('btnStart').addEventListener('click', startGame);
       document.getElementById('btnChangeName').addEventListener('click', showNamePrompt);
       return;
     }
@@ -1963,8 +1947,7 @@ function mergeScoresFB(local, remote) {
     `;
     overlay.classList.add('active');
 
-    document.getElementById('btnStartLobby').style.display = 'none';
-    document.getElementById('gameHint').style.display = 'none';
+
 
     document.getElementById('btnQQLogin').addEventListener('click', async () => {
       overlay.innerHTML = '<div class="overlay-title">登录中...</div>';
@@ -2329,8 +2312,6 @@ function mergeScoresFB(local, remote) {
     wrapper.classList.remove('game-over-glow');
     clearInterval(gameLoop);
     draw();
-    document.getElementById('btnStartLobby').style.display = 'none';
-    document.getElementById('gameHint').style.display = 'none';
     showCountdown(() => {
       gameLoop = setInterval(tick, gameSpeed);
     });
@@ -2699,9 +2680,6 @@ function mergeScoresFB(local, remote) {
   document.getElementById('lbModalBg').addEventListener('click', (e) => {
     if (e.target === e.currentTarget) e.currentTarget.classList.remove('active');
   });
-
-  // Start game button in lobby action bar
-  document.getElementById('btnStartLobby').addEventListener('click', startGame);
 
   // Tab switching
   document.getElementById('tabAll').addEventListener('click', () => renderLeaderboard('all'));
