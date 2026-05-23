@@ -542,7 +542,7 @@ function addToLocal(name, score) {
 
 async function fetchFirebase() {
   try {
-    const res = await fetch(`${FB_DB}/scores.json?orderBy=%22score%22&limitToLast=50`, { signal: AbortSignal.timeout(5000) });
+    const res = await fetch(`${FB_DB}/scores.json`, { signal: AbortSignal.timeout(5000) });
     if (!res.ok) throw new Error('fail');
     const obj = await res.json();
     if (!obj) return [];
