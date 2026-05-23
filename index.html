@@ -736,6 +736,14 @@
   </div>
 </div>
 
+<!-- Player profile modal -->
+<div class="history-modal-bg" id="profileBg">
+  <div class="history-modal">
+    <div id="profileContent"><div class="lb-loading">加载中...</div></div>
+    <button class="btn lb-close" id="btnProfileClose">关 闭</button>
+  </div>
+</div>
+
 <!-- Leaderboard modal -->
 <div class="lb-modal-bg" id="lbModalBg">
   <div class="lb-modal">
@@ -2113,6 +2121,11 @@ function mergeScoresFB(local, remote) {
 
   // ── Controls ────────────────────────────────────────
   document.addEventListener('keydown', (e) => {
+    // Profile modal open — Esc closes it
+    if (document.getElementById('profileBg').classList.contains('active')) {
+      if (e.key === 'Escape') { document.getElementById('profileBg').classList.remove('active'); }
+      return;
+    }
     // Add friend modal open — Esc closes it
     if (document.getElementById('addFriendBg').classList.contains('active')) {
       if (e.key === 'Escape') { document.getElementById('addFriendBg').classList.remove('active'); }
@@ -2320,7 +2333,7 @@ function mergeScoresFB(local, remote) {
       else if (i === 1) { topClass = 'top2'; rankIcon = '🥈'; }
       else if (i === 2) { topClass = 'top3'; rankIcon = '🥉'; }
       return `
-        <div class="lb-row ${topClass}">
+        <div class="lb-row ${topClass}" data-uid="${(entry.uid||'')}" data-name="${escapeHtml(entry.name)}" data-score="${entry.score}" style="cursor:pointer;">
           <span class="lb-rank">${rankIcon}</span>
           <span class="lb-name">${escapeHtml(entry.name)}</span>
           <span class="lb-score">${entry.score}</span>
@@ -2333,6 +2346,114 @@ function mergeScoresFB(local, remote) {
     div.textContent = str;
     return div.innerHTML;
   }
+
+  // Click delegation: leaderboard row → player profile
+  lbContent.addEventListener('click', async (e) => {
+    const row = e.target.closest('.lb-row');
+    if (!row) return;
+    const uid = row.dataset.uid;
+    const name = row.dataset.name;
+    const score = parseInt(row.dataset.score, 10);
+    showPlayerProfile(uid, name, score);
+  });
+
+  async function showPlayerProfile(uid, name, score) {
+    const modal = document.getElementById('profileBg');
+    const content = document.getElementById('profileContent');
+    modal.classList.add('active');
+    content.innerHTML = '<div class="lb-loading">加载中...</div>';
+
+    // Fetch player details
+    let userInfo = null;
+    let userId = null;
+    if (uid) {
+      try {
+        const token = await getAuthToken();
+        // Search userIdIndex for this uid
+        const res = await fetch(`${FB_DB}/userIdIndex.json?auth=${token}`, { signal: AbortSignal.timeout(5000) });
+        if (res.ok) {
+          const obj = await res.json();
+          if (obj) {
+            for (const [id, data] of Object.entries(obj)) {
+              if (data && data.uid === uid) {
+                userId = String(id).padStart(6, '0');
+                userInfo = data;
+                break;
+              }
+            }
+          }
+        }
+      } catch (e) {}
+    }
+
+    const qqInfo = getQQInfo();
+    const myAvatar = qqInfo ? qqInfo.avatar : '';
+    const myUid = currentUid;
+
+    // Check friend status
+    let isFriend = false;
+    if (myUid && uid) {
+      try {
+        const token = await getAuthToken();
+        const res = await fetch(`${FB_DB}/friends/${myUid}/${uid}.json?auth=${token}`, { signal: AbortSignal.timeout(5000) });
+        if (res.ok) {
+          const data = await res.json();
+          if (data) isFriend = true;
+        }
+      } catch (e) {}
+    }
+
+    const avatarHtml = userInfo && userInfo.avatar
+      ? `<img src="${userInfo.avatar}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;" alt="">`
+      : `<span style="font-size:22px;">${name.charAt(0).toUpperCase()}</span>`;
+
+    const idDisplay = userId ? `<div class="user-id-display">ID <span>${userId}</span></div>` : '';
+
+    const actionBtn = (uid && myUid && uid !== myUid && !isFriend)
+      ? `<button class="btn" id="btnProfileAddFriend" style="margin-top:8px;">添加好友</button>`
+      : (isFriend ? '<p style="text-align:center;font-size:11px;color:var(--accent);margin-top:8px;">✓ 已是好友</p>' : '');
+
+    content.innerHTML = `
+      <div style="text-align:center;margin-bottom:12px;">
+        <div class="player-avatar" style="width:52px;height:52px;margin:0 auto 8px;display:flex;justify-content:center;align-items:center;">${avatarHtml}</div>
+        <div style="font-size:16px;color:var(--text);font-weight:400;">${escapeHtml(name)}</div>
+      </div>
+      ${idDisplay}
+      <div class="history-stats">
+        <div class="history-stat">
+          <div class="history-stat-val">${score}</div>
+          <div class="history-stat-label">最高分</div>
+        </div>
+        <div class="history-stat">
+          <div class="history-stat-val">${userInfo && userInfo.platform ? (userInfo.platform === 'qq' ? 'QQ' : '游客') : '-'}</div>
+          <div class="history-stat-label">登录方式</div>
+        </div>
+      </div>
+      ${actionBtn}
+    `;
+
+    // Add friend button handler
+    const btnAdd = document.getElementById('btnProfileAddFriend');
+    if (btnAdd) {
+      btnAdd.addEventListener('click', async () => {
+        const ok = await sendFriendRequest(uid, name);
+        if (ok) {
+          alert('已发送好友请求给 ' + name);
+          modal.classList.remove('active');
+        } else {
+          alert('发送失败，请检查网络');
+        }
+      });
+    }
+  }
+
+  // Profile modal close
+  document.getElementById('btnProfileClose').addEventListener('click', () => {
+    document.getElementById('profileBg').classList.remove('active');
+  });
+  document.getElementById('profileBg').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) e.currentTarget.classList.remove('active');
+  });
 
   btnLeaderboard.addEventListener('click', () => {
     lbModalBg.classList.add('active');
