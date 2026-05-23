@@ -399,10 +399,164 @@
     .countdown-go { font-size: 48px; }
     .btn { padding: 11px 28px; font-size: 12px; letter-spacing: 3px; }
     .lb-btn { font-size: 10px; padding: 7px 16px; }
+    .player-bar { top: 8px; right: 8px; }
+    .history-modal { padding: 20px; max-height: 70vh; }
+    .history-modal-title { font-size: 18px; }
+  }
+
+  /* Player bar */
+  .player-bar {
+    position: fixed;
+    top: 20px; right: 24px;
+    z-index: 50;
+    display: flex; align-items: center;
+    gap: 10px;
+    background: var(--surface);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 50px;
+    padding: 6px 18px 6px 6px;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.3);
+    cursor: pointer;
+    transition: all 0.25s ease;
+  }
+  .player-bar:hover {
+    border-color: rgba(255,255,255,0.12);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  }
+
+  .player-avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--accent-dim);
+    display: flex; justify-content: center; align-items: center;
+    font-size: 13px; font-weight: 500;
+    color: var(--accent);
+    letter-spacing: 1px;
+  }
+  .player-bar-name {
+    font-size: 13px; font-weight: 400;
+    color: var(--text);
+    letter-spacing: 1px;
+    max-width: 100px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  /* History modal */
+  .history-modal-bg {
+    position: fixed; inset: 0; z-index: 110;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(3px);
+    display: flex; justify-content: center; align-items: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+  .history-modal-bg.active { opacity: 1; pointer-events: auto; }
+
+  .history-modal {
+    background: var(--surface);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--radius);
+    padding: 28px;
+    width: min(380px, 90vw);
+    max-height: 75vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    transform: translateY(16px);
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .history-modal-bg.active .history-modal { transform: translateY(0); }
+
+  .history-modal-title {
+    font-size: 20px; font-weight: 300;
+    letter-spacing: 4px;
+    text-align: center;
+    color: var(--text);
+    margin-bottom: 20px;
+  }
+
+  .history-stats {
+    display: flex; gap: 16px;
+    margin-bottom: 20px;
+  }
+  .history-stat {
+    flex: 1;
+    text-align: center;
+    background: rgba(255,255,255,0.03);
+    border-radius: 12px;
+    padding: 12px 8px;
+  }
+  .history-stat-val {
+    font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
+    font-size: 24px; font-weight: 500;
+    color: var(--accent);
+  }
+  .history-stat-label {
+    font-size: 10px; font-weight: 500;
+    letter-spacing: 3px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .history-list-title {
+    font-size: 11px; font-weight: 500;
+    letter-spacing: 3px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+
+  .history-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-bottom: 2px;
+    transition: background 0.2s ease;
+  }
+  .history-row:hover { background: rgba(255, 255, 255, 0.03); }
+  .history-row-idx {
+    font-size: 11px; color: var(--text-dim);
+    width: 22px; text-align: center;
+  }
+  .history-row-score {
+    font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
+    font-size: 14px; font-weight: 500;
+    color: var(--text);
+    flex: 1;
+  }
+  .history-row-date {
+    font-size: 10px; color: var(--text-dim);
+    letter-spacing: 1px;
+  }
+  .history-row.star .history-row-score { color: var(--gold); }
+
+  .history-empty {
+    text-align: center; padding: 24px 0;
+    color: var(--text-dim); font-size: 13px;
   }
 </style>
 </head>
 <body>
+
+<!-- Player bar -->
+<div class="player-bar" id="playerBar" style="display:none;">
+  <div class="player-avatar" id="playerAvatar"></div>
+  <span class="player-bar-name" id="playerBarName"></span>
+</div>
+
+<!-- History modal -->
+<div class="history-modal-bg" id="historyModalBg">
+  <div class="history-modal">
+    <div class="history-modal-title">历史战绩</div>
+    <div id="historyContent"><div class="lb-loading">加载中...</div></div>
+    <button class="btn lb-close" id="btnHistoryClose">关 闭</button>
+  </div>
+</div>
 
 <!-- Leaderboard modal -->
 <div class="lb-modal-bg" id="lbModalBg">
@@ -533,6 +687,8 @@ async function saveDisplayName(name) {
 // ── Leaderboard (Firebase + localStorage) ──────────────
 const LB_KEY = 'snakeLeaderboard';
 const PENDING_KEY = 'snakePendingScores';
+const HISTORY_KEY = 'snakeGameHistory';
+const HISTORY_MAX = 20;
 const LB_MAX = 50;
 
 function localScores() {
@@ -979,6 +1135,9 @@ function mergeScoresFB(local, remote) {
       highScoreEl.textContent = highScore;
     }
 
+    // Record in history
+    recordGameResult(score);
+
     // Auto-submit with saved name
     const savedName = localStorage.getItem('snakePlayerName') || 'Player';
     (async () => {
@@ -1030,8 +1189,9 @@ function mergeScoresFB(local, remote) {
     document.getElementById('btnSaveName').addEventListener('click', () => {
       const name = nameInput.value.trim().slice(0, 20) || 'Player';
       localStorage.setItem('snakePlayerName', name);
-      saveDisplayName(name);
-      showStartScreen();
+        saveDisplayName(name);
+        updatePlayerBar();
+        showStartScreen();
     });
 
     nameInput.addEventListener('keydown', (e) => {
@@ -1040,6 +1200,7 @@ function mergeScoresFB(local, remote) {
   }
 
   function showStartScreen() {
+    updatePlayerBar();
     const savedName = localStorage.getItem('snakePlayerName');
     if (savedName) {
       overlay.innerHTML = `
@@ -1068,6 +1229,7 @@ function mergeScoresFB(local, remote) {
         const name = nameInput.value.trim().slice(0, 20) || 'Player';
         localStorage.setItem('snakePlayerName', name);
         saveDisplayName(name);
+        updatePlayerBar();
         startGame();
       };
 
@@ -1077,6 +1239,93 @@ function mergeScoresFB(local, remote) {
       });
     }
   }
+
+  // ── History & Player Bar ─────────────────────────────
+  function gameHistory() {
+    try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
+    catch (e) { return []; }
+  }
+
+  function recordGameResult(score) {
+    const list = gameHistory();
+    list.unshift({ score, time: Date.now() });
+    if (list.length > HISTORY_MAX) list.length = HISTORY_MAX;
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(list)); } catch (e) {}
+  }
+
+  function updatePlayerBar() {
+    const name = localStorage.getItem('snakePlayerName');
+    const bar = document.getElementById('playerBar');
+    if (name) {
+      bar.style.display = 'flex';
+      document.getElementById('playerAvatar').textContent = name.charAt(0).toUpperCase();
+      document.getElementById('playerBarName').textContent = name;
+    } else {
+      bar.style.display = 'none';
+    }
+  }
+
+  function renderHistory() {
+    const content = document.getElementById('historyContent');
+    const list = gameHistory();
+
+    if (list.length === 0) {
+      content.innerHTML = '<div class="history-empty">还没有战绩<br>快来玩一局吧！</div>';
+      return;
+    }
+
+    const total = list.length;
+    const best = Math.max(...list.map(e => e.score));
+    const avg = Math.round(list.reduce((s, e) => s + e.score, 0) / total);
+
+    const recent = list.slice(0, 10);
+    let rows = recent.map((entry, i) => {
+      const d = new Date(entry.time);
+      const dateStr = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+      const star = entry.score >= best ? ' star' : '';
+      return `<div class="history-row${star}">
+        <span class="history-row-idx">${i + 1}</span>
+        <span class="history-row-score">${entry.score}</span>
+        <span class="history-row-date">${dateStr}</span>
+      </div>`;
+    }).join('');
+
+    content.innerHTML = `
+      <div class="history-stats">
+        <div class="history-stat">
+          <div class="history-stat-val">${total}</div>
+          <div class="history-stat-label">总局数</div>
+        </div>
+        <div class="history-stat">
+          <div class="history-stat-val">${best}</div>
+          <div class="history-stat-label">最高分</div>
+        </div>
+        <div class="history-stat">
+          <div class="history-stat-val">${avg}</div>
+          <div class="history-stat-label">均分</div>
+        </div>
+      </div>
+      <div class="history-list-title">最近 10 局</div>
+      ${rows}
+    `;
+  }
+
+  function showHistory() {
+    const modal = document.getElementById('historyModalBg');
+    modal.classList.add('active');
+    renderHistory();
+  }
+
+  // Player bar click → show history
+  document.getElementById('playerBar').addEventListener('click', showHistory);
+
+  // History modal close
+  document.getElementById('btnHistoryClose').addEventListener('click', () => {
+    document.getElementById('historyModalBg').classList.remove('active');
+  });
+  document.getElementById('historyModalBg').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) e.currentTarget.classList.remove('active');
+  });
 
   function tick() {
     step();
@@ -1136,6 +1385,11 @@ function mergeScoresFB(local, remote) {
 
   // ── Controls ────────────────────────────────────────
   document.addEventListener('keydown', (e) => {
+    // History modal open — Esc closes it
+    if (document.getElementById('historyModalBg').classList.contains('active')) {
+      if (e.key === 'Escape') { document.getElementById('historyModalBg').classList.remove('active'); }
+      return;
+    }
     // Leaderboard modal open — Esc closes it
     if (lbModalBg.classList.contains('active')) {
       if (e.key === 'Escape') { lbModalBg.classList.remove('active'); }
