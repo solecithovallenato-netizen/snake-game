@@ -1006,16 +1006,16 @@ async function ensureUserId() {
 
   try {
     const token = await getAuthToken();
-    if (!token) { lastError = '无法获取登录凭证，请检查网络后刷新重试'; return null; }
+    if (!token) { lastError = '无法获取登录凭证(可能是代理拦截了Google服务)'; return null; }
 
     const uid = currentUid || 'anon';
     const name = localStorage.getItem('snakePlayerName') || 'Player';
     const qqInfo = getQQInfo();
     const avatar = qqInfo ? qqInfo.avatar : '';
 
-    // Read counter
+    // Read counter (shorter timeout for faster feedback)
     let res = await fetch(`${FB_DB}/meta/nextId.json?auth=${token}`, {
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(3000),
     });
     let nextId = 1;
     if (res.ok) {
@@ -1031,7 +1031,7 @@ async function ensureUserId() {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ uid, name, avatar }),
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(3000),
     });
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
@@ -1044,7 +1044,7 @@ async function ensureUserId() {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(nextId + 1),
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(3000),
     });
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
@@ -1057,7 +1057,7 @@ async function ensureUserId() {
     return userId;
   } catch (e) {
     if (e.name === 'TimeoutError' || e.name === 'AbortError') {
-      lastError = '网络连接超时，请检查是否能访问 Firebase';
+      lastError = '网络超时 — 请确认浏览器能访问 firebaseio.com（系统代理可能拦截了）';
     } else {
       lastError = e.message || String(e);
     }
