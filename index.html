@@ -717,6 +717,62 @@ function saveQQInfo(info) {
   } catch (e) {}
 }
 
+async function qqLogin() {
+  try {
+    await loadQQSDK();
+  } catch (e) {
+    alert('QQ SDK 加载失败，请检查网络后重试');
+    return false;
+  }
+
+  return new Promise((resolve) => {
+    QC.Login(
+      {
+        btnId: 'qqLoginBtn',
+        scope: 'get_user_info',
+      },
+      async (ret) => {
+        if (!ret || ret.error) {
+          console.warn('QQ login failed:', ret);
+          resolve(false);
+          return;
+        }
+        const qqInfo = await fetchQQUserInfo(ret.accessToken, ret.openid);
+        if (qqInfo) {
+          saveQQInfo({
+            openid: ret.openid,
+            accessToken: ret.accessToken,
+            nickname: qqInfo.nickname,
+            avatar: qqInfo.figureurl_qq_2 || qqInfo.figureurl_qq_1 || qqInfo.figureurl,
+          });
+          currentUid = ret.openid;
+          localStorage.setItem('snakePlayerName', qqInfo.nickname);
+          updatePlayerBar();
+          resolve(true);
+        } else {
+          resolve(false);
+        }
+      }
+    );
+  });
+}
+
+async function fetchQQUserInfo(accessToken, openid) {
+  try {
+    const res = await fetch(
+      `https://graph.qq.com/user/get_user_info?access_token=${accessToken}&oauth_consumer_key=${QQ_APP_ID}&openid=${openid}`,
+      { signal: AbortSignal.timeout(5000) }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.ret !== 0) return null;
+    return data;
+  } catch (e) {
+    console.warn('QQ user info fetch failed:', e);
+    return null;
+  }
+}
+
 // Save display name per-user to RTDB
 async function saveDisplayName(name) {
   if (!currentIdToken) return;
