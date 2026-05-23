@@ -98,9 +98,19 @@
     transition: box-shadow 0.5s ease;
     max-width: 100%;
   }
+  .game-wrapper::before {
+    content: '';
+    position: absolute; inset: -1px; z-index: -1;
+    border-radius: calc(var(--radius) + 1px);
+    background: linear-gradient(135deg, rgba(201,169,110,0.06), transparent 40%, transparent 60%, rgba(201,169,110,0.06));
+    opacity: 0; transition: opacity 0.6s ease;
+    pointer-events: none;
+  }
+  .game-wrapper.playing::before { opacity: 1; }
   .game-wrapper.game-over-glow {
     box-shadow: 0 0 0 1px rgba(201,81,74,0.3), 0 12px 48px rgba(0,0,0,0.5);
   }
+  .game-wrapper.game-over-glow::before { opacity: 0; }
 
   canvas#gameCanvas {
     display: block;
@@ -188,8 +198,26 @@
     border-color: var(--accent);
     color: var(--accent);
     transform: translateY(-1px);
+    box-shadow: 0 4px 20px rgba(201, 169, 110, 0.1);
   }
   .btn:active { transform: translateY(0) scale(0.98); }
+
+  .btn-primary {
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 500;
+    animation: btnPulse 2.5s ease-in-out infinite;
+  }
+  .btn-primary:hover {
+    color: #fff;
+    background: rgba(201, 169, 110, 0.1);
+    border-color: var(--gold);
+    box-shadow: 0 0 32px rgba(212, 175, 108, 0.15);
+  }
+  @keyframes btnPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(201, 169, 110, 0); }
+    50% { box-shadow: 0 0 16px 0 rgba(201, 169, 110, 0.08); }
+  }
 
   .hint {
     font-size: 11px;
@@ -747,7 +775,7 @@
 <!-- Leaderboard modal -->
 <div class="lb-modal-bg" id="lbModalBg">
   <div class="lb-modal">
-    <div class="lb-modal-title">🏆 排 行 榜</div>
+    <div class="lb-modal-title">排 行 榜</div>
     <div class="lb-tabs">
       <button class="lb-tab active" data-tab="all" id="tabAll">全 部</button>
       <button class="lb-tab" data-tab="friends" id="tabFriends">好 友</button>
@@ -773,7 +801,7 @@
     </div>
   </div>
 
-  <button class="lb-btn" id="btnLeaderboard">🏆 排行榜</button>
+  <button class="lb-btn" id="btnLeaderboard">排 行 榜</button>
 
   <div class="game-wrapper" id="gameWrapper">
     <canvas id="gameCanvas"></canvas>
@@ -1669,6 +1697,7 @@ function mergeScoresFB(local, remote) {
     gameRunning = false;
     clearInterval(gameLoop);
     sfxDeath();
+    wrapper.classList.remove('playing');
     wrapper.classList.add('game-over-glow');
 
     if (score > highScore) {
@@ -1694,7 +1723,7 @@ function mergeScoresFB(local, remote) {
       <div class="overlay-score">得分 <span>${score}</span></div>
       <div class="welcome-text"><span>${escapeHtml(savedName)}</span></div>
       <button class="name-change-link" id="btnChangeName">改名</button>
-      <button class="btn" id="btnRestart">再来一局</button>
+      <button class="btn btn-primary" id="btnRestart">再来一局</button>
     `;
     overlay.classList.add('active');
 
@@ -1721,7 +1750,7 @@ function mergeScoresFB(local, remote) {
       <div class="overlay-title">你的名字</div>
       <input class="name-input" id="nameInput" type="text" maxlength="20" placeholder="输入昵称" value="${savedName}" autocomplete="off">
       <p class="hint">2-20 个字符</p>
-      <button class="btn" id="btnSaveName">确 认</button>
+      <button class="btn btn-primary" id="btnSaveName">确 认</button>
     `;
     overlay.classList.add('active');
 
@@ -1806,9 +1835,8 @@ function mergeScoresFB(local, remote) {
 
     if (platform === 'qq') {
       overlay.innerHTML = `
-        <div class="overlay-title">贪 吃 蛇</div>
-        <div class="welcome-text"><span>${escapeHtml(savedName)}</span></div>
-        <button class="btn" id="btnStart">开始游戏</button>
+        <div class="overlay-title">${escapeHtml(savedName)}</div>
+        <button class="btn btn-primary" id="btnStart">开始游戏</button>
         <p class="hint">方向键 / WASD 操控</p>
       `;
       overlay.classList.add('active');
@@ -1818,10 +1846,9 @@ function mergeScoresFB(local, remote) {
 
     if (savedName && platform === 'guest') {
       overlay.innerHTML = `
-        <div class="overlay-title">贪 吃 蛇</div>
-        <div class="welcome-text"><span>${escapeHtml(savedName)}</span></div>
+        <div class="overlay-title">${escapeHtml(savedName)}</div>
         <button class="name-change-link" id="btnChangeName">改名</button>
-        <button class="btn" id="btnStart">开始游戏</button>
+        <button class="btn btn-primary" id="btnStart">开始游戏</button>
         <p class="hint">方向键 / WASD 操控</p>
       `;
       overlay.classList.add('active');
@@ -1856,10 +1883,10 @@ function mergeScoresFB(local, remote) {
 
     document.getElementById('btnGuestLogin').addEventListener('click', () => {
       overlay.innerHTML = `
-        <div class="overlay-title">贪 吃 蛇</div>
+<div class="overlay-title">贪 吃 蛇</div>
         <input class="name-input" id="nameInput" type="text" maxlength="20" placeholder="输入你的名字" autocomplete="off">
         <p class="hint">2-20 个字符</p>
-        <button class="btn" id="btnSaveName">开始游戏</button>
+        <button class="btn btn-primary" id="btnSaveName">开始游戏</button>
       `;
       overlay.classList.add('active');
 
@@ -2188,6 +2215,7 @@ function mergeScoresFB(local, remote) {
     init();
     gameRunning = true;
     isPaused = false;
+    wrapper.classList.add('playing');
     wrapper.classList.remove('game-over-glow');
     clearInterval(gameLoop);
     draw();
