@@ -1949,7 +1949,7 @@ function mergeScoresFB(local, remote) {
 
     const idHtml = myId
       ? `<div style="margin-top:4px;"><span style="font-family:SF Mono,Cascadia Code,Consolas,monospace;font-size:20px;font-weight:500;color:var(--gold);letter-spacing:2px;">${myId}</span></div>`
-      : '<div style="margin-top:4px;font-size:11px;color:var(--text-dim);">获取 ID 中...</div>';
+      : `<div style="margin-top:4px;"><button class="name-change-link" id="btnRetryId" style="font-size:11px;">点击获取 ID</button></div>`;
 
     let headerSection = `
       <div style="background:rgba(255,255,255,0.02);border-radius:14px;padding:16px;text-align:center;margin-bottom:14px;">
@@ -2088,6 +2088,22 @@ function mergeScoresFB(local, remote) {
           const hist = gameHistory();
           if (hist.length > 0) showMergePrompt();
           document.getElementById('historyModalBg').classList.remove('active');
+        }
+      });
+    }
+
+    const btnRetryId = document.getElementById('btnRetryId');
+    if (btnRetryId) {
+      btnRetryId.addEventListener('click', async () => {
+        btnRetryId.textContent = '获取中...';
+        btnRetryId.disabled = true;
+        const ok = await ensureUserId();
+        if (ok) {
+          updatePlayerBar();
+          renderHistory();
+        } else {
+          btnRetryId.textContent = '获取失败，点此重试';
+          btnRetryId.disabled = false;
         }
       });
     }
