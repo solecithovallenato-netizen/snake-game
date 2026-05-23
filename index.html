@@ -39,20 +39,33 @@
 
   /* ── Lobby Layout ── */
   .lobby {
-    display: flex; gap: 28px;
-    width: 100%; max-width: 1100px;
-    align-items: flex-start;
+    width: 100%; max-width: 650px;
   }
   .lobby-left {
-    flex: 0 0 55%;
     display: flex; flex-direction: column;
     gap: 16px;
-    min-width: 0;
   }
-  .lobby-right {
-    flex: 0 0 45%;
-    min-width: 300px;
-    position: sticky; top: 32px;
+
+  /* ── Top Row (leaderboard button + player card) ── */
+  .top-row {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .lb-btn-icon {
+    flex-shrink: 0;
+    width: 48px; height: 48px;
+    font-size: 22px;
+    background: var(--surface);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0;
+  }
+  .lb-btn-icon:hover {
+    border-color: var(--gold);
+    box-shadow: 0 0 12px rgba(201,169,110,0.15);
+    background: rgba(201,169,110,0.06);
   }
 
   .lobby-title {
@@ -163,25 +176,6 @@
     border: 1px solid rgba(255,255,255,0.05);
     border-radius: var(--radius);
     padding: 10px 24px;
-  }
-
-  /* ── Sidebar ── */
-  .sidebar-panel {
-    background: var(--surface);
-    backdrop-filter: blur(16px);
-    border: 1px solid rgba(255,255,255,0.05);
-    border-radius: var(--radius);
-    padding: 24px;
-    max-height: calc(100vh - 80px);
-    overflow-y: auto;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.3);
-  }
-  .sidebar-title {
-    font-size: 18px; font-weight: 300;
-    letter-spacing: 4px;
-    text-align: center;
-    color: var(--text);
-    margin-bottom: 16px;
   }
 
   canvas#gameCanvas {
@@ -463,8 +457,7 @@
   @media (max-width: 768px) {
     .lobby { flex-direction: column; padding: 0; }
     .lobby-left { flex: 1; }
-    .lobby-right { flex: 1; min-width: 0; position: static; }
-    .lobby-right .sidebar-panel { max-height: 50vh; }
+    .lobby-left { gap: 10px; }
     .score-value { font-size: 22px; }
     .lobby-title { font-size: 20px; letter-spacing: 5px; text-align: center; }
     .action-bar { flex-wrap: wrap; justify-content: center; }
@@ -482,7 +475,7 @@
     .qq-login-btn { padding: 12px 36px; font-size: 14px; }
     .history-modal { padding: 20px; max-height: 70vh; }
     .history-modal-title { font-size: 18px; }
-    .sidebar-panel { padding: 16px; }
+    .lb-btn-icon { width: 40px; height: 40px; font-size: 18px; }
     .diff-card { padding: 8px 12px; min-width: 55px; }
     .diff-card-icon { font-size: 18px; }
     .diff-card-label { font-size: 10px; }
@@ -794,19 +787,39 @@
   </div>
 </div>
 
+<!-- Leaderboard modal -->
+<div class="history-modal-bg" id="lbModalBg">
+  <div class="history-modal" style="max-width:420px;">
+    <div class="history-modal-title">排 行 榜</div>
+    <div class="lb-tabs">
+      <button class="lb-tab active" data-tab="all" id="tabAll">全 部</button>
+      <button class="lb-tab" data-tab="friends" id="tabFriends">好 友</button>
+    </div>
+    <div id="lbContent"><div class="lb-loading">加载中...</div></div>
+    <button class="add-friend-btn" id="btnAddFriend">+ 添加好友</button>
+    <div style="text-align:center;margin-top:8px;">
+      <button class="name-change-link" id="btnClearScores" style="color:var(--danger);">重置排行榜</button>
+    </div>
+    <button class="btn lb-close" id="btnLbClose">关 闭</button>
+  </div>
+</div>
+
 <!-- Lobby -->
 <div class="lobby" id="lobby">
   <div class="lobby-left">
     <h1 class="lobby-title">贪 吃 蛇</h1>
 
-    <div class="player-card" id="playerCard" style="display:none;">
-      <div class="player-avatar" id="playerAvatar"></div>
-      <div class="player-info">
-        <span class="player-name" id="playerName"></span>
-        <span class="player-id" id="playerIdDisplay"></span>
-        <span class="player-platform" id="playerPlatform"></span>
+    <div class="top-row">
+      <button class="lb-btn-icon" id="btnLeaderboard" title="排行榜">🏆</button>
+      <div class="player-card" id="playerCard" style="display:none;">
+        <div class="player-avatar" id="playerAvatar"></div>
+        <div class="player-info">
+          <span class="player-name" id="playerName"></span>
+          <span class="player-id" id="playerIdDisplay"></span>
+          <span class="player-platform" id="playerPlatform"></span>
+        </div>
+        <div class="request-badge" id="requestBadge"></div>
       </div>
-      <div class="request-badge" id="requestBadge"></div>
     </div>
 
     <div class="game-wrapper" id="gameWrapper">
@@ -836,21 +849,6 @@
         <button class="dpad-btn dpad-left">◀</button>
         <button class="dpad-btn dpad-right">▶</button>
         <button class="dpad-btn dpad-down">▼</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="lobby-right">
-    <div class="sidebar-panel" id="sidebarPanel">
-      <div class="sidebar-title">排 行 榜</div>
-      <div class="lb-tabs">
-        <button class="lb-tab active" data-tab="all" id="tabAll">全 部</button>
-        <button class="lb-tab" data-tab="friends" id="tabFriends">好 友</button>
-      </div>
-      <div id="lbContent"><div class="lb-loading">加载中...</div></div>
-      <button class="add-friend-btn" id="btnAddFriend">+ 添加好友</button>
-      <div style="text-align:center;margin-top:8px;">
-        <button class="name-change-link" id="btnClearScores" style="color:var(--danger);">重置排行榜</button>
       </div>
     </div>
   </div>
@@ -2370,6 +2368,11 @@ function mergeScoresFB(local, remote) {
       if (e.key === 'Escape') { document.getElementById('historyModalBg').classList.remove('active'); }
       return;
     }
+    // Leaderboard modal open — Esc closes it
+    if (document.getElementById('lbModalBg').classList.contains('active')) {
+      if (e.key === 'Escape') { document.getElementById('lbModalBg').classList.remove('active'); }
+      return;
+    }
     // Pause toggle
     if (gameRunning && (e.key === 'p' || e.key === 'P' || e.key === 'Escape')) {
       e.preventDefault();
@@ -2683,8 +2686,19 @@ function mergeScoresFB(local, remote) {
     if (e.target === e.currentTarget) e.currentTarget.classList.remove('active');
   });
 
-  // Auto-load leaderboard into sidebar
-  renderLeaderboard('all');
+  // Leaderboard button opens modal
+  document.getElementById('btnLeaderboard').addEventListener('click', () => {
+    document.getElementById('lbModalBg').classList.add('active');
+    renderLeaderboard('all');
+  });
+
+  // Leaderboard modal close
+  document.getElementById('btnLbClose').addEventListener('click', () => {
+    document.getElementById('lbModalBg').classList.remove('active');
+  });
+  document.getElementById('lbModalBg').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) e.currentTarget.classList.remove('active');
+  });
 
   // Start game button in lobby action bar
   document.getElementById('btnStartLobby').addEventListener('click', startGame);
