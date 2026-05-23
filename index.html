@@ -1003,27 +1003,27 @@ async function ensureUserId() {
   if (getMyUserId()) return getMyUserId();
 
   let lastError = '';
+  const fail = (msg) => { lastError = msg; console.warn('ensureUserId failed:', msg); window.__lastIdError = msg; return null; };
 
   try {
     const token = await getAuthToken();
-    if (!token) { lastError = '无法获取登录凭证(可能是代理拦截了Google服务)'; return null; }
+    if (!token) return fail('无法获取登录凭证(可能是代理拦截了Google服务)');
 
     const uid = currentUid || 'anon';
     const name = localStorage.getItem('snakePlayerName') || 'Player';
     const qqInfo = getQQInfo();
     const avatar = qqInfo ? qqInfo.avatar : '';
 
-    // Read counter (shorter timeout for faster feedback)
+    // Read counter
     let res = await fetch(`${FB_DB}/meta/nextId.json?auth=${token}`, {
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(5000),
     });
     let nextId = 1;
     if (res.ok) {
       const val = await res.json();
       if (typeof val === 'number') nextId = val;
     } else {
-      lastError = '读取ID计数器失败 (HTTP ' + res.status + ')';
-      return null;
+      return fail('读取ID计数器失败 (HTTP ' + res.status + ')');
     }
 
     // Write reverse index
@@ -1031,12 +1031,11 @@ async function ensureUserId() {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ uid, name, avatar }),
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
-      lastError = '写入用户索引失败 (HTTP ' + res.status + '): ' + errText.slice(0, 100);
-      return null;
+      return fail('写入用户索引失败 (HTTP ' + res.status + '): ' + errText.slice(0, 100));
     }
 
     // Increment counter
@@ -1044,12 +1043,11 @@ async function ensureUserId() {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(nextId + 1),
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
-      lastError = '更新计数器失败 (HTTP ' + res.status + '): ' + errText.slice(0, 100);
-      return null;
+      return fail('更新计数器失败 (HTTP ' + res.status + '): ' + errText.slice(0, 100));
     }
 
     const userId = String(nextId).padStart(6, '0');
@@ -1057,14 +1055,10 @@ async function ensureUserId() {
     return userId;
   } catch (e) {
     if (e.name === 'TimeoutError' || e.name === 'AbortError') {
-      lastError = '网络超时 — 请确认浏览器能访问 firebaseio.com（系统代理可能拦截了）';
-    } else {
-      lastError = e.message || String(e);
+      return fail('网络超时 — 请确认浏览器能访问 firebaseio.com（系统代理可能拦截了）');
     }
+    return fail(e.message || String(e));
   }
-  console.warn('ensureUserId failed:', lastError);
-  window.__lastIdError = lastError;
-  return null;
 }
 
 async function lookupByUserId(userId) {
