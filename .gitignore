@@ -1,0 +1,35 @@
+# Old deployment infrastructure
+leaderboard-server.js
+deploy-surge.js
+start-leaderboard.bat
+leaderboard-data.json
+deploy-url.txt
+snake-deploy/
+
+# Game source (renamed to index.html)
+snake-game.html
+
+# Unrelated project files
+screenshots/
+doc_images/
+ppt_images/
+tmpimg/
+OSPF_Experiment/
+OSPF_Experiment.topo
+create_ceramic_ppt.py
+hello.py
+*.docx
+*.lnk
+*.cfg
+*.topo
+
+# Logs
+*.log
+
+# Claude internals
+.claude/
+CLAUDE.md
+
+# OS junk
+Thumbs.db
+Desktop.ini
