@@ -2069,9 +2069,10 @@ function mergeScoresFB(local, remote) {
     }
   }
 
-  function showHistory() {
+  async function showHistory() {
     const modal = document.getElementById('historyModalBg');
     modal.classList.add('active');
+    if (!getMyUserId()) await ensureUserId();
     renderHistory();
   }
 
