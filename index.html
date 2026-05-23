@@ -655,9 +655,15 @@ async function getAuthToken() {
 
   const now = Date.now();
 
+  // QQ platform: always set uid to QQ openid
+  if (auth && auth.qqInfo && auth.qqInfo.openid) {
+    currentUid = auth.qqInfo.openid;
+  }
+
   // Token still valid (> 60s remaining)
   if (auth && auth.idToken && auth.expiresAt > now + 60000) {
-    currentUid = auth.localId;
+    if (auth.qqInfo && auth.qqInfo.openid) currentUid = auth.qqInfo.openid;
+    else currentUid = auth.localId;
     currentIdToken = auth.idToken;
     return auth.idToken;
   }
@@ -703,7 +709,11 @@ async function getAuthToken() {
         platform: 'guest',
       };
       localStorage.setItem(AUTH_KEY, JSON.stringify(auth));
-      currentUid = data.localId;
+      if (auth.qqInfo && auth.qqInfo.openid) {
+        currentUid = auth.qqInfo.openid;
+      } else {
+        currentUid = data.localId;
+      }
       currentIdToken = data.idToken;
       return data.idToken;
     }
