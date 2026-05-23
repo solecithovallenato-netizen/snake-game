@@ -430,8 +430,92 @@
 </div>
 
 <script>
-// ── Leaderboard (Firebase + localStorage) ──────────────
+// ── Firebase Config ─────────────────────────────────────
+// 从 Firebase Console > Project Settings > General 获取 Web API Key
+// https://console.firebase.google.com/project/snake-leaderboard-c6832/settings/general
+const FB_API_KEY = 'AIzaSyB_PLACEHOLDER_REPLACE_ME';
 const FB_DB = 'https://snake-leaderboard-c6832-default-rtdb.firebaseio.com';
+const AUTH_KEY = 'snakeAuth';
+
+// ── Auth (Firebase Anonymous via REST) ──────────────────
+let currentUid = null;
+let currentIdToken = null;
+
+async function getAuthToken() {
+  let auth = null;
+  try { auth = JSON.parse(localStorage.getItem(AUTH_KEY)); } catch (e) {}
+
+  const now = Date.now();
+
+  // Token still valid (> 60s remaining)
+  if (auth && auth.idToken && auth.expiresAt > now + 60000) {
+    currentUid = auth.localId;
+    currentIdToken = auth.idToken;
+    return auth.idToken;
+  }
+
+  // Refresh expired token
+  if (auth && auth.refreshToken) {
+    try {
+      const res = await fetch(`https://securetoken.googleapis.com/v1/token?key=${FB_API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ grant_type: 'refresh_token', refresh_token: auth.refreshToken }),
+        signal: AbortSignal.timeout(5000),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        auth.idToken = data.id_token;
+        auth.refreshToken = data.refresh_token;
+        auth.expiresAt = now + parseInt(data.expires_in) * 1000;
+        localStorage.setItem(AUTH_KEY, JSON.stringify(auth));
+        currentUid = auth.localId;
+        currentIdToken = data.id_token;
+        return data.id_token;
+      }
+    } catch (e) {}
+  }
+
+  // Sign up anonymously
+  try {
+    const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FB_API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ returnSecureToken: true }),
+      signal: AbortSignal.timeout(5000),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      auth = {
+        localId: data.localId,
+        idToken: data.idToken,
+        refreshToken: data.refreshToken,
+        expiresAt: now + parseInt(data.expiresIn) * 1000,
+      };
+      localStorage.setItem(AUTH_KEY, JSON.stringify(auth));
+      currentUid = data.localId;
+      currentIdToken = data.idToken;
+      return data.idToken;
+    }
+  } catch (e) {}
+
+  return null; // offline — use localStorage fallback
+}
+
+// Save display name per-user to RTDB
+async function saveDisplayName(name) {
+  if (!currentIdToken) return;
+  try {
+    await fetch(`${FB_DB}/users/${currentUid}.json?auth=${currentIdToken}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ displayName: name, updatedAt: Date.now() }),
+      signal: AbortSignal.timeout(5000),
+    });
+  } catch (e) {}
+}
+
+// ── Leaderboard (Firebase + localStorage) ──────────────
 const LB_KEY = 'snakeLeaderboard';
 const PENDING_KEY = 'snakePendingScores';
 const LB_MAX = 50;
@@ -472,7 +556,9 @@ function addToLocal(name, score) {
 
 async function fetchFirebase() {
   try {
-    const res = await fetch(`${FB_DB}/scores.json`, { signal: AbortSignal.timeout(5000) });
+    const token = await getAuthToken();
+    const authParam = token ? `?auth=${token}` : '';
+    const res = await fetch(`${FB_DB}/scores.json${authParam}`, { signal: AbortSignal.timeout(5000) });
     if (!res.ok) throw new Error('fail');
     const obj = await res.json();
     if (!obj) return [];
@@ -482,10 +568,17 @@ async function fetchFirebase() {
 
 async function submitToFirebase(name, score) {
   try {
-    const res = await fetch(`${FB_DB}/scores.json`, {
+    const token = await getAuthToken();
+    const authParam = token ? `?auth=${token}` : '';
+    const res = await fetch(`${FB_DB}/scores.json${authParam}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: String(name).trim().slice(0, 20) || 'Player', score: Math.floor(score), time: Date.now() }),
+      body: JSON.stringify({
+        name: String(name).trim().slice(0, 20) || 'Player',
+        score: Math.floor(score),
+        time: Date.now(),
+        uid: currentUid || 'anon',
+      }),
       signal: AbortSignal.timeout(5000),
     });
     return res.ok;
@@ -902,6 +995,7 @@ function mergeScoresFB(local, remote) {
       const ok = await submitToFirebase(name, score);
 
       if (ok) {
+        saveDisplayName(name);
         submitStatus.textContent = '提交成功！全局排名已同步';
         submitStatus.className = 'submit-status success';
         document.getElementById('btnSubmit').disabled = true;
@@ -1100,6 +1194,9 @@ function mergeScoresFB(local, remote) {
 
   // ── Initialize ───────────────────────────────────────
   init();
+
+  // Pre-init auth (non-blocking)
+  getAuthToken();
 
   // Start button
   btnStart.addEventListener('click', startGame);
