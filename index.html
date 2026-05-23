@@ -584,6 +584,7 @@
     <div class="lb-modal-title">🏆 排 行 榜</div>
     <div id="lbContent"><div class="lb-loading">加载中...</div></div>
     <button class="btn lb-close" id="btnLbClose">关 闭</button>
+    <div style="text-align:center;margin-top:8px;"><button class="name-change-link" id="btnClearScores" style="color:var(--danger);">重置排行榜</button></div>
   </div>
 </div>
 
@@ -848,13 +849,39 @@ function clearPending() {
   try { localStorage.removeItem(PENDING_KEY); } catch (e) {}
 }
 
+async function clearAllScores() {
+  const token = await getAuthToken();
+  if (!token || !currentUid) return false;
+  try {
+    // Clear Firebase: DELETE all scores
+    await fetch(`${FB_DB}/scores.json?auth=${token}`, {
+      method: 'DELETE',
+      signal: AbortSignal.timeout(5000),
+    });
+    // Clear localStorage
+    localStorage.removeItem(LB_KEY);
+    localStorage.removeItem(PENDING_KEY);
+    localStorage.removeItem(HISTORY_KEY);
+    localStorage.removeItem('snakeHighScore');
+    return true;
+  } catch (e) { return false; }
+}
+
 function addToLocal(name, score) {
   const list = localScores();
-  list.push({ name: String(name).trim().slice(0, 20) || 'Player', score: Math.floor(score), time: Date.now() });
+  const cleanName = String(name).trim().slice(0, 20) || 'Player';
+  const newScore = Math.floor(score);
+  // One record per person: keep only highest score
+  const existing = list.findIndex(e => e.name === cleanName);
+  if (existing >= 0) {
+    if (list[existing].score >= newScore) return existing + 1;
+    list.splice(existing, 1);
+  }
+  list.push({ name: cleanName, score: newScore, time: Date.now() });
   list.sort((a, b) => b.score - a.score);
   if (list.length > LB_MAX) list.length = LB_MAX;
   saveLocal(list);
-  return list.findIndex(e => e.score === Math.floor(score)) + 1;
+  return list.findIndex(e => e.name === cleanName) + 1;
 }
 
 async function fetchFirebase() {
@@ -872,15 +899,30 @@ async function fetchFirebase() {
 async function submitToFirebase(name, score) {
   try {
     const token = await getAuthToken();
-    const authParam = token ? `?auth=${token}` : '';
-    const res = await fetch(`${FB_DB}/scores.json${authParam}`, {
-      method: 'POST',
+    if (!token) return false;
+    const uid = currentUid || 'anon';
+    const cleanName = String(name).trim().slice(0, 20) || 'Player';
+    const newScore = Math.floor(score);
+
+    // One record per person: check existing score first, only update if higher
+    try {
+      const checkRes = await fetch(`${FB_DB}/scores/${uid}.json?auth=${token}`, {
+        signal: AbortSignal.timeout(5000),
+      });
+      if (checkRes.ok) {
+        const existing = await checkRes.json();
+        if (existing && existing.score >= newScore) return true; // keep higher existing
+      }
+    } catch (e) { /* proceed to submit */ }
+
+    const res = await fetch(`${FB_DB}/scores/${uid}.json?auth=${token}`, {
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        name: String(name).trim().slice(0, 20) || 'Player',
-        score: Math.floor(score),
+        name: cleanName,
+        score: newScore,
         time: Date.now(),
-        uid: currentUid || 'anon',
+        uid: uid,
       }),
       signal: AbortSignal.timeout(5000),
     });
@@ -890,10 +932,12 @@ async function submitToFirebase(name, score) {
 
 function mergeScoresFB(local, remote) {
   const map = new Map();
-  for (const e of local) map.set(`${e.name}__${e.score}`, e);
-  for (const e of remote) {
-    const k = `${e.name}__${e.score}`;
-    if (!map.has(k) || e.time > map.get(k).time) map.set(k, e);
+  // One record per person: keep highest score per name
+  for (const e of [...local, ...remote]) {
+    const name = e.name || 'Player';
+    if (!map.has(name) || e.score > map.get(name).score) {
+      map.set(name, e);
+    }
   }
   return [...map.values()].sort((a, b) => b.score - a.score).slice(0, 10);
 }
@@ -1857,6 +1901,21 @@ function mergeScoresFB(local, remote) {
 
   lbModalBg.addEventListener('click', (e) => {
     if (e.target === lbModalBg) lbModalBg.classList.remove('active');
+  });
+
+  document.getElementById('btnClearScores').addEventListener('click', async () => {
+    if (!confirm('确定要清除所有排行榜记录吗？此操作不可撤销。')) return;
+    const ok = await clearAllScores();
+    if (ok) {
+      highScore = 0;
+      highScoreEl.textContent = '0';
+      localStorage.setItem('snakeHighScore', '0');
+      scoreEl.textContent = '0';
+      alert('已清除全部记录');
+      renderLeaderboard();
+    } else {
+      alert('清除失败，请检查网络连接');
+    }
   });
 
   // Close modal with Escape
