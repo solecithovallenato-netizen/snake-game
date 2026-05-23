@@ -1921,18 +1921,39 @@ function mergeScoresFB(local, remote) {
 
     const platform = getAuthPlatform();
     const myId = getMyUserId();
+    const name = localStorage.getItem('snakePlayerName') || 'Player';
+    const qqInfo = getQQInfo();
     const list = gameHistory();
 
-    // Fetch friend data
-    const [friends, requests] = await Promise.all([getMyFriends(), getMyRequests()]);
+    // Fetch friend data and scores in parallel
+    const [friends, requests, remote] = await Promise.all([
+      getMyFriends(),
+      getMyRequests(),
+      fetchFirebase(),
+    ]);
 
-    // Build sections
-    let idSection = '';
-    if (myId) {
-      idSection = `<div class="user-id-display">你的 ID <span>${myId}</span></div>`;
+    // Build friend score map
+    const scoreMap = {};
+    if (remote) {
+      for (const s of remote) {
+        const n = s.name || '';
+        if (!scoreMap[n] || s.score > scoreMap[n]) scoreMap[n] = s.score;
+      }
     }
 
-    // Friend requests section
+    // ── Header: avatar + name + ID ──
+    const avatarHtml = qqInfo && qqInfo.avatar
+      ? `<img src="${qqInfo.avatar}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;" alt="">`
+      : `<span style="font-size:18px;">${name.charAt(0).toUpperCase()}</span>`;
+
+    let headerSection = `
+      <div style="text-align:center;margin-bottom:12px;">
+        <div class="player-avatar" style="width:48px;height:48px;margin:0 auto 6px;display:flex;justify-content:center;align-items:center;">${avatarHtml}</div>
+        <div style="font-size:16px;color:var(--text);font-weight:400;">${escapeHtml(name)}</div>
+        ${myId ? `<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">ID ${myId}</div>` : ''}
+      </div>`;
+
+    // ── Friend requests ──
     let requestSection = '';
     if (requests.length > 0) {
       requestSection = `<div class="friend-list-title" style="color:var(--danger);">好友请求 (${requests.length})</div>`
@@ -1947,20 +1968,23 @@ function mergeScoresFB(local, remote) {
           </div>`).join('');
     }
 
-    // Friend list section
+    // ── Friends ──
     let friendSection = '';
     if (friends.length > 0) {
       friendSection = `<div class="friend-list-title">好友 (${friends.length})</div>`
-        + friends.map(f => `
-          <div class="friend-row">
+        + friends.map(f => {
+          const fs = scoreMap[f.name] || '-';
+          return `<div class="friend-row">
             <div class="friend-row-avatar">${f.avatar ? `<img src="${f.avatar}" alt="">` : f.name.charAt(0).toUpperCase()}</div>
             <span class="friend-row-name">${escapeHtml(f.name)}</span>
-          </div>`).join('');
+            <span class="friend-row-score">${fs}</span>
+          </div>`;
+        }).join('');
     } else if (myId) {
-      friendSection = '<div class="friend-empty">还没有好友<br>去排行榜添加吧</div>';
+      friendSection = '<div class="friend-empty" style="margin-bottom:12px;">还没有好友<br>去排行榜添加吧</div>';
     }
 
-    // Game history stats
+    // ── Game history ──
     let statsSection = '';
     if (list.length > 0) {
       const total = list.length;
@@ -1998,29 +2022,16 @@ function mergeScoresFB(local, remote) {
     }
 
     const bindRow = platform === 'guest'
-      ? '<div style="text-align:center;margin-bottom:12px;"><button class="name-change-link" id="btnBindQQ">绑定 QQ 账号</button></div>'
+      ? '<div style="text-align:center;margin:12px 0;"><button class="name-change-link" id="btnBindQQ">绑定 QQ 账号</button></div>'
       : '';
 
     content.innerHTML = `
-      ${idSection}
+      ${headerSection}
       ${requestSection}
       ${friendSection}
       ${bindRow}
       ${statsSection}
     `;
-
-    // Bind handlers
-    const btnBindQQ = document.getElementById('btnBindQQ');
-    if (btnBindQQ) {
-      btnBindQQ.addEventListener('click', async () => {
-        const ok = await qqLogin();
-        if (ok) {
-          const hist = gameHistory();
-          if (hist.length > 0) showMergePrompt();
-          document.getElementById('historyModalBg').classList.remove('active');
-        }
-      });
-    }
 
     // Accept/reject handlers
     content.querySelectorAll('.request-accept').forEach(btn => {
@@ -2044,6 +2055,18 @@ function mergeScoresFB(local, remote) {
         }
       });
     });
+
+    const btnBindQQ = document.getElementById('btnBindQQ');
+    if (btnBindQQ) {
+      btnBindQQ.addEventListener('click', async () => {
+        const ok = await qqLogin();
+        if (ok) {
+          const hist = gameHistory();
+          if (hist.length > 0) showMergePrompt();
+          document.getElementById('historyModalBg').classList.remove('active');
+        }
+      });
+    }
   }
 
   function showHistory() {
