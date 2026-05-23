@@ -785,16 +785,21 @@
 <div class="history-modal-bg" id="lbModalBg">
   <div class="history-modal" style="max-width:420px;">
     <div class="history-modal-title">排 行 榜</div>
-    <div class="lb-tabs">
-      <button class="lb-tab active" data-tab="all" id="tabAll">全 部</button>
-      <button class="lb-tab" data-tab="friends" id="tabFriends">好 友</button>
-    </div>
     <div id="lbContent"><div class="lb-loading">加载中...</div></div>
-    <button class="add-friend-btn" id="btnAddFriend">+ 添加好友</button>
     <div style="text-align:center;margin-top:8px;">
       <button class="name-change-link" id="btnClearScores" style="color:var(--danger);">重置排行榜</button>
     </div>
     <button class="btn lb-close" id="btnLbClose">关 闭</button>
+  </div>
+</div>
+
+<!-- Friends modal -->
+<div class="history-modal-bg" id="friendsModalBg">
+  <div class="history-modal" style="max-width:420px;">
+    <div class="history-modal-title">好 友</div>
+    <div id="friendsContent"><div class="lb-loading">加载中...</div></div>
+    <button class="add-friend-btn" id="btnAddFriend">+ 添加好友</button>
+    <button class="btn lb-close" id="btnFriendsClose">关 闭</button>
   </div>
 </div>
 
@@ -814,6 +819,7 @@
         </div>
         <div class="request-badge" id="requestBadge"></div>
       </div>
+      <button class="lb-btn-icon friends-btn" id="btnFriends" title="好友">👥</button>
       <div class="score-inline" id="scoreInline">
         <div class="score-item">
           <span class="score-label">得 分</span>
@@ -2354,6 +2360,10 @@ function mergeScoresFB(local, remote) {
       if (e.key === 'Escape') { document.getElementById('lbModalBg').classList.remove('active'); }
       return;
     }
+    if (document.getElementById('friendsModalBg').classList.contains('active')) {
+      if (e.key === 'Escape') { document.getElementById('friendsModalBg').classList.remove('active'); }
+      return;
+    }
     // Pause toggle
     if (gameRunning && (e.key === 'p' || e.key === 'P' || e.key === 'Escape')) {
       e.preventDefault();
@@ -2494,39 +2504,20 @@ function mergeScoresFB(local, remote) {
     return synced === pending.length;
   }
 
-  let lbCurrentTab = 'all';
 
-  async function renderLeaderboard(tab) {
-    if (tab) lbCurrentTab = tab;
+  async function renderLeaderboard() {
+    const lbContent = document.getElementById('lbContent');
     lbContent.innerHTML = '<div class="lb-loading">加载中...</div>';
 
-    // Update tab active state
-    document.querySelectorAll('.lb-tab').forEach(t => t.classList.remove('active'));
-    document.getElementById('tab' + (lbCurrentTab === 'all' ? 'All' : 'Friends')).classList.add('active');
-
-    // Try to sync pending scores first
     const pending = pendingScores();
     if (pending.length > 0) await syncPending();
 
     const local = localScores();
     const remote = await fetchFirebase();
-    let data = mergeScoresFB(local, remote || []);
-
-    // Friend tab: filter
-    if (lbCurrentTab === 'friends') {
-      if (isAdmin()) {
-        // Admin: friend tab = all players
-        // nothing to filter
-      } else {
-        const friends = await getMyFriends();
-        const friendNames = new Set(friends.map(f => f.name));
-        data = data.filter(e => friendNames.has(e.name));
-      }
-    }
+    const data = mergeScoresFB(local, remote || []);
 
     if (data.length === 0) {
-      const msg = lbCurrentTab === 'friends' ? '还没有添加好友<br>去排行榜添加吧' : '还没有记录<br>快来拿下第一名吧！';
-      lbContent.innerHTML = `<div class="lb-empty">${msg}</div>`;
+      lbContent.innerHTML = '<div class="lb-empty">还没有记录<br>快来拿下第一名吧！</div>';
       return;
     }
 
@@ -2553,6 +2544,49 @@ function mergeScoresFB(local, remote) {
     }).join('');
   }
 
+  // Friends board
+  async function renderFriendsBoard() {
+    const fc = document.getElementById('friendsContent');
+    fc.innerHTML = '<div class="lb-loading">加载中...</div>';
+
+    if (isAdmin()) {
+      // Admin: friends = all players, re-render same as leaderboard
+      await renderLeaderboard();
+      const lbHtml = document.getElementById('lbContent').innerHTML;
+      fc.innerHTML = lbHtml;
+      return;
+    }
+
+    const pending = pendingScores();
+    if (pending.length > 0) await syncPending();
+
+    const local = localScores();
+    const remote = await fetchFirebase();
+    let data = mergeScoresFB(local, remote || []);
+    const friends = await getMyFriends();
+    const friendNames = new Set(friends.map(f => f.name));
+    data = data.filter(e => friendNames.has(e.name));
+
+    if (data.length === 0) {
+      fc.innerHTML = '<div class="lb-empty">还没有添加好友<br>去排行榜添加吧</div>';
+      return;
+    }
+
+    fc.innerHTML = data.map((entry, i) => {
+      let topClass = '';
+      let rankIcon = String(i + 1);
+      if (i === 0) { topClass = 'top1'; rankIcon = '👑'; }
+      else if (i === 1) { topClass = 'top2'; rankIcon = '🥈'; }
+      else if (i === 2) { topClass = 'top3'; rankIcon = '🥉'; }
+      return `
+        <div class="lb-row ${topClass}" data-uid="${(entry.uid||'')}" data-name="${escapeHtml(entry.name)}" data-score="${entry.score}" style="cursor:pointer;">
+          <span class="lb-rank">${rankIcon}</span>
+          <span class="lb-name">${escapeHtml(entry.name)}</span>
+          <span class="lb-score">${entry.score}</span>
+        </div>`;
+    }).join('');
+  }
+
   function escapeHtml(str) {
     const div = document.createElement('div');
     div.textContent = str;
@@ -2561,6 +2595,16 @@ function mergeScoresFB(local, remote) {
 
   // Click delegation: leaderboard row → player profile
   lbContent.addEventListener('click', async (e) => {
+    const row = e.target.closest('.lb-row');
+    if (!row) return;
+    const uid = row.dataset.uid;
+    const name = row.dataset.name;
+    const score = parseInt(row.dataset.score, 10);
+    showPlayerProfile(uid, name, score);
+  });
+
+  // Friends content click delegation
+  document.getElementById('friendsContent').addEventListener('click', async (e) => {
     const row = e.target.closest('.lb-row');
     if (!row) return;
     const uid = row.dataset.uid;
@@ -2670,7 +2714,13 @@ function mergeScoresFB(local, remote) {
   // Leaderboard button opens modal
   document.getElementById('btnLeaderboard').addEventListener('click', () => {
     document.getElementById('lbModalBg').classList.add('active');
-    renderLeaderboard('all');
+    renderLeaderboard();
+  });
+
+  // Friends button opens friends modal
+  document.getElementById('btnFriends').addEventListener('click', () => {
+    document.getElementById('friendsModalBg').classList.add('active');
+    renderFriendsBoard();
   });
 
   // Leaderboard modal close
@@ -2681,9 +2731,14 @@ function mergeScoresFB(local, remote) {
     if (e.target === e.currentTarget) e.currentTarget.classList.remove('active');
   });
 
-  // Tab switching
-  document.getElementById('tabAll').addEventListener('click', () => renderLeaderboard('all'));
-  document.getElementById('tabFriends').addEventListener('click', () => renderLeaderboard('friends'));
+  // Friends modal close
+  document.getElementById('btnFriendsClose').addEventListener('click', () => {
+    document.getElementById('friendsModalBg').classList.remove('active');
+  });
+  document.getElementById('friendsModalBg').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) e.currentTarget.classList.remove('active');
+  });
+
 
   // Add friend button
   document.getElementById('btnAddFriend').addEventListener('click', () => {
