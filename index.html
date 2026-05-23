@@ -559,14 +559,162 @@
     text-align: center; padding: 24px 0;
     color: var(--text-dim); font-size: 13px;
   }
+
+  /* Friend system */
+  .user-id-display {
+    text-align: center; margin-bottom: 12px;
+    font-size: 12px; color: var(--text-dim);
+    letter-spacing: 2px;
+  }
+  .user-id-display span {
+    font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
+    color: var(--gold); font-size: 18px; font-weight: 500;
+  }
+  .friend-list {
+    margin-bottom: 12px;
+  }
+  .friend-list-title {
+    font-size: 10px; font-weight: 500;
+    letter-spacing: 3px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    text-align: center;
+  }
+  .friend-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 12px; color: var(--text);
+  }
+  .friend-row-avatar {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--accent-dim);
+    display: flex; justify-content: center; align-items: center;
+    font-size: 9px; color: var(--accent);
+    overflow: hidden;
+  }
+  .friend-row-avatar img {
+    width: 100%; height: 100%; object-fit: cover;
+  }
+  .friend-row-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .friend-row-score {
+    font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
+    font-size: 11px; color: var(--accent);
+  }
+  .friend-empty {
+    text-align: center; padding: 8px 0;
+    color: var(--text-dim); font-size: 11px;
+  }
+
+  .request-badge {
+    position: absolute; top: -2px; right: -2px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--danger);
+    border: 2px solid var(--bg);
+    display: none;
+  }
+  .request-badge.show { display: block; }
+
+  .request-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px; margin-bottom: 4px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.03);
+    font-size: 12px; color: var(--text);
+  }
+  .request-row-actions { margin-left: auto; display: flex; gap: 6px; }
+  .request-accept, .request-reject {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: none; cursor: pointer;
+    font-size: 14px;
+    display: flex; justify-content: center; align-items: center;
+    transition: all 0.15s;
+  }
+  .request-accept { background: rgba(201,169,110,0.15); color: var(--accent); }
+  .request-accept:hover { background: rgba(201,169,110,0.3); }
+  .request-reject { background: rgba(201,81,74,0.1); color: var(--danger); }
+  .request-reject:hover { background: rgba(201,81,74,0.2); }
+
+  .lb-tabs {
+    display: flex; gap: 12px;
+    justify-content: center;
+    margin-bottom: 16px;
+  }
+  .lb-tab {
+    font-size: 12px; font-weight: 500;
+    letter-spacing: 3px;
+    color: var(--text-dim);
+    background: none; border: none;
+    padding: 6px 16px;
+    cursor: pointer;
+    border-radius: 50px;
+    transition: all 0.2s;
+  }
+  .lb-tab.active {
+    color: var(--accent);
+    background: var(--accent-dim);
+  }
+  .lb-tab:hover { color: var(--text); }
+
+  .add-friend-btn {
+    display: block; margin: 0 auto 12px;
+    font-size: 10px; letter-spacing: 2px;
+    color: var(--text-dim);
+    background: none; border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 50px;
+    padding: 8px 24px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .add-friend-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .search-input {
+    font-size: 13px; font-weight: 400;
+    letter-spacing: 1px;
+    text-align: center;
+    padding: 8px 16px;
+    width: 220px;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 50px;
+    background: rgba(0, 0, 0, 0.3);
+    color: var(--text);
+    outline: none;
+    transition: all 0.25s ease;
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .search-input::placeholder { color: var(--text-dim); }
+
+  .search-hints {
+    max-height: 160px; overflow-y: auto;
+    margin-top: 8px;
+  }
+  .search-hint-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-size: 13px; color: var(--text);
+  }
+  .search-hint-row:hover { background: rgba(255,255,255,0.05); }
+  .search-none {
+    text-align: center; padding: 12px;
+    font-size: 11px; color: var(--text-dim);
+  }
 </style>
 </head>
 <body>
 
 <!-- Player bar -->
-<div class="player-bar" id="playerBar" style="display:none;">
+<div class="player-bar" id="playerBar" style="display:none;position:relative;">
   <div class="player-avatar" id="playerAvatar"></div>
   <span class="player-bar-name" id="playerBarName"></span>
+  <div class="request-badge" id="requestBadge"></div>
 </div>
 
 <!-- History modal -->
@@ -578,11 +726,26 @@
   </div>
 </div>
 
+<!-- Add friend modal -->
+<div class="history-modal-bg" id="addFriendBg">
+  <div class="history-modal">
+    <div class="history-modal-title">添加好友</div>
+    <input class="search-input" id="friendSearch" type="text" maxlength="30" placeholder="输入 ID（如 000001）或昵称" autocomplete="off">
+    <div class="search-hints" id="searchHints"></div>
+    <button class="btn lb-close" id="btnAddFriendClose">关 闭</button>
+  </div>
+</div>
+
 <!-- Leaderboard modal -->
 <div class="lb-modal-bg" id="lbModalBg">
   <div class="lb-modal">
     <div class="lb-modal-title">🏆 排 行 榜</div>
+    <div class="lb-tabs">
+      <button class="lb-tab active" data-tab="all" id="tabAll">全 部</button>
+      <button class="lb-tab" data-tab="friends" id="tabFriends">好 友</button>
+    </div>
     <div id="lbContent"><div class="lb-loading">加载中...</div></div>
+    <button class="add-friend-btn" id="btnAddFriend">+ 添加好友</button>
     <button class="btn lb-close" id="btnLbClose">关 闭</button>
     <div style="text-align:center;margin-top:8px;"><button class="name-change-link" id="btnClearScores" style="color:var(--danger);">重置排行榜</button></div>
   </div>
@@ -626,6 +789,11 @@
 const FB_API_KEY = 'AIzaSyBPRCOHmeR8kigmg5Wob6ZqmgD2R13BwSw';
 const FB_DB = 'https://snake-leaderboard-c6832-default-rtdb.firebaseio.com';
 const AUTH_KEY = 'snakeAuth';
+const USER_ID_KEY = 'snakeUserId';
+
+// ── Admin Config ─────────────────────────────────────────
+// 管理员 ID（000001），好友榜 = 全局榜
+const ADMIN_USER_IDS = ['000001'];
 
 // ── QQ Login Config ─────────────────────────────────────
 const QQ_APP_ID = 'YOUR_QQ_APP_ID'; // 替换为从 QQ 互联获取的 APP ID
@@ -815,6 +983,184 @@ async function saveDisplayName(name) {
       signal: AbortSignal.timeout(5000),
     });
   } catch (e) {}
+}
+
+// ── User ID System ──────────────────────────────────────
+function getMyUserId() {
+  return localStorage.getItem(USER_ID_KEY) || null;
+}
+
+async function ensureUserId() {
+  if (getMyUserId()) return getMyUserId();
+
+  try {
+    const token = await getAuthToken();
+    if (!token) return null;
+
+    // Read counter
+    let res = await fetch(`${FB_DB}/meta/nextId.json?auth=${token}`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    let nextId = 1;
+    if (res.ok) {
+      const val = await res.json();
+      if (typeof val === 'number') nextId = val;
+    }
+
+    const uid = currentUid || 'anon';
+    const name = localStorage.getItem('snakePlayerName') || 'Player';
+    const qqInfo = getQQInfo();
+    const avatar = qqInfo ? qqInfo.avatar : '';
+
+    // Write reverse index
+    await fetch(`${FB_DB}/userIdIndex/${nextId}.json?auth=${token}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid, name, avatar }),
+      signal: AbortSignal.timeout(5000),
+    });
+
+    // Increment counter
+    await fetch(`${FB_DB}/meta/nextId.json?auth=${token}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(nextId + 1),
+      signal: AbortSignal.timeout(5000),
+    });
+
+    const userId = String(nextId).padStart(6, '0');
+    localStorage.setItem(USER_ID_KEY, userId);
+    return userId;
+  } catch (e) {
+    console.warn('ensureUserId failed:', e);
+    return null;
+  }
+}
+
+async function lookupByUserId(userId) {
+  try {
+    const token = await getAuthToken();
+    const res = await fetch(`${FB_DB}/userIdIndex/${parseInt(userId, 10)}.json?auth=${token}`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data ? { userId, ...data } : null;
+  } catch (e) { return null; }
+}
+
+async function searchUsers(query) {
+  const results = [];
+  try {
+    const token = await getAuthToken();
+    // Fetch all userIdIndex entries
+    const res = await fetch(`${FB_DB}/userIdIndex.json?auth=${token}`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return results;
+    const obj = await res.json();
+    if (!obj) return results;
+
+    const q = query.toLowerCase();
+    for (const [id, data] of Object.entries(obj)) {
+      if (!data || !data.name) continue;
+      if (String(id).padStart(6, '0').includes(query) || data.name.toLowerCase().includes(q)) {
+        results.push({ userId: String(id).padStart(6, '0'), ...data });
+      }
+    }
+    return results.slice(0, 10);
+  } catch (e) { return results; }
+}
+
+// ── Friend System ────────────────────────────────────────
+async function sendFriendRequest(targetUid, targetName) {
+  if (!currentUid || !currentIdToken) return false;
+  const myName = localStorage.getItem('snakePlayerName') || 'Player';
+  const qqInfo = getQQInfo();
+  const myAvatar = qqInfo ? qqInfo.avatar : '';
+  try {
+    const res = await fetch(`${FB_DB}/friendRequests/${targetUid}/${currentUid}.json?auth=${currentIdToken}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fromName: myName, fromAvatar: myAvatar, time: Date.now() }),
+      signal: AbortSignal.timeout(5000),
+    });
+    return res.ok;
+  } catch (e) { return false; }
+}
+
+async function acceptFriendRequest(fromUid, fromName, fromAvatar) {
+  if (!currentUid || !currentIdToken) return false;
+  try {
+    // Add to my friends
+    await fetch(`${FB_DB}/friends/${currentUid}/${fromUid}.json?auth=${currentIdToken}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: fromName, avatar: fromAvatar, addedAt: Date.now() }),
+      signal: AbortSignal.timeout(5000),
+    });
+    // Add me to their friends
+    const myName = localStorage.getItem('snakePlayerName') || 'Player';
+    const qqInfo = getQQInfo();
+    const myAvatar = qqInfo ? qqInfo.avatar : '';
+    await fetch(`${FB_DB}/friends/${fromUid}/${currentUid}.json?auth=${currentIdToken}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: myName, avatar: myAvatar, addedAt: Date.now() }),
+      signal: AbortSignal.timeout(5000),
+    });
+    // Delete request
+    await fetch(`${FB_DB}/friendRequests/${currentUid}/${fromUid}.json?auth=${currentIdToken}`, {
+      method: 'DELETE',
+      signal: AbortSignal.timeout(5000),
+    });
+    return true;
+  } catch (e) { return false; }
+}
+
+async function rejectFriendRequest(fromUid) {
+  if (!currentUid || !currentIdToken) return false;
+  try {
+    await fetch(`${FB_DB}/friendRequests/${currentUid}/${fromUid}.json?auth=${currentIdToken}`, {
+      method: 'DELETE',
+      signal: AbortSignal.timeout(5000),
+    });
+    return true;
+  } catch (e) { return false; }
+}
+
+async function getMyFriends() {
+  if (!currentUid) return [];
+  try {
+    const token = await getAuthToken();
+    if (!token) return [];
+    const res = await fetch(`${FB_DB}/friends/${currentUid}.json?auth=${token}`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return [];
+    const obj = await res.json();
+    return obj ? Object.values(obj) : [];
+  } catch (e) { return []; }
+}
+
+async function getMyRequests() {
+  if (!currentUid) return [];
+  try {
+    const token = await getAuthToken();
+    if (!token) return [];
+    const res = await fetch(`${FB_DB}/friendRequests/${currentUid}.json?auth=${token}`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return [];
+    const obj = await res.json();
+    if (!obj) return [];
+    return Object.entries(obj).map(([uid, data]) => ({ uid, ...data }));
+  } catch (e) { return []; }
+}
+
+function isAdmin() {
+  const myId = getMyUserId();
+  return myId && ADMIN_USER_IDS.includes(myId);
 }
 
 // ── Leaderboard (Firebase + localStorage) ──────────────
@@ -1548,71 +1894,148 @@ function mergeScoresFB(local, remote) {
     } else {
       avatar.textContent = name.charAt(0).toUpperCase();
     }
+
+    // Check friend requests
+    getMyRequests().then(reqs => {
+      const badge = document.getElementById('requestBadge');
+      if (reqs.length > 0) {
+        badge.classList.add('show');
+        badge.title = reqs.length + ' 条好友请求';
+      } else {
+        badge.classList.remove('show');
+      }
+    });
   }
 
-  function renderHistory() {
+  async function renderHistory() {
     const content = document.getElementById('historyContent');
-    const list = gameHistory();
-    const platform = getAuthPlatform();
+    content.innerHTML = '<div class="lb-loading">加载中...</div>';
 
-    if (list.length === 0 && platform === 'guest') {
-      content.innerHTML = '<div class="history-empty">还没有战绩<br>快来玩一局吧！</div>';
-      return;
+    const platform = getAuthPlatform();
+    const myId = getMyUserId();
+    const list = gameHistory();
+
+    // Fetch friend data
+    const [friends, requests] = await Promise.all([getMyFriends(), getMyRequests()]);
+
+    // Build sections
+    let idSection = '';
+    if (myId) {
+      idSection = `<div class="user-id-display">你的 ID <span>${myId}</span></div>`;
     }
 
-    const total = list.length;
-    const best = list.length > 0 ? Math.max(...list.map(e => e.score)) : 0;
-    const avg = list.length > 0 ? Math.round(list.reduce((s, e) => s + e.score, 0) / total) : 0;
+    // Friend requests section
+    let requestSection = '';
+    if (requests.length > 0) {
+      requestSection = `<div class="friend-list-title" style="color:var(--danger);">好友请求 (${requests.length})</div>`
+        + requests.map(r => `
+          <div class="request-row">
+            <div class="friend-row-avatar">${r.fromAvatar ? `<img src="${r.fromAvatar}" alt="">` : r.fromName.charAt(0).toUpperCase()}</div>
+            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(r.fromName)}</span>
+            <div class="request-row-actions">
+              <button class="request-accept" data-accept="${r.uid}" data-name="${escapeHtml(r.fromName)}" data-avatar="${r.fromAvatar||''}">✓</button>
+              <button class="request-reject" data-reject="${r.uid}">✕</button>
+            </div>
+          </div>`).join('');
+    }
+
+    // Friend list section
+    let friendSection = '';
+    if (friends.length > 0) {
+      friendSection = `<div class="friend-list-title">好友 (${friends.length})</div>`
+        + friends.map(f => `
+          <div class="friend-row">
+            <div class="friend-row-avatar">${f.avatar ? `<img src="${f.avatar}" alt="">` : f.name.charAt(0).toUpperCase()}</div>
+            <span class="friend-row-name">${escapeHtml(f.name)}</span>
+          </div>`).join('');
+    } else if (myId) {
+      friendSection = '<div class="friend-empty">还没有好友<br>去排行榜添加吧</div>';
+    }
+
+    // Game history stats
+    let statsSection = '';
+    if (list.length > 0) {
+      const total = list.length;
+      const best = Math.max(...list.map(e => e.score));
+      const avg = Math.round(list.reduce((s, e) => s + e.score, 0) / total);
+      const recent = list.slice(0, 10);
+      const rows = recent.map((entry, i) => {
+        const d = new Date(entry.time);
+        const dateStr = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        const star = entry.score >= best ? ' star' : '';
+        return `<div class="history-row${star}">
+          <span class="history-row-idx">${i + 1}</span>
+          <span class="history-row-score">${entry.score}</span>
+          <span class="history-row-date">${dateStr}</span>
+        </div>`;
+      }).join('');
+
+      statsSection = `
+        <div class="history-stats">
+          <div class="history-stat">
+            <div class="history-stat-val">${total}</div>
+            <div class="history-stat-label">总局数</div>
+          </div>
+          <div class="history-stat">
+            <div class="history-stat-val">${best}</div>
+            <div class="history-stat-label">最高分</div>
+          </div>
+          <div class="history-stat">
+            <div class="history-stat-val">${avg}</div>
+            <div class="history-stat-label">均分</div>
+          </div>
+        </div>
+        <div class="history-list-title">最近 10 局</div>
+        ${rows}`;
+    }
 
     const bindRow = platform === 'guest'
       ? '<div style="text-align:center;margin-bottom:12px;"><button class="name-change-link" id="btnBindQQ">绑定 QQ 账号</button></div>'
       : '';
 
-    const recent = list.slice(0, 10);
-    let rows = recent.map((entry, i) => {
-      const d = new Date(entry.time);
-      const dateStr = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-      const star = entry.score >= best ? ' star' : '';
-      return `<div class="history-row${star}">
-        <span class="history-row-idx">${i + 1}</span>
-        <span class="history-row-score">${entry.score}</span>
-        <span class="history-row-date">${dateStr}</span>
-      </div>`;
-    }).join('');
-
     content.innerHTML = `
+      ${idSection}
+      ${requestSection}
+      ${friendSection}
       ${bindRow}
-      <div class="history-stats">
-        <div class="history-stat">
-          <div class="history-stat-val">${total}</div>
-          <div class="history-stat-label">总局数</div>
-        </div>
-        <div class="history-stat">
-          <div class="history-stat-val">${best}</div>
-          <div class="history-stat-label">最高分</div>
-        </div>
-        <div class="history-stat">
-          <div class="history-stat-val">${avg}</div>
-          <div class="history-stat-label">均分</div>
-        </div>
-      </div>
-      <div class="history-list-title">最近 10 局</div>
-      ${rows}
+      ${statsSection}
     `;
 
+    // Bind handlers
     const btnBindQQ = document.getElementById('btnBindQQ');
     if (btnBindQQ) {
       btnBindQQ.addEventListener('click', async () => {
         const ok = await qqLogin();
         if (ok) {
           const hist = gameHistory();
-          if (hist.length > 0) {
-            showMergePrompt();
-          }
+          if (hist.length > 0) showMergePrompt();
           document.getElementById('historyModalBg').classList.remove('active');
         }
       });
     }
+
+    // Accept/reject handlers
+    content.querySelectorAll('.request-accept').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const fromUid = btn.dataset.accept;
+        const fromName = btn.dataset.name;
+        const fromAvatar = btn.dataset.avatar;
+        const ok = await acceptFriendRequest(fromUid, fromName, fromAvatar);
+        if (ok) {
+          renderHistory();
+          updatePlayerBar();
+        }
+      });
+    });
+    content.querySelectorAll('.request-reject').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const ok = await rejectFriendRequest(btn.dataset.reject);
+        if (ok) {
+          renderHistory();
+          updatePlayerBar();
+        }
+      });
+    });
   }
 
   function showHistory() {
@@ -1690,6 +2113,11 @@ function mergeScoresFB(local, remote) {
 
   // ── Controls ────────────────────────────────────────
   document.addEventListener('keydown', (e) => {
+    // Add friend modal open — Esc closes it
+    if (document.getElementById('addFriendBg').classList.contains('active')) {
+      if (e.key === 'Escape') { document.getElementById('addFriendBg').classList.remove('active'); }
+      return;
+    }
     // History modal open — Esc closes it
     if (document.getElementById('historyModalBg').classList.contains('active')) {
       if (e.key === 'Escape') { document.getElementById('historyModalBg').classList.remove('active'); }
@@ -1804,7 +2232,10 @@ function mergeScoresFB(local, remote) {
   init();
 
   // Pre-init auth (non-blocking)
-  getAuthToken();
+  getAuthToken().then(() => {
+    ensureUserId();
+    updatePlayerBar();
+  });
 
   // Show start screen (handles name flow)
   showStartScreen();
@@ -1838,21 +2269,39 @@ function mergeScoresFB(local, remote) {
     return synced === pending.length;
   }
 
-  async function renderLeaderboard() {
+  let lbCurrentTab = 'all';
+
+  async function renderLeaderboard(tab) {
+    if (tab) lbCurrentTab = tab;
     lbContent.innerHTML = '<div class="lb-loading">加载中...</div>';
+
+    // Update tab active state
+    document.querySelectorAll('.lb-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab' + (lbCurrentTab === 'all' ? 'All' : 'Friends')).classList.add('active');
 
     // Try to sync pending scores first
     const pending = pendingScores();
-    if (pending.length > 0) {
-      await syncPending();
-    }
+    if (pending.length > 0) await syncPending();
 
     const local = localScores();
     const remote = await fetchFirebase();
-    const data = mergeScoresFB(local, remote || []);
+    let data = mergeScoresFB(local, remote || []);
+
+    // Friend tab: filter
+    if (lbCurrentTab === 'friends') {
+      if (isAdmin()) {
+        // Admin: friend tab = all players
+        // nothing to filter
+      } else {
+        const friends = await getMyFriends();
+        const friendNames = new Set(friends.map(f => f.name));
+        data = data.filter(e => friendNames.has(e.name));
+      }
+    }
 
     if (data.length === 0) {
-      lbContent.innerHTML = '<div class="lb-empty">还没有记录<br>快来拿下第一名吧！</div>';
+      const msg = lbCurrentTab === 'friends' ? '还没有添加好友<br>去排行榜添加吧' : '还没有记录<br>快来拿下第一名吧！';
+      lbContent.innerHTML = `<div class="lb-empty">${msg}</div>`;
       return;
     }
 
@@ -1862,8 +2311,6 @@ function mergeScoresFB(local, remote) {
       status = '<div style="text-align:center;font-size:11px;color:var(--text-dim);margin-bottom:12px;">无法连接服务器，显示本地记录</div>';
     } else if (!remote && stillPending > 0) {
       status = '<div style="text-align:center;font-size:11px;color:var(--danger);margin-bottom:12px;">无法连接服务器，' + stillPending + ' 条记录待同步</div>';
-    } else if (stillPending > 0) {
-      status = '<div style="text-align:center;font-size:11px;color:var(--accent);margin-bottom:12px;">已同步全局排行</div>';
     }
 
     lbContent.innerHTML = status + data.map((entry, i) => {
@@ -1889,10 +2336,67 @@ function mergeScoresFB(local, remote) {
 
   btnLeaderboard.addEventListener('click', () => {
     lbModalBg.classList.add('active');
-    renderLeaderboard();
-    if (gameRunning) {
-      // Don't pause, but prevent keyboard from moving snake while modal is open
+    renderLeaderboard('all');
+  });
+
+  // Tab switching
+  document.getElementById('tabAll').addEventListener('click', () => renderLeaderboard('all'));
+  document.getElementById('tabFriends').addEventListener('click', () => renderLeaderboard('friends'));
+
+  // Add friend button
+  document.getElementById('btnAddFriend').addEventListener('click', () => {
+    document.getElementById('addFriendBg').classList.add('active');
+    document.getElementById('friendSearch').value = '';
+    document.getElementById('searchHints').innerHTML = '';
+    setTimeout(() => document.getElementById('friendSearch').focus(), 100);
+  });
+
+  // Add friend search
+  let searchTimeout;
+  document.getElementById('friendSearch').addEventListener('input', () => {
+    clearTimeout(searchTimeout);
+    const q = document.getElementById('friendSearch').value.trim();
+    if (q.length < 1) {
+      document.getElementById('searchHints').innerHTML = '';
+      return;
     }
+    searchTimeout = setTimeout(async () => {
+      const results = await searchUsers(q);
+      const hints = document.getElementById('searchHints');
+      if (results.length === 0) {
+        hints.innerHTML = '<div class="search-none">未找到用户</div>';
+      } else {
+        hints.innerHTML = results.map(r => `
+          <div class="search-hint-row" data-uid="${r.uid}" data-name="${escapeHtml(r.name || r.fromName || '')}" data-avatar="${r.avatar||''}">
+            <div class="friend-row-avatar">${r.avatar ? `<img src="${r.avatar}" alt="">` : (r.name||'?').charAt(0).toUpperCase()}</div>
+            <span style="flex:1;">${escapeHtml(r.name || r.fromName || '')}</span>
+            <span style="font-family:monospace;font-size:11px;color:var(--text-dim);">${r.userId}</span>
+          </div>`).join('');
+        // Click handlers
+        hints.querySelectorAll('.search-hint-row').forEach(row => {
+          row.addEventListener('click', async () => {
+            const targetUid = row.dataset.uid;
+            const targetName = row.dataset.name;
+            const myName = localStorage.getItem('snakePlayerName') || 'Player';
+            const ok = await sendFriendRequest(targetUid, targetName);
+            if (ok) {
+              alert('已发送好友请求给 ' + targetName);
+              document.getElementById('addFriendBg').classList.remove('active');
+            } else {
+              alert('发送失败，请检查网络');
+            }
+          });
+        });
+      }
+    }, 300);
+  });
+
+  // Add friend modal close
+  document.getElementById('btnAddFriendClose').addEventListener('click', () => {
+    document.getElementById('addFriendBg').classList.remove('active');
+  });
+  document.getElementById('addFriendBg').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) e.currentTarget.classList.remove('active');
   });
 
   btnLbClose.addEventListener('click', () => {
@@ -1912,16 +2416,22 @@ function mergeScoresFB(local, remote) {
       localStorage.setItem('snakeHighScore', '0');
       scoreEl.textContent = '0';
       alert('已清除全部记录');
-      renderLeaderboard();
+      renderLeaderboard('all');
     } else {
       alert('清除失败，请检查网络连接');
     }
   });
 
-  // Close modal with Escape
+  // Keyboard: close modals, handle add friend
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && lbModalBg.classList.contains('active')) {
-      lbModalBg.classList.remove('active');
+    const addFriendBg = document.getElementById('addFriendBg');
+    if (addFriendBg.classList.contains('active')) {
+      if (e.key === 'Escape') { addFriendBg.classList.remove('active'); }
+      return;
+    }
+    if (lbModalBg.classList.contains('active')) {
+      if (e.key === 'Escape') { lbModalBg.classList.remove('active'); }
+      return;
     }
   });
 })();
