@@ -1321,6 +1321,64 @@ function mergeScoresFB(local, remote) {
     });
   }
 
+  function showMergePrompt() {
+    const hist = gameHistory();
+    overlay.innerHTML = `
+      <div class="overlay-title">绑定账号</div>
+      <div class="overlay-score">本机已有 <span>${hist.length}</span> 局记录</div>
+      <p class="hint">是否合并到当前 QQ 账号？</p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
+        <button class="btn" id="btnMerge">合 并</button>
+        <button class="btn guest-btn" id="btnSkipMerge">跳 过</button>
+      </div>
+    `;
+    overlay.classList.add('active');
+
+    document.getElementById('btnMerge').addEventListener('click', async () => {
+      overlay.innerHTML = '<div class="overlay-title">合并中...</div>';
+      await migrateDataToQQ();
+      showStartScreen();
+    });
+
+    document.getElementById('btnSkipMerge').addEventListener('click', () => {
+      showStartScreen();
+    });
+  }
+
+  async function migrateDataToQQ() {
+    const hist = gameHistory();
+    const qqInfo = getQQInfo();
+    if (!qqInfo) return;
+
+    const uid = qqInfo.openid;
+    const name = qqInfo.nickname;
+
+    for (const entry of hist) {
+      await fetch(`${FB_DB}/scores.json`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name,
+          score: entry.score,
+          time: entry.time,
+          uid: uid,
+        }),
+        signal: AbortSignal.timeout(5000),
+      });
+    }
+
+    const oldHigh = parseInt(localStorage.getItem('snakeHighScore') || '0', 10);
+    const remoteScores = await fetchFirebase();
+    const qqScores = (remoteScores || []).filter(s => s.uid === uid);
+    const qqMax = qqScores.length > 0 ? Math.max(...qqScores.map(s => s.score)) : 0;
+    const newHigh = Math.max(oldHigh, qqMax);
+    localStorage.setItem('snakeHighScore', String(newHigh));
+    highScore = newHigh;
+    highScoreEl.textContent = newHigh;
+
+    saveDisplayName(name);
+  }
+
   function showStartScreen() {
     updatePlayerBar();
     const savedName = localStorage.getItem('snakePlayerName');
