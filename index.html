@@ -1477,27 +1477,42 @@ function mergeScoresFB(local, remote) {
   function updatePlayerBar() {
     const name = localStorage.getItem('snakePlayerName');
     const bar = document.getElementById('playerBar');
-    if (name) {
-      bar.style.display = 'flex';
-      document.getElementById('playerAvatar').textContent = name.charAt(0).toUpperCase();
-      document.getElementById('playerBarName').textContent = name;
-    } else {
+    const avatar = document.getElementById('playerAvatar');
+    const nameEl = document.getElementById('playerBarName');
+
+    if (!name) {
       bar.style.display = 'none';
+      return;
+    }
+
+    bar.style.display = 'flex';
+    nameEl.textContent = name;
+
+    const qqInfo = getQQInfo();
+    if (qqInfo && qqInfo.avatar) {
+      avatar.innerHTML = `<img src="${qqInfo.avatar}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;" alt="">`;
+    } else {
+      avatar.textContent = name.charAt(0).toUpperCase();
     }
   }
 
   function renderHistory() {
     const content = document.getElementById('historyContent');
     const list = gameHistory();
+    const platform = getAuthPlatform();
 
-    if (list.length === 0) {
+    if (list.length === 0 && platform === 'guest') {
       content.innerHTML = '<div class="history-empty">还没有战绩<br>快来玩一局吧！</div>';
       return;
     }
 
     const total = list.length;
-    const best = Math.max(...list.map(e => e.score));
-    const avg = Math.round(list.reduce((s, e) => s + e.score, 0) / total);
+    const best = list.length > 0 ? Math.max(...list.map(e => e.score)) : 0;
+    const avg = list.length > 0 ? Math.round(list.reduce((s, e) => s + e.score, 0) / total) : 0;
+
+    const bindRow = platform === 'guest'
+      ? '<div style="text-align:center;margin-bottom:12px;"><button class="name-change-link" id="btnBindQQ">绑定 QQ 账号</button></div>'
+      : '';
 
     const recent = list.slice(0, 10);
     let rows = recent.map((entry, i) => {
@@ -1512,6 +1527,7 @@ function mergeScoresFB(local, remote) {
     }).join('');
 
     content.innerHTML = `
+      ${bindRow}
       <div class="history-stats">
         <div class="history-stat">
           <div class="history-stat-val">${total}</div>
@@ -1529,6 +1545,20 @@ function mergeScoresFB(local, remote) {
       <div class="history-list-title">最近 10 局</div>
       ${rows}
     `;
+
+    const btnBindQQ = document.getElementById('btnBindQQ');
+    if (btnBindQQ) {
+      btnBindQQ.addEventListener('click', async () => {
+        const ok = await qqLogin();
+        if (ok) {
+          const hist = gameHistory();
+          if (hist.length > 0) {
+            showMergePrompt();
+          }
+          document.getElementById('historyModalBg').classList.remove('active');
+        }
+      });
+    }
   }
 
   function showHistory() {
