@@ -1002,9 +1002,16 @@ function getMyUserId() {
 async function ensureUserId() {
   if (getMyUserId()) return getMyUserId();
 
+  let lastError = '';
+
   try {
     const token = await getAuthToken();
-    if (!token) return null;
+    if (!token) { lastError = '无法获取登录凭证，请检查网络后刷新重试'; return null; }
+
+    const uid = currentUid || 'anon';
+    const name = localStorage.getItem('snakePlayerName') || 'Player';
+    const qqInfo = getQQInfo();
+    const avatar = qqInfo ? qqInfo.avatar : '';
 
     // Read counter
     let res = await fetch(`${FB_DB}/meta/nextId.json?auth=${token}`, {
@@ -1014,36 +1021,47 @@ async function ensureUserId() {
     if (res.ok) {
       const val = await res.json();
       if (typeof val === 'number') nextId = val;
+    } else {
+      lastError = '读取ID计数器失败 (HTTP ' + res.status + ')';
     }
 
-    const uid = currentUid || 'anon';
-    const name = localStorage.getItem('snakePlayerName') || 'Player';
-    const qqInfo = getQQInfo();
-    const avatar = qqInfo ? qqInfo.avatar : '';
-
     // Write reverse index
-    await fetch(`${FB_DB}/userIdIndex/${nextId}.json?auth=${token}`, {
+    res = await fetch(`${FB_DB}/userIdIndex/${nextId}.json?auth=${token}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ uid, name, avatar }),
       signal: AbortSignal.timeout(5000),
     });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      lastError = '写入用户索引失败 (HTTP ' + res.status + '): ' + errText.slice(0, 100);
+    }
 
     // Increment counter
-    await fetch(`${FB_DB}/meta/nextId.json?auth=${token}`, {
+    res = await fetch(`${FB_DB}/meta/nextId.json?auth=${token}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(nextId + 1),
       signal: AbortSignal.timeout(5000),
     });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      lastError = '更新计数器失败 (HTTP ' + res.status + '): ' + errText.slice(0, 100);
+    }
 
     const userId = String(nextId).padStart(6, '0');
     localStorage.setItem(USER_ID_KEY, userId);
     return userId;
   } catch (e) {
-    console.warn('ensureUserId failed:', e);
-    return null;
+    if (e.name === 'TimeoutError' || e.name === 'AbortError') {
+      lastError = '网络连接超时，请检查是否能访问 Firebase';
+    } else {
+      lastError = e.message || String(e);
+    }
   }
+  console.warn('ensureUserId failed:', lastError);
+  window.__lastIdError = lastError;
+  return null;
 }
 
 async function lookupByUserId(userId) {
@@ -2104,7 +2122,19 @@ function mergeScoresFB(local, remote) {
           updatePlayerBar();
           renderHistory();
         } else {
+          const errMsg = window.__lastIdError || '未知错误';
           btnRetryId.textContent = '获取失败，点此重试';
+          btnRetryId.title = errMsg;
+          btnRetryId.style.color = '#e88080';
+          // Show error text below the button
+          let errEl = document.getElementById('idErrorText');
+          if (!errEl) {
+            errEl = document.createElement('div');
+            errEl.id = 'idErrorText';
+            errEl.style.cssText = 'color:#e88080;font-size:12px;margin-top:6px;text-align:center;word-break:break-all;';
+            btnRetryId.parentNode.insertBefore(errEl, btnRetryId.nextSibling);
+          }
+          errEl.textContent = errMsg;
           btnRetryId.disabled = false;
         }
       });
