@@ -1390,6 +1390,15 @@ function mergeScoresFB(local, remote) {
   let gameLoop, gameRunning, gameSpeed;
   let obstacles = [];
 
+  // Combo system
+  let comboCount = 0;
+  let lastEatTime = 0;
+  const COMBO_WINDOW = 3000;  // 3s window for combo
+  let comboDisplay = null;    // { text, startTime, x?, y? }
+
+  // Active effects
+  let activeEffects = { shield: false, speedBoost: 0, magnet: 0 };
+
   // Audio
   let audioCtx;
   function initAudio() {
@@ -1415,6 +1424,9 @@ function mergeScoresFB(local, remote) {
   }
   function sfxEat() { playBeep(600, 0.12, 'sine', 0.07, 900); }
   function sfxBonus() { playBeep(900, 0.2, 'triangle', 0.1, 1400); }
+  function sfxCombo() { playBeep(1100, 0.15, 'square', 0.06, 1600); }
+  function sfxPowerUp() { playBeep(300, 0.3, 'triangle', 0.12, 800); }
+  function sfxShield() { playBeep(500, 0.25, 'sine', 0.08, 300); }
   function sfxDeath() {
     playBeep(120, 0.4, 'sawtooth', 0.1, 50);
     setTimeout(() => playBeep(80, 0.5, 'sawtooth', 0.08, 30), 200);
@@ -1423,8 +1435,16 @@ function mergeScoresFB(local, remote) {
   // Pause state
   let isPaused = false;
 
+  // Power-up types
+  const POWER_TYPES = [
+    { type: 'star',    color: '#e8e4df', innerColor: '#c9a96e', shape: 'star',  weight: 5, score: 30, duration: 0, desc: '+30分' },
+    { type: 'bolt',    color: '#f5d442', innerColor: '#e8a400', shape: 'bolt',  weight: 3, score: 10, duration: 5, desc: '极速x2' },
+    { type: 'shield',  color: '#4ea8f6', innerColor: '#2d7dd2', shape: 'shield',weight: 2, score: 5,  duration: 0, desc: '护盾' },
+    { type: 'magnet',  color: '#f472b6', innerColor: '#db2777', shape: 'magnet',weight: 3, score: 5,  duration: 6, desc: '磁铁' },
+  ];
+
   // Bonus events
-  let bonusItem = null;
+  let bonusItem = null;    // { x, y, type, lifetime, typeIndex }
   let bonusTimer = 0;
   let bonusLifetime = 0;
   let BONUS_INTERVAL = 15;  // seconds between bonus spawns (set by difficulty)
@@ -1511,6 +1531,10 @@ function mergeScoresFB(local, remote) {
     bonusItem = null;
     bonusTimer = 0;
     bonusLifetime = 0;
+    comboCount = 0;
+    lastEatTime = 0;
+    comboDisplay = null;
+    activeEffects = { shield: false, speedBoost: 0, magnet: 0 };
     scoreEl.textContent = '0';
     scoreEl.classList.remove('pop');
     generateObstacles(cfg.obstacleGroups);
@@ -1530,6 +1554,16 @@ function mergeScoresFB(local, remote) {
     food = pos;
   }
 
+  function pickPowerType() {
+    const total = POWER_TYPES.reduce((s, p) => s + p.weight, 0);
+    let r = Math.random() * total;
+    for (let i = 0; i < POWER_TYPES.length; i++) {
+      r -= POWER_TYPES[i].weight;
+      if (r <= 0) return i;
+    }
+    return 0;
+  }
+
   function spawnBonus() {
     const occupied = new Set([
       ...snake.map(s => `${s.x},${s.y}`),
@@ -1540,7 +1574,12 @@ function mergeScoresFB(local, remote) {
     for (let attempt = 0; attempt < 50; attempt++) {
       pos = { x: Math.floor(Math.random() * COLS), y: Math.floor(Math.random() * ROWS) };
       if (!occupied.has(`${pos.x},${pos.y}`)) {
-        bonusItem = pos;
+        bonusItem = {
+          x: pos.x,
+          y: pos.y,
+          typeIndex: pickPowerType(),
+          lifetime: BONUS_DURATION,
+        };
         bonusLifetime = BONUS_DURATION;
         return;
       }
@@ -1583,36 +1622,143 @@ function mergeScoresFB(local, remote) {
       ctx.stroke();
     }
 
-    // Bonus item — glowing white-gold circle with pulse
+    // Power-up item — type-based rendering
     if (bonusItem) {
       const bx = bonusItem.x * GRID + GRID / 2;
       const by = bonusItem.y * GRID + GRID / 2;
       const bpulse = 1 + Math.sin(now * 0.008) * 0.2;
       const alpha = bonusLifetime < 2 ? 0.3 + 0.7 * (bonusLifetime / 2) * (0.5 + 0.5 * Math.sin(now * 0.03)) : 1;
+      const pt = POWER_TYPES[bonusItem.typeIndex];
+      const pc = pt.color, ic = pt.innerColor;
 
       ctx.save();
       ctx.globalAlpha = alpha;
+
       // Outer glow
       const glowGrad = ctx.createRadialGradient(bx, by, 3, bx, by, 14 * bpulse);
-      glowGrad.addColorStop(0, 'rgba(232, 228, 223, 0.25)');
-      glowGrad.addColorStop(1, 'rgba(232, 228, 223, 0)');
+      glowGrad.addColorStop(0, pc + '40');
+      glowGrad.addColorStop(1, pc + '00');
       ctx.fillStyle = glowGrad;
       ctx.beginPath();
       ctx.arc(bx, by, 14 * bpulse, 0, Math.PI * 2);
       ctx.fill();
-      // Body — star shape
-      ctx.fillStyle = '#e8e4df';
-      ctx.beginPath();
-      const spikes = 5, outerR = 7, innerR = 3.5;
-      for (let i = 0; i < spikes * 2; i++) {
-        const r = i % 2 === 0 ? outerR : innerR;
-        const angle = (Math.PI * 2 / (spikes * 2)) * i - Math.PI / 2;
-        const sx = bx + Math.cos(angle) * r;
-        const sy = by + Math.sin(angle) * r;
-        i === 0 ? ctx.moveTo(sx, sy) : ctx.lineTo(sx, sy);
+
+      if (pt.shape === 'star') {
+        // Star shape
+        ctx.fillStyle = pc;
+        ctx.beginPath();
+        const spikes = 5, outerR = 7, innerR = 3.5;
+        for (let i = 0; i < spikes * 2; i++) {
+          const r = i % 2 === 0 ? outerR : innerR;
+          const angle = (Math.PI * 2 / (spikes * 2)) * i - Math.PI / 2;
+          const sx = bx + Math.cos(angle) * r;
+          const sy = by + Math.sin(angle) * r;
+          i === 0 ? ctx.moveTo(sx, sy) : ctx.lineTo(sx, sy);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = ic;
+        ctx.beginPath();
+        ctx.arc(bx, by, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (pt.shape === 'bolt') {
+        // Lightning bolt
+        ctx.fillStyle = pc;
+        ctx.beginPath();
+        ctx.moveTo(bx + 1, by - 8);
+        ctx.lineTo(bx - 4, by);
+        ctx.lineTo(bx, by);
+        ctx.lineTo(bx - 3, by + 8);
+        ctx.lineTo(bx + 4, by - 1);
+        ctx.lineTo(bx + 1, by - 1);
+        ctx.lineTo(bx + 5, by - 8);
+        ctx.closePath();
+        ctx.fill();
+      } else if (pt.shape === 'shield') {
+        // Shield shape
+        ctx.fillStyle = pc;
+        ctx.beginPath();
+        ctx.moveTo(bx, by - 8);
+        ctx.lineTo(bx + 7, by - 3);
+        ctx.lineTo(bx + 7, by + 3);
+        ctx.lineTo(bx, by + 7);
+        ctx.lineTo(bx - 7, by + 3);
+        ctx.lineTo(bx - 7, by - 3);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = ic;
+        ctx.beginPath();
+        ctx.arc(bx, by, 2, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (pt.shape === 'magnet') {
+        // Magnet U-shape
+        ctx.strokeStyle = pc;
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(bx - 6, by - 7);
+        ctx.lineTo(bx - 6, by);
+        ctx.arc(bx, by, 6, Math.PI, Math.PI * 2, false);
+        ctx.lineTo(bx + 6, by - 7);
+        ctx.stroke();
+        // N/S labels
+        ctx.fillStyle = ic;
+        ctx.font = 'bold 5px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('S', bx - 6, by - 10);
+        ctx.fillText('N', bx + 6, by - 10);
       }
-      ctx.closePath();
-      ctx.fill();
+
+      ctx.restore();
+    }
+
+    // Combo display
+    if (comboDisplay) {
+      const cdAge = now - comboDisplay.startTime;
+      if (cdAge < 1200) {
+        const cdAlpha = cdAge < 200 ? cdAge / 200 : 1 - (cdAge - 200) / 1000;
+        const cdScale = 1 + (1 - cdAlpha) * 0.8;
+        ctx.save();
+        ctx.globalAlpha = cdAlpha;
+        ctx.font = `bold ${Math.round(22 * cdScale)}px "Noto Sans SC", "Microsoft YaHei", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#f5d442';
+        ctx.shadowColor = '#f5d442';
+        ctx.shadowBlur = 12 * cdAlpha;
+        ctx.fillText(comboDisplay.text, SIZE / 2, comboDisplay.y || SIZE / 2 - 20);
+        ctx.restore();
+      } else {
+        comboDisplay = null;
+      }
+    }
+
+    // Active effect indicators
+    let indicatorX = 8;
+    const indicatorY = SIZE - 12;
+    if (activeEffects.shield) {
+      ctx.save();
+      ctx.font = '10px "Noto Sans SC", "Microsoft YaHei", sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#4ea8f6';
+      ctx.fillText('\u{1F6E1} 护盾', indicatorX, indicatorY);
+      indicatorX += 50;
+      ctx.restore();
+    }
+    if (activeEffects.speedBoost > now) {
+      ctx.save();
+      ctx.font = '10px "Noto Sans SC", "Microsoft YaHei", sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#f5d442';
+      ctx.fillText('⚡ 极速 ' + ((activeEffects.speedBoost - now) / 1000).toFixed(1) + 's', indicatorX, indicatorY);
+      indicatorX += 80;
+      ctx.restore();
+    }
+    if (activeEffects.magnet > now) {
+      ctx.save();
+      ctx.font = '10px "Noto Sans SC", "Microsoft YaHei", sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#f472b6';
+      ctx.fillText('\u{1F9F2} 磁铁 ' + ((activeEffects.magnet - now) / 1000).toFixed(1) + 's', indicatorX, indicatorY);
       ctx.restore();
     }
 
@@ -1700,9 +1846,16 @@ function mergeScoresFB(local, remote) {
       if (ob.x === head.x && ob.y === head.y) return gameOver();
     }
 
-    // Self collision
+    // Self collision (shield absorbs one hit)
     for (const seg of snake) {
-      if (seg.x === head.x && seg.y === head.y) return gameOver();
+      if (seg.x === head.x && seg.y === head.y) {
+        if (activeEffects.shield) {
+          activeEffects.shield = false;
+          sfxShield();
+          break;
+        }
+        return gameOver();
+      }
     }
 
     // Bonus timer
@@ -1720,12 +1873,52 @@ function mergeScoresFB(local, remote) {
       }
     }
 
+    // Magnet effect: pull food toward head
+    if (activeEffects.magnet > Date.now()) {
+      let fx = food.x, fy = food.y;
+      if (fx < head.x) fx++;
+      else if (fx > head.x) fx--;
+      if (fy < head.y) fy++;
+      else if (fy > head.y) fy--;
+      // Check new position is valid
+      const magKey = fx + ',' + fy;
+      const blocked = new Set([
+        ...snake.map(s => s.x + ',' + s.y),
+        ...obstacles.map(o => o.x + ',' + o.y),
+      ]);
+      if (bonusItem) blocked.add(bonusItem.x + ',' + bonusItem.y);
+      if (!blocked.has(magKey)) {
+        food = { x: fx, y: fy };
+      }
+    }
+
     snake.unshift(head);
 
     // Bonus item collision
     if (bonusItem && head.x === bonusItem.x && head.y === bonusItem.y) {
-      score += 30;
+      const pt = POWER_TYPES[bonusItem.typeIndex];
+      const pts = pt.score;
+      score += pts;
       sfxBonus();
+      sfxPowerUp();
+
+      // Apply power-up effect
+      const now2 = Date.now();
+      if (pt.type === 'star') {
+        // Bonus score already added
+      } else if (pt.type === 'bolt') {
+        activeEffects.speedBoost = now2 + pt.duration * 1000;
+        const cfg2 = DIFFICULTY[currentDifficulty];
+        const boostedSpeed = Math.max(25, gameSpeed / 2);
+        gameSpeed = boostedSpeed;
+        clearInterval(gameLoop);
+        gameLoop = setInterval(tick, gameSpeed);
+      } else if (pt.type === 'shield') {
+        activeEffects.shield = true;
+      } else if (pt.type === 'magnet') {
+        activeEffects.magnet = now2 + pt.duration * 1000;
+      }
+
       bonusItem = null;
       bonusTimer = 0;
       scoreEl.textContent = score;
@@ -1733,26 +1926,73 @@ function mergeScoresFB(local, remote) {
       void scoreEl.offsetWidth;
       scoreEl.classList.add('pop');
     } else if (head.x === food.x && head.y === food.y) {
-      score += 10;
+      // Combo tracking
+      const now2 = Date.now();
+      if (now2 - lastEatTime < COMBO_WINDOW && lastEatTime > 0) {
+        comboCount++;
+      } else {
+        comboCount = 1;
+      }
+      lastEatTime = now2;
+
+      // Score with combo multiplier
+      const multiplier = Math.min(comboCount, 5);
+      const basePoints = 10;
+      const points = basePoints * multiplier;
+      score += points;
+
+      // Combo display
+      if (comboCount >= 2) {
+        comboDisplay = {
+          text: comboCount + 'x COMBO!',
+          startTime: now2,
+          y: SIZE / 2 - 30,
+        };
+        sfxCombo();
+      }
       sfxEat();
+
       scoreEl.textContent = score;
       scoreEl.classList.remove('pop');
       void scoreEl.offsetWidth;
       scoreEl.classList.add('pop');
       spawnFood();
-      // Speed up — difficulty-based curve
+      // Speed up — difficulty-based curve (respect speed boost)
       const cfg2 = DIFFICULTY[currentDifficulty];
-      gameSpeed = Math.max(cfg2.minSpeed, cfg2.startSpeed - Math.floor(score / cfg2.speedEvery) * cfg2.speedStep);
+      const baseSpeed = Math.max(cfg2.minSpeed, cfg2.startSpeed - Math.floor(score / cfg2.speedEvery) * cfg2.speedStep);
+      if (activeEffects.speedBoost > Date.now()) {
+        gameSpeed = Math.max(25, baseSpeed / 2);
+      } else {
+        gameSpeed = baseSpeed;
+      }
       clearInterval(gameLoop);
       gameLoop = setInterval(tick, gameSpeed);
     } else {
       snake.pop();
+    }
+
+    // Expire active effects
+    const now3 = Date.now();
+    if (activeEffects.speedBoost > 0 && activeEffects.speedBoost <= now3) {
+      activeEffects.speedBoost = 0;
+      // Restore normal speed
+      const cfg3 = DIFFICULTY[currentDifficulty];
+      gameSpeed = Math.max(cfg3.minSpeed, cfg3.startSpeed - Math.floor(score / cfg3.speedEvery) * cfg3.speedStep);
+      clearInterval(gameLoop);
+      gameLoop = setInterval(tick, gameSpeed);
+    }
+    if (activeEffects.magnet > 0 && activeEffects.magnet <= now3) {
+      activeEffects.magnet = 0;
     }
   }
 
   function gameOver() {
     gameRunning = false;
     clearInterval(gameLoop);
+    comboCount = 0;
+    lastEatTime = 0;
+    comboDisplay = null;
+    activeEffects = { shield: false, speedBoost: 0, magnet: 0 };
     sfxDeath();
     wrapper.classList.remove('playing');
     wrapper.classList.add('game-over-glow');
