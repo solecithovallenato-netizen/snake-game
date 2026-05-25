@@ -1450,13 +1450,39 @@ function mergeScoresFB(local, remote) {
     setTimeout(() => playBeep(80, 0.5, 'sawtooth', 0.08, 30), 200);
   }
 
-  // ── Music system (Phone Kisses inspired lo-fi) ──
+  // ── Music system ──
+  const MUSIC_API = 'https://1436731599-m40ke0j257.ap-guangzhou.tencentscf.com';
   let musicNodes = [];
   let musicPlaying = false;
   let musicMode = null;
   let musicStepTimer = null;
   let musicChordIdx = 0;
   let musicMuted = JSON.parse(localStorage.getItem('snakeMusicMuted') || 'false');
+  let musicPlaylist = null;
+  let musicPlayer = null;
+  let musicPlayerReady = false;
+
+  async function loadPlaylist() {
+    try {
+      const resp = await fetch(MUSIC_API + '/songs');
+      const data = await resp.json();
+      if (data.songs && data.songs.length > 0) {
+        musicPlaylist = data.songs.filter(s => s.url);
+        musicPlayerReady = musicPlaylist.length > 0;
+      }
+    } catch(e) {}
+  }
+
+  function playRandomSong() {
+    if (!musicPlayerReady || !musicPlaylist || musicPlaylist.length === 0) return;
+    if (musicPlayer) { musicPlayer.pause(); musicPlayer.src = ''; }
+    const s = musicPlaylist[Math.floor(Math.random() * musicPlaylist.length)];
+    musicPlayer = new Audio(s.url);
+    musicPlayer.volume = 0.3;
+    musicPlayer.addEventListener('ended', playRandomSong);
+    musicPlayer.addEventListener('error', () => { setTimeout(playRandomSong, 1000); });
+    musicPlayer.play().catch(() => {});
+  }
 
   // Lo-fi ambient pads (Dm7 - Am7 - Gmaj7 - Fmaj7)
   const LOBBY_PADS = [
@@ -1481,6 +1507,7 @@ function mergeScoresFB(local, remote) {
   const HAT_PAT = [0,1,0,1, 0,1,0,1, 0,1,0,1, 0,1,0,1];
 
   function stopMusic() {
+    if (musicPlayer) { musicPlayer.pause(); musicPlayer.src = ''; }
     musicNodes.forEach(n => { try { n.osc.stop(); } catch(e) {} try { n.gain.disconnect(); } catch(e) {} });
     musicNodes = [];
     if (musicStepTimer) { clearInterval(musicStepTimer); musicStepTimer = null; }
@@ -1540,6 +1567,7 @@ function mergeScoresFB(local, remote) {
   function startLobbyMusic() {
     if (musicMuted) return;
     initAudio(); stopMusic();
+    if (musicPlayerReady) { musicPlaying = true; playRandomSong(); return; }
     musicMode = 'lobby'; musicPlaying = true;
     musicChordIdx = 0;
     lobbyMusicNext();
@@ -1548,6 +1576,7 @@ function mergeScoresFB(local, remote) {
   function startGameMusic() {
     if (musicMuted) return;
     initAudio(); stopMusic();
+    if (musicPlayerReady) { musicPlaying = true; playRandomSong(); return; }
     musicMode = 'game'; musicPlaying = true;
     let step = 0;
     function tick() {
@@ -1599,11 +1628,33 @@ function mergeScoresFB(local, remote) {
       stopMusic(); musicMuted = true;
     } else {
       musicMuted = false;
-      if (!gameRunning) startLobbyMusic(); else startGameMusic();
+      if (musicPlayerReady) {
+        playRandomSong(); musicPlaying = true;
+      } else if (!gameRunning) {
+        startLobbyMusic();
+      } else {
+        startGameMusic();
+      }
     }
     localStorage.setItem('snakeMusicMuted', JSON.stringify(musicMuted));
     const btn = document.getElementById('btnMusic');
     if (btn) btn.classList.toggle('muted', !musicPlaying);
+  }
+
+  function skipSong() {
+    if (musicPlayerReady) {
+      initAudio();
+      if (!musicPlaying) {
+        musicMuted = false;
+        playRandomSong();
+        musicPlaying = true;
+        const btn = document.getElementById('btnMusic');
+        if (btn) btn.classList.remove('muted');
+      } else {
+        playRandomSong();
+      }
+      localStorage.setItem('snakeMusicMuted', JSON.stringify(musicMuted));
+    }
   }
 
   // Pause state
@@ -3243,10 +3294,23 @@ function mergeScoresFB(local, remote) {
     }
   });
 
-  // Music toggle button — first click starts music, then toggles on/off
+  // Music button — click toggles, long-press (500ms) skips song
   const btnMusic = document.getElementById('btnMusic');
   btnMusic.classList.add('muted');
-  btnMusic.addEventListener('click', toggleMusic);
+  let pressTimer = null;
+  let isLongPress = false;
+  function downHandler(e) { if (e.button !== 0 && e.type !== 'touchstart') return; isLongPress = false; pressTimer = setTimeout(() => { isLongPress = true; skipSong(); if (navigator.vibrate) navigator.vibrate(10); }, 500); }
+  function upHandler(e) { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } if (!isLongPress) toggleMusic(); isLongPress = false; }
+  function leaveHandler() { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } isLongPress = false; }
+  btnMusic.addEventListener('mousedown', downHandler);
+  btnMusic.addEventListener('mouseup', upHandler);
+  btnMusic.addEventListener('mouseleave', leaveHandler);
+  btnMusic.addEventListener('touchstart', downHandler, { passive: true });
+  btnMusic.addEventListener('touchend', upHandler, { passive: true });
+  btnMusic.addEventListener('touchcancel', leaveHandler);
+
+  // Try to load playlist on startup
+  loadPlaylist();
 })();
 </script>
 </body>
