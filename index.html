@@ -50,7 +50,7 @@
   .top-row {
     display: flex; align-items: center; gap: 12px;
   }
-  .player-card { flex: 1; }
+  .player-card { flex-shrink: 0; }
   .score-inline {
     display: flex; gap: 16px;
     flex-shrink: 0;
@@ -74,38 +74,41 @@
   }
 
   .music-player {
-    display: flex; flex-direction: column; gap: 6px;
-    padding: 8px 12px; margin: 6px auto; max-width: 360px;
+    flex: 1; display: flex; flex-direction: column; gap: 4px;
+    padding: 6px 10px; min-width: 0;
     background: rgba(255,255,255,0.03);
     border: 1px solid rgba(255,255,255,0.06);
     border-radius: var(--radius);
-    font-size: 12px; text-align: center;
+    font-size: 12px;
   }
-  .mp-main { display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap; }
-  .mp-icon { font-size: 14px; }
-  .mp-name { color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
-  .mp-artist { color: var(--text-dim); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 120px; }
-  .mp-row { display: flex; align-items: center; justify-content: center; gap: 16px; }
+  .mp-main { display: flex; align-items: center; gap: 4px; min-width: 0; }
+  .mp-icon { font-size: 13px; flex-shrink: 0; }
+  .mp-name { color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mp-artist { color: var(--text-dim); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+  .mp-row { display: flex; align-items: center; gap: 8px; }
   .mp-btn {
-    background: none; border: none; cursor: pointer; font-size: 18px;
-    padding: 2px 6px; transition: transform 0.15s; line-height: 1;
+    background: none; border: none; cursor: pointer; font-size: 16px;
+    padding: 0 4px; transition: transform 0.15s; line-height: 1;
   }
   .mp-btn:hover { transform: scale(1.2); }
-  .mp-play { font-size: 22px; }
-  .mp-progress { display: flex; align-items: center; gap: 6px; max-width: 320px; margin: 0 auto; }
+  .mp-play { font-size: 20px; }
+  .mp-progress { display: flex; align-items: center; gap: 4px; }
   .mp-bar-bg {
     flex: 1; height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px;
     cursor: pointer;
   }
   .mp-bar-fill { height: 100%; background: var(--gold); border-radius: 2px; width: 0%; }
-  .mp-time, .mp-duration { color: var(--text-dim); font-size: 10px; font-family: monospace; min-width: 32px; }
+  .mp-time, .mp-duration { color: var(--text-dim); font-size: 10px; font-family: monospace; min-width: 30px; }
 
+  .lobby-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 4px;
+  }
   .lobby-title {
     font-size: clamp(20px, 3vw, 28px);
     font-weight: 300;
     letter-spacing: 8px;
     color: var(--text);
-    text-align: left;
   }
 
   /* ── Player Card ── */
@@ -833,11 +836,22 @@
 <!-- Lobby -->
 <div class="lobby" id="lobby">
   <div class="lobby-left">
-    <h1 class="lobby-title">贪 吃 蛇</h1>
+    <div class="lobby-header">
+      <h1 class="lobby-title">贪 吃 蛇</h1>
+      <div class="player-card" id="playerCard" style="display:none;">
+        <div class="player-avatar" id="playerAvatar"></div>
+        <div class="player-info">
+          <span class="player-name" id="playerName"></span>
+          <span class="player-id" id="playerIdDisplay"></span>
+          <span class="player-platform" id="playerPlatform"></span>
+        </div>
+        <div class="request-badge" id="requestBadge"></div>
+      </div>
+    </div>
 
     <div class="top-row">
       <button class="lb-btn-icon" id="btnLeaderboard" title="排行榜">🏆</button>
-      <div class="player-card" id="playerCard" style="display:none;">
+      <div class="music-player" id="musicPlayer">
         <div class="player-avatar" id="playerAvatar"></div>
         <div class="player-info">
           <span class="player-name" id="playerName"></span>
@@ -865,26 +879,6 @@
     </div>
 
     <p class="hint" id="gameHint">方向键 / WASD 操控</p>
-
-    <div class="music-player" id="musicPlayer">
-      <div class="mp-main">
-        <span class="mp-icon" id="mpIcon">🎵</span>
-        <span class="mp-name" id="mpName">背景音乐</span>
-        <span class="mp-artist" id="mpArtist"></span>
-      </div>
-      <div class="mp-row" id="mpRow">
-        <button class="mp-btn" id="mpPrev">⏮</button>
-        <button class="mp-btn mp-play" id="mpPlay">▶</button>
-        <button class="mp-btn" id="mpNext">⏭</button>
-      </div>
-      <div class="mp-progress" id="mpProgress" style="display:none;">
-        <div class="mp-bar-bg" id="mpBarBg">
-          <div class="mp-bar-fill" id="mpBarFill"></div>
-        </div>
-        <span class="mp-time" id="mpTime">00:00</span>
-        <span class="mp-duration" id="mpDuration">00:00</span>
-      </div>
-    </div>
 
     <div class="mobile-controls">
       <div class="dpad">
@@ -1543,6 +1537,7 @@ function mergeScoresFB(local, remote) {
   let playFailCount = 0;
   async function playRandomSong() {
     if (!musicPlayerReady || !musicPlaylist || musicPlaylist.length === 0) return;
+    if (currentSong) prevSong = currentSong;
     const s = musicPlaylist[Math.floor(Math.random() * musicPlaylist.length)];
     currentSong = s;
     updatePlayerUI();
@@ -1707,29 +1702,26 @@ function mergeScoresFB(local, remote) {
     musicStepTimer = setInterval(tick, GAME_STEP_MS);
   }
 
+  let prevSong = null;
   function toggleMusic() {
     initAudio();
     if (musicPlaying) {
       // Pause
-      if (musicPlayer && !musicPlayer.paused) { musicPlayer.pause(); } else { stopMusic(); }
-      musicMuted = true;
+      if (musicPlayer && !musicPlayer.paused) { musicPlayer.pause(); }
+      musicMuted = true; musicPlaying = false;
     } else {
       // Resume or start
       musicMuted = false;
-      if (musicPlayerReady) {
-        if (musicPlayer && musicPlayer.paused) {
-          musicPlayer.play();
-        } else if (musicPlayer && musicPlayer.ended) {
-          playRandomSong();
-        } else {
-          playRandomSong();
-        }
-        musicPlaying = true;
+      if (musicPlayer && musicPlayer.paused) {
+        musicPlayer.play();
+      } else if (musicPlayerReady) {
+        playRandomSong();
       } else if (!gameRunning) {
         startLobbyMusic();
       } else {
         startGameMusic();
       }
+      musicPlaying = true;
     }
     localStorage.setItem('snakeMusicMuted', JSON.stringify(musicMuted));
     updatePlayerUI();
@@ -3396,7 +3388,18 @@ function mergeScoresFB(local, remote) {
   });
 
   // Player controls
-  document.getElementById('mpPrev').addEventListener('click', () => { if (musicPlayer) musicPlayer.currentTime = 0; else skipSong(); });
+  document.getElementById('mpPrev').addEventListener('click', () => {
+    if (prevSong && musicPlaylist) {
+      const idx = musicPlaylist.findIndex(s => s.id === prevSong.id);
+      if (idx >= 0) {
+        [musicPlaylist[0], musicPlaylist[idx]] = [musicPlaylist[idx], musicPlaylist[0]]; // swap
+        if (!musicPlaying) { musicMuted = false; musicPlaying = true; }
+        playRandomSong();
+      }
+    } else if (musicPlayer) {
+      musicPlayer.currentTime = 0;
+    }
+  });
   document.getElementById('mpPlay').addEventListener('click', () => toggleMusic());
   document.getElementById('mpNext').addEventListener('click', () => skipSong());
   document.getElementById('mpBarBg').addEventListener('click', (e) => {
