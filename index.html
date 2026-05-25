@@ -874,6 +874,7 @@
         <span class="mp-artist" id="mpArtist"></span>
       </div>
       <div class="mp-row" id="mpRow">
+        <button class="mp-btn" id="mpPrev">⏮</button>
         <button class="mp-btn mp-play" id="mpPlay">▶</button>
         <button class="mp-btn" id="mpNext">⏭</button>
       </div>
@@ -1540,6 +1541,7 @@ function mergeScoresFB(local, remote) {
       }
     } catch(e) {}
   }
+  let playFailCount = 0;
   function playRandomSong() {
     if (!musicPlayerReady || !musicPlaylist || musicPlaylist.length === 0) return;
     if (musicPlayer) { musicPlayer.pause(); musicPlayer.src = ''; }
@@ -1556,17 +1558,17 @@ function mergeScoresFB(local, remote) {
       document.getElementById('mpBarFill').style.width = Math.min(pct, 100) + '%';
       document.getElementById('mpTime').textContent = formatTime(musicPlayer.currentTime || 0);
     });
-    musicPlayer.addEventListener('ended', () => { playRetries = 0; playRandomSong(); });
-    musicPlayer.addEventListener('error', async () => {
-      playRetries++;
-      if (playRetries < 3) { await refreshPlaylist(); setTimeout(playRandomSong, 1000); }
-      else { playRetries = 0; if (musicPlayerReady) setTimeout(playRandomSong, 3000); }
-    });
-    musicPlayer.play().catch(async () => {
-      playRetries++;
-      if (playRetries < 3) { await refreshPlaylist(); setTimeout(playRandomSong, 1000); }
-    });
+    musicPlayer.addEventListener('ended', () => { playFailCount = 0; playRandomSong(); });
+    // Single error handler: when URL expires, refresh and retry
+    musicPlayer.addEventListener('error', () => handlePlayError());
+    musicPlayer.play().catch(() => handlePlayError());
     updatePlayerUI();
+  }
+  async function handlePlayError() {
+    playFailCount++;
+    if (playFailCount > 5) { playFailCount = 0; stopMusic(); return; }
+    await refreshPlaylist();
+    setTimeout(playRandomSong, 1500);
   }
 
   // Lo-fi ambient pads (Dm7 - Am7 - Gmaj7 - Fmaj7)
@@ -3377,6 +3379,7 @@ function mergeScoresFB(local, remote) {
   });
 
   // Player controls
+  document.getElementById('mpPrev').addEventListener('click', () => { if (musicPlayer) { musicPlayer.currentTime = 0; } });
   document.getElementById('mpPlay').addEventListener('click', () => toggleMusic());
   document.getElementById('mpNext').addEventListener('click', () => skipSong());
   document.getElementById('mpBarBg').addEventListener('click', (e) => {
