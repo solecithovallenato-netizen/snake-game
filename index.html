@@ -1564,9 +1564,12 @@ function mergeScoresFB(local, remote) {
         document.getElementById('mpBarFill').style.width = Math.min(pct, 100) + '%';
         document.getElementById('mpTime').textContent = formatTime(musicPlayer.currentTime || 0);
       });
+      musicPlayer.addEventListener('play', () => updatePlayerUI());
+      musicPlayer.addEventListener('pause', () => updatePlayerUI());
       musicPlayer.addEventListener('ended', () => { playFailCount = 0; playRandomSong(); });
       await musicPlayer.play();
       playFailCount = 0;
+      updatePlayerUI();
     } catch(e) {
       playFailCount++;
       if (playFailCount < 3) {
@@ -3384,7 +3387,7 @@ function mergeScoresFB(local, remote) {
   });
 
   // Player controls
-  document.getElementById('mpPrev').addEventListener('click', () => { if (musicPlayer) { musicPlayer.currentTime = 0; } });
+  document.getElementById('mpPrev').addEventListener('click', () => { if (musicPlayer) musicPlayer.currentTime = 0; else skipSong(); });
   document.getElementById('mpPlay').addEventListener('click', () => toggleMusic());
   document.getElementById('mpNext').addEventListener('click', () => skipSong());
   document.getElementById('mpBarBg').addEventListener('click', (e) => {
