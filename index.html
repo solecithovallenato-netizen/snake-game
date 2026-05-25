@@ -852,13 +852,21 @@
     <div class="top-row">
       <button class="lb-btn-icon" id="btnLeaderboard" title="排行榜">🏆</button>
       <div class="music-player" id="musicPlayer">
-        <div class="player-avatar" id="playerAvatar"></div>
-        <div class="player-info">
-          <span class="player-name" id="playerName"></span>
-          <span class="player-id" id="playerIdDisplay"></span>
-          <span class="player-platform" id="playerPlatform"></span>
+        <div class="mp-main">
+          <span class="mp-icon" id="mpIcon">🎵</span>
+          <span class="mp-name" id="mpName">背景音乐</span>
+          <span class="mp-artist" id="mpArtist"></span>
         </div>
-        <div class="request-badge" id="requestBadge"></div>
+        <div class="mp-row" id="mpRow">
+          <button class="mp-btn" id="mpPrev">⏮</button>
+          <button class="mp-btn mp-play" id="mpPlay">▶</button>
+          <button class="mp-btn" id="mpNext">⏭</button>
+        </div>
+        <div class="mp-progress" id="mpProgress" style="display:none;">
+          <div class="mp-bar-bg" id="mpBarBg"><div class="mp-bar-fill" id="mpBarFill"></div></div>
+          <span class="mp-time" id="mpTime">00:00</span>
+          <span class="mp-duration" id="mpDuration">00:00</span>
+        </div>
       </div>
       <button class="lb-btn-icon friends-btn" id="btnFriends" title="好友">👥</button>
       <div class="score-inline" id="scoreInline">
