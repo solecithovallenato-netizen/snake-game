@@ -119,6 +119,9 @@
   .ach-card .ach-desc { color: var(--text-dim); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ach-stats { text-align: center; font-size: 13px; color: var(--text-dim); margin-bottom: 10px; }
 
+  @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-4px)} 40%{transform:translateX(4px)} 60%{transform:translateX(-3px)} 80%{transform:translateX(2px)} }
+  .shaking { animation: shake 0.3s ease; }
+
   .lobby-header {
     display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 4px;
@@ -1791,6 +1794,7 @@ function mergeScoresFB(local, remote) {
 
   // Pause state
   let isPaused = false;
+  let shakeTime = 0;
 
   // Power-up types
   const POWER_TYPES = [
@@ -2021,6 +2025,16 @@ function mergeScoresFB(local, remote) {
   function draw() {
     const now = Date.now();
 
+    // Death shake
+    if (shakeTime > 0) {
+      const intensity = (shakeTime / 300) * 4;
+      ctx.save();
+      ctx.translate((Math.random() - 0.5) * intensity * 2, (Math.random() - 0.5) * intensity * 2);
+      shakeTime -= 16;
+    } else if (shakeTime <= 0 && shakeTime !== 0) {
+      shakeTime = 0;
+    }
+
     // Background
     ctx.fillStyle = '#16161c';
     ctx.fillRect(0, 0, SIZE, SIZE);
@@ -2208,6 +2222,23 @@ function mergeScoresFB(local, remote) {
     ctx.closePath();
     ctx.fill();
 
+    // Snake glow & trail
+    if (!snakeTrail) var snakeTrail = [];
+    snakeTrail.push({ x: snake[0].x, y: snake[0].y });
+    if (snakeTrail.length > 5) snakeTrail.shift();
+    ctx.save();
+    snakeTrail.forEach((p, i) => {
+      if (i < snakeTrail.length - 1) {
+        const alpha = (i + 1) / snakeTrail.length * 0.15;
+        ctx.fillStyle = `rgba(201,169,110,${alpha})`;
+        const ts = GRID - 2;
+        ctx.fillRect(p.x * GRID + 1, p.y * GRID + 1, ts, ts);
+      }
+    });
+    ctx.restore();
+    ctx.save();
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = 'rgba(201,169,110,0.5)';
     // Snake
     for (let i = snake.length - 1; i >= 0; i--) {
       const seg = snake[i];
@@ -2225,6 +2256,21 @@ function mergeScoresFB(local, remote) {
       ctx.fill();
     }
 
+    // Death fade-out
+    if (!gameRunning && _deathTime) {
+      const elapsed = Date.now() - _deathTime;
+      if (elapsed < 600) {
+        const alpha = 1 - elapsed / 600;
+        ctx.fillStyle = `rgba(22,22,28,${alpha * 0.6})`;
+        const segs = Math.floor((1 - elapsed / 600) * snake.length);
+        for (let i = 0; i < segs; i++) {
+          const s = snake[i];
+          ctx.fillRect(s.x * GRID, s.y * GRID, GRID, GRID);
+        }
+      }
+    }
+
+    ctx.restore();
     // Eyes on head
     const head = snake[0];
     const hx = head.x * GRID, hy = head.y * GRID;
@@ -2436,6 +2482,9 @@ function mergeScoresFB(local, remote) {
     comboDisplay = null;
     activeEffects = { shield: false, speedBoost: 0, magnet: 0 };
     sfxDeath();
+    _deathTime = Date.now();
+    wrapper.classList.add('shaking');
+    setTimeout(() => wrapper.classList.remove('shaking'), 300);
     startLobbyMusic();
     wrapper.classList.remove('playing');
     wrapper.classList.add('game-over-glow');
