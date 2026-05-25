@@ -1784,6 +1784,62 @@ function mergeScoresFB(local, remote) {
   let BONUS_INTERVAL = 15;  // seconds between bonus spawns (set by difficulty)
   let BONUS_DURATION = 7;   // seconds bonus stays on map
 
+  // ── Achievement system ──
+  const ACHIEVEMENTS = [
+    { id: 'score_100',   name: '🥉 初出茅庐', desc: '累计获得 100 分', cat: 'score', check: s => s.totalScore >= 100 },
+    { id: 'score_500',   name: '🥈 小试牛刀', desc: '累计获得 500 分', cat: 'score', check: s => s.totalScore >= 500 },
+    { id: 'score_2000',  name: '🥇 炉火纯青', desc: '累计获得 2000 分', cat: 'score', check: s => s.totalScore >= 2000 },
+    { id: 'score_10000', name: '👑 蛇王降临', desc: '累计获得 10000 分', cat: 'score', check: s => s.totalScore >= 10000 },
+    { id: 'combo_3',     name: '🔥 连击新手', desc: '达到 3x 连击', cat: 'combo', check: s => s.maxCombo >= 3 },
+    { id: 'combo_5',     name: '🔥 连击达人', desc: '达到 5x 连击', cat: 'combo', check: s => s.maxCombo >= 5 },
+    { id: 'combo_10',    name: '🔥 连击大师', desc: '达到 10x 连击', cat: 'combo', check: s => s.maxCombo >= 10 },
+    { id: 'combo_20',    name: '🔥 极限连击', desc: '达到 20x 连击', cat: 'combo', check: s => s.maxCombo >= 20 },
+    { id: 'games_10',    name: '🎮 入门玩家', desc: '累计玩 10 局', cat: 'games', check: s => s.totalGames >= 10 },
+    { id: 'games_50',    name: '🎮 忠实玩家', desc: '累计玩 50 局', cat: 'games', check: s => s.totalGames >= 50 },
+    { id: 'games_200',   name: '🎮 蛇瘾患者', desc: '累计玩 200 局', cat: 'games', check: s => s.totalGames >= 200 },
+    { id: 'food_100',    name: '🍎 小吃货', desc: '累计吃掉 100 个食物', cat: 'food', check: s => s.totalFood >= 100 },
+    { id: 'food_1000',   name: '🍎 大胃王', desc: '累计吃掉 1000 个食物', cat: 'food', check: s => s.totalFood >= 1000 },
+    { id: 'food_5000',   name: '🍎 无底洞', desc: '累计吃掉 5000 个食物', cat: 'food', check: s => s.totalFood >= 5000 },
+    { id: 'pu_10',       name: '💫 道具新手', desc: '累计收集 10 个道具', cat: 'powerup', check: s => s.totalPowerUps >= 10 },
+    { id: 'pu_100',      name: '💫 道具猎人', desc: '累计收集 100 个道具', cat: 'powerup', check: s => s.totalPowerUps >= 100 },
+    { id: 'pu_all',      name: '💫 道具收藏家', desc: '每种道具至少用过 10 次', cat: 'powerup', check: s => Object.values(s.puTypeCount||{}).every(c => c >= 10) },
+    { id: 'pu_shield',   name: '🛡️ 铜墙铁壁', desc: '护盾成功挡伤 10 次', cat: 'powerup', check: s => s.totalShieldBlocks >= 10 },
+    { id: 'pu_bolt',     name: '⚡ 闪电侠', desc: '加速状态累计 100 秒', cat: 'powerup', check: s => s.totalBoltTime >= 100 },
+    { id: 'pu_magnet',   name: '🧲 吸铁石', desc: '磁铁吸到 50 个食物', cat: 'powerup', check: s => s.totalMagnetFood >= 50 },
+    { id: 'diff_easy',   name: '🐣 休闲玩家', desc: '在休闲难度完成一局', cat: 'diff', check: s => s.difficultyBeat & 1 },
+    { id: 'diff_normal', name: '🐍 经典不败', desc: '经典难度得分≥500', cat: 'diff', check: s => s.difficultyBeat & 2 },
+    { id: 'diff_hard',   name: '💀 地狱 survivor', desc: '地狱难度得分≥300', cat: 'diff', check: s => s.difficultyBeat & 4 },
+    { id: 'diff_all',    name: '🏆 全能王', desc: '通关全部三个难度', cat: 'diff', check: s => (s.difficultyBeat & 7) === 7 },
+    { id: 'hidden_firstdeath',name: '💀 初死', desc: '第一次死亡', cat: 'hidden', check: s => s.totalDeaths >= 1 },
+    { id: 'hidden_retry',name: '🔄 卷土重来', desc: '死亡后 3 秒内立即开始新一局', cat: 'hidden', check: s => s._retryFlag },
+    { id: 'hidden_nightowl',name: '🌙 夜猫子', desc: '凌晨 0-5 点玩游戏', cat: 'hidden', check: s => s._nightOwlFlag },
+  ];
+  let snakeStats = JSON.parse(localStorage.getItem('snakeStats') || JSON.stringify({
+    totalScore: 0, totalFood: 0, totalGames: 0, totalDeaths: 0,
+    totalPowerUps: 0, maxCombo: 0, bestScore: 0, totalShieldBlocks: 0,
+    totalBoltTime: 0, totalMagnetFood: 0, difficultyBeat: 0,
+    puTypeCount: { star: 0, bolt: 0, shield: 0, magnet: 0 },
+  }));
+  let snakeAchievements = JSON.parse(localStorage.getItem('snakeAchievements') || '{}');
+  let achQueue = [];
+  function saveStats() { localStorage.setItem('snakeStats', JSON.stringify(snakeStats)); }
+  function saveAchievements() { localStorage.setItem('snakeAchievements', JSON.stringify(snakeAchievements)); }
+  function checkAchievements() {
+    ACHIEVEMENTS.forEach(a => {
+      if (snakeAchievements[a.id]) return;
+      if (a.check(snakeStats)) { snakeAchievements[a.id] = true; saveAchievements(); achQueue.push(a); }
+    });
+  }
+  function showAchToast() {
+    if (achQueue.length === 0) return;
+    const a = achQueue.shift();
+    const el = document.getElementById('achToast');
+    if (!el) return;
+    el.innerHTML = '🏆 解锁成就：' + a.name;
+    el.classList.add('active');
+    setTimeout(() => { el.classList.remove('active'); showAchToast(); }, 3000);
+  }
+
   // Difficulty presets
   const DIFFICULTY = {
     casual: {
