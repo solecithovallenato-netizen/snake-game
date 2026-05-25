@@ -1473,15 +1473,19 @@ function mergeScoresFB(local, remote) {
     } catch(e) {}
   }
 
+  let playRetries = 0;
   function playRandomSong() {
     if (!musicPlayerReady || !musicPlaylist || musicPlaylist.length === 0) return;
     if (musicPlayer) { musicPlayer.pause(); musicPlayer.src = ''; }
     const s = musicPlaylist[Math.floor(Math.random() * musicPlaylist.length)];
-    musicPlayer = new Audio(s.url);
+    try { musicPlayer = new Audio(s.url); } catch(e) { return; }
     musicPlayer.volume = 0.3;
-    musicPlayer.addEventListener('ended', playRandomSong);
-    musicPlayer.addEventListener('error', () => { setTimeout(playRandomSong, 1000); });
-    musicPlayer.play().catch(() => {});
+    musicPlayer.addEventListener('ended', () => { playRetries = 0; playRandomSong(); });
+    musicPlayer.addEventListener('error', () => {
+      if (playRetries < 3) { playRetries++; setTimeout(playRandomSong, 2000); }
+      else { playRetries = 0; stopMusic(); }
+    });
+    musicPlayer.play().catch(() => { if (playRetries < 3) { playRetries++; setTimeout(playRandomSong, 2000); } });
   }
 
   // Lo-fi ambient pads (Dm7 - Am7 - Gmaj7 - Fmaj7)
@@ -3297,11 +3301,25 @@ function mergeScoresFB(local, remote) {
   // Music button — click toggles, long-press (500ms) skips song
   const btnMusic = document.getElementById('btnMusic');
   btnMusic.classList.add('muted');
-  let pressTimer = null;
-  let isLongPress = false;
-  function downHandler(e) { if (e.button !== 0 && e.type !== 'touchstart') return; isLongPress = false; pressTimer = setTimeout(() => { isLongPress = true; skipSong(); if (navigator.vibrate) navigator.vibrate(10); }, 500); }
-  function upHandler(e) { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } if (!isLongPress) toggleMusic(); isLongPress = false; }
-  function leaveHandler() { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } isLongPress = false; }
+  let pressTimer = null, isLongPress = false, isTouching = false;
+  function downHandler(e) {
+    if (e.type === 'touchstart') { isTouching = true; }
+    else if (isTouching) return; // skip mousedown after touch
+    if (e.button !== 0 && e.type !== 'touchstart') return;
+    isLongPress = false;
+    pressTimer = setTimeout(() => { isLongPress = true; skipSong(); if (navigator.vibrate) navigator.vibrate(10); }, 500);
+  }
+  function upHandler(e) {
+    if (e.type === 'touchend') isTouching = false;
+    if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+    if (!isLongPress) toggleMusic();
+    isLongPress = false;
+  }
+  function leaveHandler() {
+    isTouching = false;
+    if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+    isLongPress = false;
+  }
   btnMusic.addEventListener('mousedown', downHandler);
   btnMusic.addEventListener('mouseup', upHandler);
   btnMusic.addEventListener('mouseleave', leaveHandler);
