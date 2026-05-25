@@ -118,6 +118,8 @@
   .ach-card.locked .ach-name { color: var(--text-dim); }
   .ach-card .ach-desc { color: var(--text-dim); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ach-stats { text-align: center; font-size: 13px; color: var(--text-dim); margin-bottom: 10px; }
+  .ach-section { margin-bottom: 14px; }
+  .ach-section-title { font-size: 12px; color: var(--text-dim); margin-bottom: 8px; text-align: center; letter-spacing: 2px; }
 
   @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-4px)} 40%{transform:translateX(4px)} 60%{transform:translateX(-3px)} 80%{transform:translateX(2px)} }
   .shaking { animation: shake 0.3s ease; }
@@ -2918,8 +2920,27 @@ function mergeScoresFB(local, remote) {
       ? '<div style="text-align:center;margin:12px 0;"><button class="name-change-link" id="btnBindQQ">绑定 QQ 账号</button></div>'
       : '';
 
+    // ── Achievements ──
+    const achUnlocked = ACHIEVEMENTS.filter(a => snakeAchievements[a.id]).length;
+    const achSection = `
+      <div class="ach-section">
+        <div class="ach-section-title">成就 (${achUnlocked}/${ACHIEVEMENTS.length})</div>
+        <div class="ach-grid">
+          ${ACHIEVEMENTS.slice(0, 6).map(a => `
+            <div class="ach-card${snakeAchievements[a.id] ? '' : ' locked'}">
+              <div class="ach-name">${snakeAchievements[a.id] ? a.name : '❓'}</div>
+              <div class="ach-desc">${a.desc}</div>
+            </div>
+          `).join('')}
+        </div>
+        <div style="text-align:center;margin-top:6px;font-size:11px;color:var(--text-dim);${achUnlocked === ACHIEVEMENTS.length ? 'display:none;' : ''}">
+          还有 ${ACHIEVEMENTS.length - 6} 个成就未显示
+        </div>
+      </div>`;
+
     content.innerHTML = `
       ${headerSection}
+      ${achSection}
       ${requestSection}
       ${friendSection}
       ${bindRow}
