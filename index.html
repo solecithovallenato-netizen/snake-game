@@ -1474,6 +1474,16 @@ function mergeScoresFB(local, remote) {
   }
 
   let playRetries = 0;
+  async function refreshPlaylist() {
+    try {
+      const resp = await fetch(MUSIC_API + '/songs');
+      const data = await resp.json();
+      if (data.songs && data.songs.length > 0) {
+        musicPlaylist = data.songs.filter(s => s.url);
+        musicPlayerReady = musicPlaylist.length > 0;
+      }
+    } catch(e) {}
+  }
   function playRandomSong() {
     if (!musicPlayerReady || !musicPlaylist || musicPlaylist.length === 0) return;
     if (musicPlayer) { musicPlayer.pause(); musicPlayer.src = ''; }
@@ -1481,11 +1491,26 @@ function mergeScoresFB(local, remote) {
     try { musicPlayer = new Audio(s.url); } catch(e) { return; }
     musicPlayer.volume = 0.3;
     musicPlayer.addEventListener('ended', () => { playRetries = 0; playRandomSong(); });
-    musicPlayer.addEventListener('error', () => {
-      if (playRetries < 3) { playRetries++; setTimeout(playRandomSong, 2000); }
-      else { playRetries = 0; stopMusic(); }
+    musicPlayer.addEventListener('error', async () => {
+      playRetries++;
+      if (playRetries < 3) {
+        await refreshPlaylist();
+        setTimeout(playRandomSong, 1000);
+      } else {
+        playRetries = 0;
+        if (musicPlayerReady) {
+          // playlist still has songs, just try again after refresh
+          setTimeout(playRandomSong, 3000);
+        }
+      }
     });
-    musicPlayer.play().catch(() => { if (playRetries < 3) { playRetries++; setTimeout(playRandomSong, 2000); } });
+    musicPlayer.play().catch(async () => {
+      playRetries++;
+      if (playRetries < 3) {
+        await refreshPlaylist();
+        setTimeout(playRandomSong, 1000);
+      }
+    });
   }
 
   // Lo-fi ambient pads (Dm7 - Am7 - Gmaj7 - Fmaj7)
