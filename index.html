@@ -1542,33 +1542,38 @@ function mergeScoresFB(local, remote) {
     } catch(e) {}
   }
   let playFailCount = 0;
-  function playRandomSong() {
+  async function playRandomSong() {
     if (!musicPlayerReady || !musicPlaylist || musicPlaylist.length === 0) return;
-    if (musicPlayer) { musicPlayer.pause(); musicPlayer.src = ''; }
     const s = musicPlaylist[Math.floor(Math.random() * musicPlaylist.length)];
     currentSong = s;
-    try { musicPlayer = new Audio(s.url); } catch(e) { return; }
-    musicPlayer.volume = 0.3;
-    musicPlayer.addEventListener('loadedmetadata', () => {
-      document.getElementById('mpDuration').textContent = formatTime(musicPlayer.duration || 0);
-    });
-    musicPlayer.addEventListener('timeupdate', () => {
-      if (!musicPlayer) return;
-      const pct = musicPlayer.duration ? (musicPlayer.currentTime / musicPlayer.duration * 100) : 0;
-      document.getElementById('mpBarFill').style.width = Math.min(pct, 100) + '%';
-      document.getElementById('mpTime').textContent = formatTime(musicPlayer.currentTime || 0);
-    });
-    musicPlayer.addEventListener('ended', () => { playFailCount = 0; playRandomSong(); });
-    // Single error handler: when URL expires, refresh and retry
-    musicPlayer.addEventListener('error', () => handlePlayError());
-    musicPlayer.play().catch(() => handlePlayError());
     updatePlayerUI();
-  }
-  async function handlePlayError() {
-    playFailCount++;
-    if (playFailCount > 5) { playFailCount = 0; stopMusic(); return; }
-    await refreshPlaylist();
-    setTimeout(playRandomSong, 1500);
+    try {
+      const resp = await fetch(s.url);
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const blob = await resp.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      if (musicPlayer) { musicPlayer.pause(); musicPlayer.src = ''; }
+      musicPlayer = new Audio(blobUrl);
+      musicPlayer.volume = 0.3;
+      musicPlayer.addEventListener('loadedmetadata', () => {
+        document.getElementById('mpDuration').textContent = formatTime(musicPlayer.duration || 0);
+      });
+      musicPlayer.addEventListener('timeupdate', () => {
+        if (!musicPlayer) return;
+        const pct = musicPlayer.duration ? (musicPlayer.currentTime / musicPlayer.duration * 100) : 0;
+        document.getElementById('mpBarFill').style.width = Math.min(pct, 100) + '%';
+        document.getElementById('mpTime').textContent = formatTime(musicPlayer.currentTime || 0);
+      });
+      musicPlayer.addEventListener('ended', () => { playFailCount = 0; playRandomSong(); });
+      await musicPlayer.play();
+      playFailCount = 0;
+    } catch(e) {
+      playFailCount++;
+      if (playFailCount < 3) {
+        await refreshPlaylist();
+        setTimeout(playRandomSong, 1500);
+      }
+    }
   }
 
   // Lo-fi ambient pads (Dm7 - Am7 - Gmaj7 - Fmaj7)
