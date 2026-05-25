@@ -97,6 +97,28 @@
   .mp-bar-fill { height: 100%; background: var(--gold); border-radius: 2px; width: 0%; }
   .mp-time, .mp-duration { color: var(--text-dim); font-size: 10px; font-family: monospace; min-width: 28px; }
 
+  .ach-toast {
+    position: fixed; top: 16px; left: 50%; transform: translateX(-50%) translateY(-20px);
+    background: linear-gradient(135deg, rgba(201,169,110,0.12), rgba(201,169,110,0.04));
+    border: 1px solid var(--gold); border-radius: var(--radius);
+    padding: 10px 20px; font-size: 14px; white-space: nowrap;
+    color: var(--gold); z-index: 9999;
+    opacity: 0; transition: opacity 0.4s ease, transform 0.4s ease;
+    pointer-events: none;
+  }
+  .ach-toast.active { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .profile-tabs { display: flex; gap: 0; margin-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .profile-tab { flex: 1; padding: 8px; background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 13px; transition: all 0.2s; border-bottom: 2px solid transparent; }
+  .profile-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+  .ach-grid { max-height: 260px; overflow-y: auto; }
+  .ach-card { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: var(--radius); background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); margin-bottom: 6px; font-size: 12px; }
+  .ach-card.locked { opacity: 0.3; }
+  .ach-card .ach-name { font-weight: 500; color: var(--gold); flex-shrink: 0; }
+  .ach-card.locked .ach-name { color: var(--text-dim); }
+  .ach-card .ach-desc { color: var(--text-dim); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ach-stats { text-align: center; font-size: 13px; color: var(--text-dim); margin-bottom: 10px; }
+
   .lobby-header {
     display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 4px;
@@ -841,6 +863,7 @@
   </div>
 </div>
 
+<div class="ach-toast" id="achToast"></div>
 <!-- Lobby -->
 <div class="lobby" id="lobby">
   <div class="lobby-left">
@@ -1829,6 +1852,18 @@ function mergeScoresFB(local, remote) {
       if (snakeAchievements[a.id]) return;
       if (a.check(snakeStats)) { snakeAchievements[a.id] = true; saveAchievements(); achQueue.push(a); }
     });
+  }
+  function renderAchGrid() {
+    const grid = document.getElementById('achGrid');
+    if (!grid) return;
+    const unlocked = ACHIEVEMENTS.filter(a => snakeAchievements[a.id]).length;
+    grid.innerHTML = `<div class="ach-stats">已解锁: ${unlocked}/${ACHIEVEMENTS.length}</div>`
+      + ACHIEVEMENTS.map(a => `
+        <div class="ach-card${snakeAchievements[a.id] ? '' : ' locked'}">
+          <div class="ach-name">${snakeAchievements[a.id] ? a.name : '❓'}</div>
+          <div class="ach-desc">${a.desc}</div>
+        </div>
+      `).join('');
   }
   function showAchToast() {
     if (achQueue.length === 0) return;
@@ -3331,24 +3366,44 @@ function mergeScoresFB(local, remote) {
       ? `<button class="btn" id="btnProfileAddFriend" style="margin-top:8px;">添加好友</button>`
       : (isFriend ? '<p style="text-align:center;font-size:11px;color:var(--accent);margin-top:8px;">✓ 已是好友</p>' : '');
 
+    const achCount = ACHIEVEMENTS.filter(a => snakeAchievements[a.id]).length;
+    const isSelf = uid && myUid && uid === myUid;
     content.innerHTML = `
       <div style="text-align:center;margin-bottom:12px;">
         <div class="player-avatar" style="width:52px;height:52px;margin:0 auto 8px;display:flex;justify-content:center;align-items:center;">${avatarHtml}</div>
         <div style="font-size:16px;color:var(--text);font-weight:400;">${escapeHtml(name)}</div>
       </div>
       ${idDisplay}
-      <div class="history-stats">
-        <div class="history-stat">
-          <div class="history-stat-val">${score}</div>
-          <div class="history-stat-label">最高分</div>
-        </div>
-        <div class="history-stat">
-          <div class="history-stat-val">${userInfo && userInfo.platform ? (userInfo.platform === 'qq' ? 'QQ' : '游客') : '-'}</div>
-          <div class="history-stat-label">登录方式</div>
-        </div>
+      <div class="profile-tabs">
+        <button class="profile-tab active" data-tab="history">历史战绩</button>
+        <button class="profile-tab" data-tab="ach">成就 ${achCount}/${ACHIEVEMENTS.length}</button>
       </div>
-      ${actionBtn}
+      <div id="profileHistory">
+        <div class="history-stats">
+          <div class="history-stat">
+            <div class="history-stat-val">${score}</div>
+            <div class="history-stat-label">最高分</div>
+          </div>
+          <div class="history-stat">
+            <div class="history-stat-val">${userInfo && userInfo.platform ? (userInfo.platform === 'qq' ? 'QQ' : '游客') : '-'}</div>
+            <div class="history-stat-label">登录方式</div>
+          </div>
+        </div>
+        ${actionBtn}
+      </div>
+      <div id="profileAch" style="display:none;"><div class="ach-grid" id="achGrid"></div></div>
     `;
+    // Tab switching
+    content.querySelectorAll('.profile-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        content.querySelectorAll('.profile-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('profileHistory').style.display = tab.dataset.tab === 'history' ? '' : 'none';
+        document.getElementById('profileAch').style.display = tab.dataset.tab === 'ach' ? '' : 'none';
+        if (tab.dataset.tab === 'ach') renderAchGrid();
+      });
+    });
+    if (document.getElementById('profileAch').style.display !== 'none') renderAchGrid();
 
     // Add friend button handler
     const btnAdd = document.getElementById('btnProfileAddFriend');
