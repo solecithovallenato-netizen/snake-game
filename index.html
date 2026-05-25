@@ -73,49 +73,32 @@
     background: rgba(201,169,110,0.06);
   }
 
-  .music-btn {
-    position: relative;
-  }
-  .music-btn.muted::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, transparent 44%, var(--danger) 44%, var(--danger) 46%, transparent 46%);
-    border-radius: var(--radius);
-    pointer-events: none;
-  }
-  .music-btn.muted {
-    opacity: 0.5;
-  }
-
   .music-player {
     display: flex; flex-direction: column; gap: 6px;
-    padding: 10px 14px; margin: 8px 0;
+    padding: 8px 12px; margin: 6px 0;
     background: rgba(255,255,255,0.03);
     border: 1px solid rgba(255,255,255,0.06);
     border-radius: var(--radius);
     font-size: 12px;
   }
-  .mp-track { display: flex; align-items: center; gap: 8px; }
+  .mp-main { display: flex; align-items: center; gap: 6px; min-width: 0; }
   .mp-icon { font-size: 14px; flex-shrink: 0; }
   .mp-name { color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .mp-artist { color: var(--text-dim); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1; }
-  .mp-controls { display: flex; justify-content: center; gap: 16px; }
+  .mp-artist { color: var(--text-dim); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .mp-row { display: flex; align-items: center; gap: 12px; }
   .mp-btn {
-    background: none; border: none; cursor: pointer; font-size: 18px;
-    padding: 2px 6px; transition: transform 0.15s;
-    line-height: 1;
+    background: none; border: none; cursor: pointer; font-size: 16px;
+    padding: 2px 4px; transition: transform 0.15s; line-height: 1;
   }
   .mp-btn:hover { transform: scale(1.2); }
-  .mp-play { font-size: 22px; }
-  .mp-progress { display: flex; align-items: center; gap: 8px; }
+  .mp-play { font-size: 20px; }
+  .mp-progress { display: flex; align-items: center; gap: 6px; }
   .mp-bar-bg {
-    flex: 1; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px;
+    flex: 1; height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px;
     cursor: pointer; position: relative;
   }
   .mp-bar-fill { height: 100%; background: var(--gold); border-radius: 2px; width: 0%; }
-  .mp-bar-thumb { display: none; }
-  .mp-time, .mp-duration { color: var(--text-dim); font-size: 10px; font-family: monospace; min-width: 36px; }
+  .mp-time, .mp-duration { color: var(--text-dim); font-size: 10px; font-family: monospace; min-width: 32px; }
   .mp-duration { text-align: right; }
 
   .lobby-title {
@@ -864,7 +847,6 @@
         </div>
         <div class="request-badge" id="requestBadge"></div>
       </div>
-      <button class="lb-btn-icon music-btn" id="btnMusic" title="背景音乐">🎵</button>
       <button class="lb-btn-icon friends-btn" id="btnFriends" title="好友">👥</button>
       <div class="score-inline" id="scoreInline">
         <div class="score-item">
@@ -885,21 +867,19 @@
 
     <p class="hint" id="gameHint">方向键 / WASD 操控</p>
 
-    <div class="music-player" id="musicPlayer" style="display:none;">
-      <div class="mp-track">
-        <span class="mp-icon">🎵</span>
-        <span class="mp-name" id="mpName">-</span>
-        <span class="mp-artist" id="mpArtist">-</span>
+    <div class="music-player" id="musicPlayer">
+      <div class="mp-main">
+        <span class="mp-icon" id="mpIcon">🎵</span>
+        <span class="mp-name" id="mpName">背景音乐</span>
+        <span class="mp-artist" id="mpArtist"></span>
       </div>
-      <div class="mp-controls">
-        <button class="mp-btn" id="mpPrev" title="上一首">⏮</button>
-        <button class="mp-btn mp-play" id="mpPlay" title="播放/暂停">▶</button>
-        <button class="mp-btn" id="mpNext" title="下一首">⏭</button>
+      <div class="mp-row" id="mpRow">
+        <button class="mp-btn mp-play" id="mpPlay">▶</button>
+        <button class="mp-btn" id="mpNext">⏭</button>
       </div>
-      <div class="mp-progress" id="mpProgress">
+      <div class="mp-progress" id="mpProgress" style="display:none;">
         <div class="mp-bar-bg" id="mpBarBg">
           <div class="mp-bar-fill" id="mpBarFill"></div>
-          <div class="mp-bar-thumb" id="mpBarThumb"></div>
         </div>
         <span class="mp-time" id="mpTime">00:00</span>
         <span class="mp-duration" id="mpDuration">00:00</span>
@@ -1527,14 +1507,23 @@ function mergeScoresFB(local, remote) {
   let playRetries = 0;
   let currentSong = null;
   function updatePlayerUI() {
-    const el = document.getElementById('musicPlayer');
     const nameEl = document.getElementById('mpName');
     const artistEl = document.getElementById('mpArtist');
     const playEl = document.getElementById('mpPlay');
-    if (!musicPlaying || !currentSong) { el.style.display = 'none'; return; }
-    el.style.display = 'flex';
-    nameEl.textContent = currentSong.name || '-';
-    artistEl.textContent = currentSong.artist || '-';
+    const progressEl = document.getElementById('mpProgress');
+    if (!musicPlaying) {
+      playEl.textContent = musicPlayerReady ? '▶' : '🎵';
+      return;
+    }
+    if (musicPlayerReady && currentSong) {
+      nameEl.textContent = currentSong.name || '-';
+      artistEl.textContent = currentSong.artist || '';
+      progressEl.style.display = 'flex';
+    } else {
+      nameEl.textContent = 'Lo-fi 音乐';
+      artistEl.textContent = '';
+      progressEl.style.display = 'none';
+    }
     playEl.textContent = musicPlayer && !musicPlayer.paused ? '⏸' : '▶';
   }
   function formatTime(s) {
@@ -1724,11 +1713,10 @@ function mergeScoresFB(local, remote) {
       }
     }
     localStorage.setItem('snakeMusicMuted', JSON.stringify(musicMuted));
-    const btn = document.getElementById('btnMusic');
-    if (btn) btn.classList.toggle('muted', !musicPlaying);
+    updatePlayerUI();
   }
 
-    // Update player after stop
+  // Update player after stop
   function stopMusic() {
     if (musicPlayer) { musicPlayer.pause(); musicPlayer.src = ''; }
     musicNodes.forEach(n => { try { n.osc.stop(); } catch(e) {} try { n.gain.disconnect(); } catch(e) {} });
@@ -1744,13 +1732,9 @@ function mergeScoresFB(local, remote) {
       initAudio();
       if (!musicPlaying) {
         musicMuted = false;
-        playRandomSong();
         musicPlaying = true;
-        const btn = document.getElementById('btnMusic');
-        if (btn) btn.classList.remove('muted');
-      } else {
-        playRandomSong();
       }
+      playRandomSong();
       localStorage.setItem('snakeMusicMuted', JSON.stringify(musicMuted));
     }
   }
@@ -3392,43 +3376,9 @@ function mergeScoresFB(local, remote) {
     }
   });
 
-  // Music button — click toggles, long-press (500ms) skips song
-  const btnMusic = document.getElementById('btnMusic');
-  btnMusic.classList.add('muted');
-  let pressTimer = null, isLongPress = false, isTouching = false;
-  function downHandler(e) {
-    if (e.type === 'touchstart') { isTouching = true; }
-    else if (isTouching) return; // skip mousedown after touch
-    if (e.button !== 0 && e.type !== 'touchstart') return;
-    isLongPress = false;
-    pressTimer = setTimeout(() => { isLongPress = true; skipSong(); if (navigator.vibrate) navigator.vibrate(10); }, 500);
-  }
-  function upHandler(e) {
-    if (e.type === 'touchend') isTouching = false;
-    if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
-    if (!isLongPress) toggleMusic();
-    isLongPress = false;
-  }
-  function leaveHandler() {
-    isTouching = false;
-    if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
-    isLongPress = false;
-  }
-  btnMusic.addEventListener('mousedown', downHandler);
-  btnMusic.addEventListener('mouseup', upHandler);
-  btnMusic.addEventListener('mouseleave', leaveHandler);
-  btnMusic.addEventListener('touchstart', downHandler, { passive: true });
-  btnMusic.addEventListener('touchend', upHandler, { passive: true });
-  btnMusic.addEventListener('touchcancel', leaveHandler);
-
   // Player controls
-  document.getElementById('mpPrev').addEventListener('click', () => { if (musicPlayer) { musicPlayer.currentTime = 0; } });
-  document.getElementById('mpPlay').addEventListener('click', () => {
-    if (!musicPlayer) return;
-    if (musicPlayer.paused) { musicPlayer.play(); } else { musicPlayer.pause(); }
-    updatePlayerUI();
-  });
-  document.getElementById('mpNext').addEventListener('click', () => { skipSong(); });
+  document.getElementById('mpPlay').addEventListener('click', () => toggleMusic());
+  document.getElementById('mpNext').addEventListener('click', () => skipSong());
   document.getElementById('mpBarBg').addEventListener('click', (e) => {
     if (!musicPlayer || !musicPlayer.duration) return;
     const rect = e.currentTarget.getBoundingClientRect();
