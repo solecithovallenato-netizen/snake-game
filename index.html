@@ -2249,6 +2249,7 @@ function mergeScoresFB(local, remote) {
         if (activeEffects.shield) {
           activeEffects.shield = false;
           sfxShield();
+          snakeStats.totalShieldBlocks++;
           break;
         }
         return gameOver();
@@ -2298,6 +2299,9 @@ function mergeScoresFB(local, remote) {
       score += pts;
       sfxBonus();
       sfxPowerUp();
+      snakeStats.totalPowerUps++;
+      const pType = pt.type;
+      snakeStats.puTypeCount[pType] = (snakeStats.puTypeCount[pType] || 0) + 1;
 
       // Apply power-up effect
       const now2 = Date.now();
@@ -2323,6 +2327,7 @@ function mergeScoresFB(local, remote) {
       void scoreEl.offsetWidth;
       scoreEl.classList.add('pop');
     } else if (head.x === food.x && head.y === food.y) {
+      if (activeEffects.magnet > Date.now()) snakeStats.totalMagnetFood++;
       // Combo tracking
       const now2 = Date.now();
       if (now2 - lastEatTime < COMBO_WINDOW && lastEatTime > 0) {
@@ -2337,6 +2342,10 @@ function mergeScoresFB(local, remote) {
       const basePoints = 10;
       const points = basePoints * multiplier;
       score += points;
+
+      // Stats tracking
+      snakeStats.totalFood++;
+      if (multiplier > snakeStats.maxCombo) snakeStats.maxCombo = multiplier;
 
       // Combo display
       if (comboCount >= 2) {
@@ -2362,6 +2371,7 @@ function mergeScoresFB(local, remote) {
       } else {
         gameSpeed = baseSpeed;
       }
+      snakeStats.totalBoltTime += gameSpeed / 1000;
       clearInterval(gameLoop);
       gameLoop = setInterval(tick, gameSpeed);
     } else {
@@ -2400,6 +2410,16 @@ function mergeScoresFB(local, remote) {
       localStorage.setItem('snakeHighScore', highScore);
       highScoreEl.textContent = highScore;
     }
+
+    // Save stats & check achievements
+    snakeStats.totalScore += score;
+    snakeStats.totalDeaths++;
+    if (score > snakeStats.bestScore) snakeStats.bestScore = score;
+    snakeStats.difficultyBeat |= currentDifficulty === 'casual' ? 1 : currentDifficulty === 'normal' ? 2 : 4;
+    if (Date.now() - lastEatTime < 3000) snakeStats._retryFlag = true; else snakeStats._retryFlag = false;
+    saveStats();
+    checkAchievements();
+    if (achQueue.length > 0) setTimeout(showAchToast, 500);
 
     // Record in history
     recordGameResult(score);
@@ -2955,6 +2975,9 @@ function mergeScoresFB(local, remote) {
     wrapper.classList.add('playing');
     wrapper.classList.remove('game-over-glow');
     clearInterval(gameLoop);
+    snakeStats.totalGames++;
+    const h = new Date().getHours();
+    if (h >= 0 && h < 5) snakeStats._nightOwlFlag = true;
     draw();
     startGameMusic();
     showCountdown(() => {
