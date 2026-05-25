@@ -75,31 +75,30 @@
 
   .music-player {
     display: flex; flex-direction: column; gap: 6px;
-    padding: 8px 12px; margin: 6px 0;
+    padding: 8px 12px; margin: 6px auto; max-width: 360px;
     background: rgba(255,255,255,0.03);
     border: 1px solid rgba(255,255,255,0.06);
     border-radius: var(--radius);
-    font-size: 12px;
+    font-size: 12px; text-align: center;
   }
-  .mp-main { display: flex; align-items: center; gap: 6px; min-width: 0; }
-  .mp-icon { font-size: 14px; flex-shrink: 0; }
-  .mp-name { color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .mp-artist { color: var(--text-dim); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
-  .mp-row { display: flex; align-items: center; gap: 12px; }
+  .mp-main { display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap; }
+  .mp-icon { font-size: 14px; }
+  .mp-name { color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
+  .mp-artist { color: var(--text-dim); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 120px; }
+  .mp-row { display: flex; align-items: center; justify-content: center; gap: 16px; }
   .mp-btn {
-    background: none; border: none; cursor: pointer; font-size: 16px;
-    padding: 2px 4px; transition: transform 0.15s; line-height: 1;
+    background: none; border: none; cursor: pointer; font-size: 18px;
+    padding: 2px 6px; transition: transform 0.15s; line-height: 1;
   }
   .mp-btn:hover { transform: scale(1.2); }
-  .mp-play { font-size: 20px; }
-  .mp-progress { display: flex; align-items: center; gap: 6px; }
+  .mp-play { font-size: 22px; }
+  .mp-progress { display: flex; align-items: center; gap: 6px; max-width: 320px; margin: 0 auto; }
   .mp-bar-bg {
     flex: 1; height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px;
-    cursor: pointer; position: relative;
+    cursor: pointer;
   }
   .mp-bar-fill { height: 100%; background: var(--gold); border-radius: 2px; width: 0%; }
   .mp-time, .mp-duration { color: var(--text-dim); font-size: 10px; font-family: monospace; min-width: 32px; }
-  .mp-duration { text-align: right; }
 
   .lobby-title {
     font-size: clamp(20px, 3vw, 28px);
@@ -1711,11 +1710,21 @@ function mergeScoresFB(local, remote) {
   function toggleMusic() {
     initAudio();
     if (musicPlaying) {
-      stopMusic(); musicMuted = true;
+      // Pause
+      if (musicPlayer && !musicPlayer.paused) { musicPlayer.pause(); } else { stopMusic(); }
+      musicMuted = true;
     } else {
+      // Resume or start
       musicMuted = false;
       if (musicPlayerReady) {
-        playRandomSong(); musicPlaying = true;
+        if (musicPlayer && musicPlayer.paused) {
+          musicPlayer.play();
+        } else if (musicPlayer && musicPlayer.ended) {
+          playRandomSong();
+        } else {
+          playRandomSong();
+        }
+        musicPlaying = true;
       } else if (!gameRunning) {
         startLobbyMusic();
       } else {
