@@ -303,6 +303,9 @@ const S = {
   prevDualDist: null,
 };
 
+// Scene group reference (must be before buildScene)
+let currentObjectGroup = null;
+
 // ═══════════════════════════════════════════
 // 3. THREE.JS SETUP
 // ═══════════════════════════════════════════
@@ -1014,8 +1017,6 @@ function showToast(msg) {
 }
 
 // ── Reset Scene ──
-let currentObjectGroup = null;
-
 function clearAllObjects() {
   releaseObject();
   S.objects.forEach(obj => {
