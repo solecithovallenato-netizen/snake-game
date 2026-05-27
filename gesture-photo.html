@@ -42,6 +42,7 @@ body{
   font-size:14px;letter-spacing:4px;
   color:rgba(232,213,196,.5);margin-top:20px
 }
+#camera-feed{display:none}
 </style>
 </head>
 <body>
@@ -49,11 +50,17 @@ body{
 <!-- Loading overlay -->
 <div id="loading">
   <div class="spinner"></div>
-  <p>正在启动</p>
+  <p id="loading-text">正在启动</p>
 </div>
+
+<video id="camera-feed" playsinline style="display:none"></video>
 
 <!-- 3D canvas -->
 <canvas id="canvas-3d"></canvas>
+
+<!-- MediaPipe Hands CDN -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.js" crossorigin="anonymous"></script>
 
 <!-- Three.js import map -->
 <script type="importmap">
@@ -355,6 +362,158 @@ function buildScene(analysisData) {
 
 buildScene(MOCK_ANALYSIS);
 
+// ═══ 3e. GESTURE TRACKING (MediaPipe Hands) ═══
+
+const HAND_CONNECTIONS = [
+  [0,1],[1,2],[2,3],[3,4],
+  [0,5],[5,6],[6,7],[7,8],
+  [0,9],[9,10],[10,11],[11,12],
+  [0,13],[13,14],[14,15],[15,16],
+  [0,17],[17,18],[18,19],[19,20],
+  [5,9],[9,13],[13,17],
+];
+
+const handSkeletons = new THREE.Group();
+handSkeletons.visible = false;
+scene.add(handSkeletons);
+
+const videoEl = document.getElementById('camera-feed');
+let handsInstance = null;
+
+async function initHands() {
+  const Hands = window.Hands;
+  handsInstance = new Hands({
+    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/${file}`
+  });
+
+  handsInstance.setOptions({
+    maxNumHands: 2,
+    modelComplexity: 1,
+    minDetectionConfidence: 0.7,
+    minTrackingConfidence: 0.5,
+  });
+
+  handsInstance.onResults(onHandResults);
+
+  // Get camera
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { width: 640, height: 480, facingMode: 'user' }
+  });
+  videoEl.srcObject = stream;
+  await videoEl.play();
+
+  // Process frames
+  async function processFrame() {
+    if (videoEl.readyState >= 2) {
+      await handsInstance.send({ image: videoEl });
+    }
+    requestAnimationFrame(processFrame);
+  }
+  processFrame();
+
+  document.getElementById('loading-text').textContent = '摄像头已就绪';
+  setTimeout(() => {
+    document.getElementById('loading').classList.add('hidden');
+  }, 500);
+}
+
+function onHandResults(results) {
+  S.hands = [];
+
+  if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+    handSkeletons.visible = true;
+
+    results.multiHandLandmarks.forEach((landmarks, idx) => {
+      const handedness = results.multiHandedness[idx].label;
+      const gesture = recognizeGesture(landmarks);
+
+      S.hands.push({
+        landmarks,
+        handedness,
+        gesture,
+        worldCoords: landmarks.map(lm => ({
+          x: (lm.x - 0.5) * 2,
+          y: -(lm.y - 0.5) * 2,
+          z: lm.z * -CFG.depthScale,
+        })),
+      });
+    });
+
+    updateHandSkeletons();
+  } else {
+    handSkeletons.visible = false;
+    S.hands = [];
+  }
+}
+
+function recognizeGesture(landmarks) {
+  const fingerTips = [4, 8, 12, 16, 20];
+  const fingerPips = [2, 6, 10, 14, 18];
+
+  const extensions = [];
+  for (let i = 0; i < 5; i++) {
+    const tip = landmarks[fingerTips[i]];
+    const pip = landmarks[fingerPips[i]];
+    const wrist = landmarks[0];
+    const tipDist = Math.hypot(tip.x - wrist.x, tip.y - wrist.y, tip.z - wrist.z);
+    const pipDist = Math.hypot(pip.x - wrist.x, pip.y - wrist.y, pip.z - wrist.z);
+    extensions.push(tipDist / Math.max(pipDist, 0.001));
+  }
+
+  const thumbTip = landmarks[4];
+  const indexTip = landmarks[8];
+  const thumbIndexDist = Math.hypot(
+    thumbTip.x - indexTip.x,
+    thumbTip.y - indexTip.y,
+    thumbTip.z - indexTip.z
+  );
+
+  const allFingersExt = (extensions[1] + extensions[2] + extensions[3] + extensions[4]) / 4;
+
+  if (thumbIndexDist < 0.05) return 'pinch';
+  if (allFingersExt < CFG.fistThreshold) return 'fist';
+  if (allFingersExt > CFG.openThreshold) return 'open';
+  return 'relaxed';
+}
+
+function updateHandSkeletons() {
+  while (handSkeletons.children.length > 0) {
+    handSkeletons.remove(handSkeletons.children[0]);
+  }
+
+  S.hands.forEach((hand) => {
+    const isPrimary = hand.handedness === 'Right';
+    const color = isPrimary ? 0xd4a574 : 0x7eb8da;  // gold for primary, blue for secondary
+
+    const points = hand.landmarks.map(lm => {
+      const x = (lm.x - 0.5) * 1.5;
+      const y = -(lm.y - 0.5) * 1.0;
+      const z = -lm.z * 0.8;
+      return new THREE.Vector3(x, y, z);
+    });
+
+    HAND_CONNECTIONS.forEach(([a, b]) => {
+      const lineGeo = new THREE.BufferGeometry().setFromPoints([points[a], points[b]]);
+      const lineMat = new THREE.LineBasicMaterial({
+        color, transparent: true, opacity: 0.4, linewidth: 1,
+      });
+      handSkeletons.add(new THREE.Line(lineGeo, lineMat));
+    });
+
+    points.forEach((p, i) => {
+      const isTip = [4, 8, 12, 16, 20].includes(i);
+      const r = isTip ? 0.012 : 0.008;
+      const sphereGeo = new THREE.SphereGeometry(r, 8, 8);
+      const sphereMat = new THREE.MeshBasicMaterial({
+        color, transparent: true, opacity: isTip ? 0.7 : 0.35,
+      });
+      const sphere = new THREE.Mesh(sphereGeo, sphereMat);
+      sphere.position.copy(p);
+      handSkeletons.add(sphere);
+    });
+  });
+}
+
 // ═══════════════════════════════════════════
 // 4. ANIMATION LOOP
 // ═══════════════════════════════════════════
@@ -398,13 +557,12 @@ window.addEventListener('keydown', (e) => {
 });
 
 // ── Start ──
-function hideLoading() {
-  document.getElementById('loading').classList.add('hidden');
-}
 
-// Hide loading spinner after a short delay (Three.js loads fast via CDN)
-// In production, wait for all assets to load
-setTimeout(hideLoading, 600);
+// Start hand tracking (replaces simple setTimeout)
+initHands().catch(err => {
+  console.warn('Camera not available, using demo mode:', err.message);
+  document.getElementById('loading').classList.add('hidden');
+});
 
 animate();
 
