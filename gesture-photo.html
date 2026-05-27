@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>手势物理照片</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:#0a0a0f;
+  overflow:hidden;
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  color:#e8d5c4;
+  user-select:none
+}
+#canvas-3d{
+  display:block;
+  position:fixed;
+  top:0;left:0;
+  width:100vw;height:100vh
+}
+
+/* ── Loading Screen ── */
+#loading{
+  position:fixed;top:0;left:0;right:0;bottom:0;
+  background:#0a0a0f;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  z-index:100;
+  transition:opacity .8s
+}
+#loading.hidden{opacity:0;pointer-events:none}
+.spinner{
+  width:30px;height:30px;
+  border:2px solid rgba(212,165,116,.15);
+  border-top-color:#d4a574;
+  border-radius:50%;
+  animation:spin .8s linear infinite
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loading p{
+  font-size:14px;letter-spacing:4px;
+  color:rgba(232,213,196,.5);margin-top:20px
+}
+</style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div id="loading">
+  <div class="spinner"></div>
+  <p>正在启动</p>
+</div>
+
+<!-- 3D canvas -->
+<canvas id="canvas-3d"></canvas>
+
+<!-- Three.js import map -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.module.js"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+// ═══════════════════════════════════════════
+// 1. CONFIG
+// ═══════════════════════════════════════════
+const CFG = {
+  gravity: -9.82,
+  pinchThreshold: 0.02,
+  openThreshold: 0.7,
+  fistThreshold: 0.2,
+  depthScale: 0.5,
+  cameraFOV: 50,
+  cameraNear: 0.1,
+  cameraFar: 50,
+  groundZ: -2,
+  backgroundZ: 5
+};
+
+const MATERIAL_PARAMS = {
+  wood:   { density: 0.8,  restitution: 0.2, friction: 0.6 },
+  metal:  { density: 2.7,  restitution: 0.1, friction: 0.3 },
+  fabric: { density: 0.3,  restitution: 0.05, friction: 0.9 },
+  glass:  { density: 2.5,  restitution: 0.4, friction: 0.15 },
+  plastic:{ density: 1.2,  restitution: 0.3, friction: 0.4 },
+  paper:  { density: 0.1,  restitution: 0.01, friction: 0.8 }
+};
+
+// ═══════════════════════════════════════════
+// 2. STATE
+// ═══════════════════════════════════════════
+const S = {
+  objects: [],
+  hands: [],
+  grabbedObj: null,
+  constraint: null,
+  prevPinch: false,
+  cameraBaseZ: 3.5,
+  cameraTarget: new THREE.Vector3(0, 0, 0)
+};
+
+// ═══════════════════════════════════════════
+// 3. THREE.JS SETUP
+// ═══════════════════════════════════════════
+
+// Renderer
+const renderer = new THREE.WebGLRenderer({
+  antialias: true,
+  canvas: document.getElementById('canvas-3d')
+});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+
+// Scene
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0a0f);
+scene.fog = new THREE.FogExp2(0x0a0a0f, 0.008);
+
+// Camera
+const camera = new THREE.PerspectiveCamera(
+  CFG.cameraFOV,
+  window.innerWidth / window.innerHeight,
+  CFG.cameraNear,
+  CFG.cameraFar
+);
+camera.position.set(0, 0.5, CFG.cameraBaseZ);
+camera.lookAt(S.cameraTarget);
+
+// ── Lights ──
+
+// Ambient
+const ambientLight = new THREE.AmbientLight(0x2a2040, 1.5);
+scene.add(ambientLight);
+
+// Key light (with shadows)
+const keyLight = new THREE.DirectionalLight(0xffeedd, 6);
+keyLight.position.set(5, 8, 3);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.width = 1024;
+keyLight.shadow.mapSize.height = 1024;
+keyLight.shadow.camera.near = 0.5;
+keyLight.shadow.camera.far = 30;
+keyLight.shadow.camera.left = -10;
+keyLight.shadow.camera.right = 10;
+keyLight.shadow.camera.top = 10;
+keyLight.shadow.camera.bottom = -10;
+keyLight.shadow.bias = -0.0001;
+scene.add(keyLight);
+
+// Rim light
+const rimLight = new THREE.DirectionalLight(0x4466aa, 2);
+rimLight.position.set(-3, 2, -2);
+scene.add(rimLight);
+
+// Fill light
+const fillLight = new THREE.DirectionalLight(0xd4a574, 1.5);
+fillLight.position.set(0, -0.5, 5);
+scene.add(fillLight);
+
+// ── Ground Plane ──
+const groundGeo = new THREE.PlaneGeometry(20, 20);
+const groundMat = new THREE.MeshStandardMaterial({
+  color: 0x1a1820,
+  roughness: 0.9,
+  metalness: 0.1
+});
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.position.z = CFG.groundZ;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// ── Grid Helper ──
+const grid = new THREE.PolarGridHelper(8, 32, 64, 0x222233);
+scene.add(grid);
+
+// ═══════════════════════════════════════════
+// 4. ANIMATION LOOP
+// ═══════════════════════════════════════════
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  let dt = clock.getDelta();
+  if (dt > 0.1) dt = 0.1;
+
+  // Placeholder for physics step, hand tracking, etc.
+
+  renderer.render(scene, camera);
+}
+
+// ═══════════════════════════════════════════
+// 5. EVENT LISTENERS
+// ═══════════════════════════════════════════
+
+// Window resize
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Keyboard: Esc toggles a dummy for now
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    // Placeholder for future pause/reset
+    console.log('Esc pressed');
+  }
+});
+
+// ── Start ──
+function hideLoading() {
+  document.getElementById('loading').classList.add('hidden');
+}
+
+// Hide loading spinner after a short delay (Three.js loads fast via CDN)
+// In production, wait for all assets to load
+setTimeout(hideLoading, 600);
+
+animate();
+
+console.log('%cgesture-photo %cready — Three.js skeleton active',
+  'color:#d4a574', 'color:#e8d5c4');
+console.log('%cScene objects:%c %d  %cLights:%c %d',
+  'color:rgba(232,213,196,.5)', 'color:#e8d5c4', scene.children.length,
+  'color:rgba(232,213,196,.5)', 'color:#e8d5c4',
+  [ambientLight, keyLight, rimLight, fillLight].length);
+</script>
+
+</body>
+</html>
