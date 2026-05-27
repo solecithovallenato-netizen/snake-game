@@ -66,6 +66,7 @@ body{
 
 <script type="module">
 import * as THREE from 'three';
+import * as CANNON from 'https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js';
 
 // ═══════════════════════════════════════════
 // 1. CONFIG
@@ -84,12 +85,12 @@ const CFG = {
 };
 
 const MATERIAL_PARAMS = {
-  wood:   { density: 0.8,  restitution: 0.2, friction: 0.6 },
-  metal:  { density: 2.7,  restitution: 0.1, friction: 0.3 },
-  fabric: { density: 0.3,  restitution: 0.05, friction: 0.9 },
-  glass:  { density: 2.5,  restitution: 0.4, friction: 0.15 },
-  plastic:{ density: 1.2,  restitution: 0.3, friction: 0.4 },
-  paper:  { density: 0.1,  restitution: 0.01, friction: 0.8 }
+  wood:   { density: 600,  restitution: 0.3,  friction: 0.6 },
+  metal:  { density: 7800, restitution: 0.05, friction: 0.25 },
+  fabric: { density: 200,  restitution: 0.02, friction: 0.9 },
+  glass:  { density: 2500, restitution: 0.01, friction: 0.3 },
+  plastic:{ density: 1000, restitution: 0.4,  friction: 0.5 },
+  paper:  { density: 700,  restitution: 0.1,  friction: 0.7 }
 };
 
 // ═══════════════════════════════════════════
@@ -183,6 +184,42 @@ scene.add(ground);
 const grid = new THREE.PolarGridHelper(8, 32, 64, 0x222233);
 scene.add(grid);
 
+// ═══ 3b. PHYSICS (Cannon-es) ═══
+
+const world = new CANNON.World({
+  gravity: new CANNON.Vec3(0, 0, CFG.gravity),
+});
+world.defaultContactMaterial.restitution = 0.1;
+world.defaultContactMaterial.friction = 0.4;
+world.broadphase = new CANNON.SAPBroadphase(world);
+world.allowSleep = true;
+world.solver.iterations = 10;
+
+// Physics ground (static plane)
+const groundBody = new CANNON.Body({
+  type: CANNON.Body.STATIC,
+  shape: new CANNON.Plane(),
+});
+groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0, 'XYZ');
+groundBody.position.set(0, 0, CFG.groundZ);
+world.addBody(groundBody);
+
+// Contact material factory
+function createPhysMaterial(type) {
+  const params = MATERIAL_PARAMS[type];
+  if (!params) {
+    console.warn('Unknown material type:', type);
+    return { material: world.defaultContactMaterial, params: null };
+  }
+  const material = new CANNON.Material(type);
+  const contactMaterial = new CANNON.ContactMaterial(material, material, {
+    friction: params.friction,
+    restitution: params.restitution
+  });
+  world.addContactMaterial(contactMaterial);
+  return { material, params };
+}
+
 // ═══════════════════════════════════════════
 // 4. ANIMATION LOOP
 // ═══════════════════════════════════════════
@@ -193,6 +230,9 @@ function animate() {
 
   let dt = clock.getDelta();
   if (dt > 0.1) dt = 0.1;
+
+  // Physics step (fixed timestep for stability)
+  world.step(1 / 60, dt, 3);
 
   // Placeholder for physics step, hand tracking, etc.
 
