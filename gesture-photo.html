@@ -318,6 +318,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
+renderer.autoClear = true;
 
 // Scene
 const scene = new THREE.Scene();
@@ -393,7 +394,7 @@ world.defaultContactMaterial.restitution = 0.1;
 world.defaultContactMaterial.friction = 0.4;
 world.broadphase = new CANNON.SAPBroadphase(world);
 world.allowSleep = true;
-world.solver.iterations = 10;
+world.solver.iterations = 20;
 
 // Physics ground (static plane)
 const groundBody = new CANNON.Body({
@@ -539,8 +540,8 @@ function buildScene(analysisData) {
       mass,
       shape,
       material: physMat.material,
-      linearDamping: 0.1,
-      angularDamping: 0.3,
+      linearDamping: 0.4,
+      angularDamping: 0.6,
     });
     body.position.set(obj.pos[0], obj.pos[1], obj.pos[2]);
 
@@ -701,7 +702,7 @@ function recognizeGesture(landmarks) {
 
   const allFingersExt = (extensions[1] + extensions[2] + extensions[3] + extensions[4]) / 4;
 
-  if (thumbIndexDist < 0.05) return 'pinch';
+  if (thumbIndexDist < 0.06) return 'pinch';
   if (allFingersExt < CFG.fistThreshold) return 'fist';
   if (allFingersExt > CFG.openThreshold) return 'open';
   return 'relaxed';
@@ -714,14 +715,12 @@ function updateHandSkeletons() {
 
   S.hands.forEach((hand) => {
     const isPrimary = hand.handedness === 'Right';
-    const color = isPrimary ? 0xd4a574 : 0x7eb8da;  // gold for primary, blue for secondary
+    const color = isPrimary ? 0xd4a574 : 0x7eb8da;
 
-    const points = hand.landmarks.map(lm => {
-      const x = (lm.x - 0.5) * 1.5;
-      const y = -(lm.y - 0.5) * 1.0;
-      const z = -lm.z * 0.8;
-      return new THREE.Vector3(x, y, z);
-    });
+    // Use worldCoords directly so skeleton matches interaction space
+    const points = hand.worldCoords.map(wc =>
+      new THREE.Vector3(wc.x, wc.y, wc.z)
+    );
 
     HAND_CONNECTIONS.forEach(([a, b]) => {
       const lineGeo = new THREE.BufferGeometry().setFromPoints([points[a], points[b]]);
@@ -766,7 +765,7 @@ function tryGrab(hand) {
 
   S.objects.forEach(obj => {
     const dist = obj.body.position.distanceTo(pinchPos);
-    if (dist < 0.3 && dist < closestDist) {
+    if (dist < 0.5 && dist < closestDist) {
       closest = obj;
       closestDist = dist;
     }
@@ -985,15 +984,15 @@ function updateProximityGlow() {
         pinch.z - objPos.z
       );
 
-      if (dist < 0.15) {
+      if (dist < 0.35) {
         // Closer = brighter golden glow
-        const glowIntensity = (1 - dist / 0.15) * 0.4;
+        const glowIntensity = (1 - dist / 0.35) * 0.4;
         obj.mesh.material.emissive = new THREE.Color(0xd4a574);
         obj.mesh.material.emissiveIntensity = glowIntensity;
 
         // Contact particles when very close
-        if (dist < 0.05) {
-          spawnParticles({ x: pinch.x, y: pinch.y, z: pinch.z }, 3);
+        if (dist < 0.08) {
+          spawnParticles({ x: pinch.x, y: pinch.y, z: pinch.z }, 2);
         }
       }
     });
@@ -1103,7 +1102,7 @@ function animate() {
   if (dt > 0.1) dt = 0.1;
 
   // Physics step (fixed timestep for stability)
-  world.step(1 / 60, dt, 3);
+  world.step(1 / 60, dt, 10);
 
   // Sync physics bodies to Three.js meshes
   S.objects.forEach(obj => {
