@@ -220,6 +220,141 @@ function createPhysMaterial(type) {
   return { material, params };
 }
 
+// ═══ 3c. MOCK DATA ═══
+
+const MOCK_ANALYSIS = {
+  objects: [
+    {
+      id: 1, name: '书本', material: 'paper', mesh_type: 'box',
+      pos: [-1.2, 0.3, -0.5], size: [1.4, 0.2, 1.0], color: '#c4956b',
+    },
+    {
+      id: 2, name: '咖啡杯', material: 'glass', mesh_type: 'cylinder',
+      pos: [0.4, -0.1, -0.3], size: [0.35, 0.35, 0.8], color: '#e8ddd0',
+    },
+    {
+      id: 3, name: '苹果', material: 'plastic', mesh_type: 'sphere',
+      pos: [1.3, 0.1, -0.4], size: [0.35], color: '#cc3333',
+    },
+    {
+      id: 4, name: '笔筒', material: 'metal', mesh_type: 'cylinder',
+      pos: [-0.8, -0.2, -0.6], size: [0.25, 0.3, 1.1], color: '#8899aa',
+    },
+    {
+      id: 5, name: '橡皮', material: 'plastic', mesh_type: 'box',
+      pos: [1.8, 0.2, -0.35], size: [0.3, 0.15, 0.2], color: '#ee8844',
+    },
+  ],
+  background_color: '#2a2520',
+};
+
+// ═══ 3d. SCENE BUILDER ═══
+
+function computeVolume(obj) {
+  if (obj.mesh_type === 'box') {
+    const [w, h, d] = obj.size;
+    return w * h * d;
+  } else if (obj.mesh_type === 'sphere') {
+    const [r] = obj.size;
+    return (4 / 3) * Math.PI * r * r * r;
+  } else if (obj.mesh_type === 'cylinder') {
+    const [rTop, rBot, h] = obj.size;
+    const rAvg = (rTop + rBot) / 2;
+    return Math.PI * rAvg * rAvg * h;
+  }
+  return 0.001;
+}
+
+function buildScene(analysisData) {
+  const objectGroup = new THREE.Group();
+
+  for (const obj of analysisData.objects) {
+    const physMat = createPhysMaterial(obj.material);
+    let mesh, shape;
+
+    if (obj.mesh_type === 'box') {
+      const [w, h, d] = obj.size;
+      const geo = new THREE.BoxGeometry(w, h, d);
+      const mat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(obj.color),
+        roughness: obj.material === 'metal' ? 0.3 : 0.7,
+        metalness: obj.material === 'metal' ? 0.8 : 0.05,
+      });
+      mesh = new THREE.Mesh(geo, mat);
+      shape = new CANNON.Box(new CANNON.Vec3(w / 2, h / 2, d / 2));
+    } else if (obj.mesh_type === 'sphere') {
+      const [r] = obj.size;
+      const geo = new THREE.SphereGeometry(r, 32, 32);
+      const mat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(obj.color),
+        roughness: obj.material === 'metal' ? 0.3 : 0.7,
+        metalness: obj.material === 'metal' ? 0.8 : 0.05,
+      });
+      mesh = new THREE.Mesh(geo, mat);
+      shape = new CANNON.Sphere(r);
+    } else if (obj.mesh_type === 'cylinder') {
+      const [rTop, rBot, h] = obj.size;
+      const geo = new THREE.CylinderGeometry(rTop, rBot, h, 32);
+      const mat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(obj.color),
+        roughness: obj.material === 'metal' ? 0.3 : 0.7,
+        metalness: obj.material === 'metal' ? 0.8 : 0.05,
+      });
+      mesh = new THREE.Mesh(geo, mat);
+      shape = new CANNON.Cylinder(rTop, rBot, h, 16);
+    } else {
+      // fallback: box
+      const geo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+      const mat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(obj.color || '#888888'),
+        roughness: obj.material === 'metal' ? 0.3 : 0.7,
+        metalness: obj.material === 'metal' ? 0.8 : 0.05,
+      });
+      mesh = new THREE.Mesh(geo, mat);
+      shape = new CANNON.Box(new CANNON.Vec3(0.25, 0.25, 0.25));
+    }
+
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+
+    const volume = computeVolume(obj);
+    const density = physMat.params ? physMat.params.density : 1000;
+    const mass = density * volume;
+
+    const body = new CANNON.Body({
+      mass,
+      shape,
+      material: physMat.material,
+      linearDamping: 0.1,
+      angularDamping: 0.3,
+    });
+    body.position.set(obj.pos[0], obj.pos[1], obj.pos[2]);
+
+    mesh.position.copy(body.position);
+
+    objectGroup.add(mesh);
+    world.addBody(body);
+
+    S.objects.push({ id: obj.id, name: obj.name, mesh, body, material: obj.material, physParams: physMat.params });
+  }
+
+  scene.add(objectGroup);
+
+  // Background plane
+  const bgGeo = new THREE.PlaneGeometry(16, 10);
+  const bgMat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(analysisData.background_color),
+    roughness: 0.9,
+    metalness: 0.05,
+  });
+  const bgPlane = new THREE.Mesh(bgGeo, bgMat);
+  bgPlane.position.z = CFG.backgroundZ;
+  bgPlane.receiveShadow = true;
+  scene.add(bgPlane);
+}
+
+buildScene(MOCK_ANALYSIS);
+
 // ═══════════════════════════════════════════
 // 4. ANIMATION LOOP
 // ═══════════════════════════════════════════
@@ -234,7 +369,11 @@ function animate() {
   // Physics step (fixed timestep for stability)
   world.step(1 / 60, dt, 3);
 
-  // Placeholder for physics step, hand tracking, etc.
+  // Sync physics bodies to Three.js meshes
+  S.objects.forEach(obj => {
+    obj.mesh.position.copy(obj.body.position);
+    obj.mesh.quaternion.copy(obj.body.quaternion);
+  });
 
   renderer.render(scene, camera);
 }
