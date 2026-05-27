@@ -780,23 +780,84 @@ function releaseObject() {
   }
 }
 
-let prevSecHandPos = null;
+let prevSecPinchDist = null;
+let prevSecWristPos = null;
+let prevSecFingerDist = null;
+let wristVelHistory = [];
 
 function handleSceneControl(hand) {
-  if (hand.gesture === 'fist') {
-    const wrist = hand.worldCoords[0];
-    if (prevSecHandPos) {
-      const dx = wrist.x - prevSecHandPos.x;
-      const dy = wrist.y - prevSecHandPos.y;
-      S.cameraTarget.x -= dx * 3;
-      S.cameraTarget.y -= dy * 3;
-      camera.position.x -= dx * 3;
-      camera.position.y -= dy * 3;
+  const wrist = hand.worldCoords[0];
+
+  // Pinch + move = rotate scene around target
+  if (hand.gesture === 'pinch') {
+    const pinch = getPinchCenter(hand);
+    if (prevSecPinchDist) {
+      const dx = pinch.x - prevSecPinchDist.x;
+      const dy = pinch.y - prevSecPinchDist.y;
+      const offset = camera.position.clone().sub(S.cameraTarget);
+      const spherical = new THREE.Spherical().setFromVector3(offset);
+      spherical.theta -= dx * 3;
+      spherical.phi -= dy * 3;
+      spherical.phi = Math.max(0.1, Math.min(Math.PI / 2 - 0.1, spherical.phi));
+      spherical.radius = Math.max(1.5, Math.min(10, spherical.radius));
+      const newPos = new THREE.Vector3().setFromSpherical(spherical).add(S.cameraTarget);
+      camera.position.copy(newPos);
       camera.lookAt(S.cameraTarget);
     }
-    prevSecHandPos = { x: wrist.x, y: wrist.y };
+    prevSecPinchDist = { x: pinch.x, y: pinch.y };
   } else {
-    prevSecHandPos = null;
+    prevSecPinchDist = null;
+  }
+
+  // Fist + move = pan scene
+  if (hand.gesture === 'fist') {
+    if (prevSecWristPos) {
+      const dx = wrist.x - prevSecWristPos.x;
+      const dy = wrist.y - prevSecWristPos.y;
+      S.cameraTarget.x -= dx * 2;
+      S.cameraTarget.y -= dy * 2;
+      camera.position.x -= dx * 2;
+      camera.position.y -= dy * 2;
+      camera.lookAt(S.cameraTarget);
+    }
+    prevSecWristPos = { x: wrist.x, y: wrist.y };
+  } else {
+    prevSecWristPos = null;
+  }
+
+  // Two-finger (index+middle) spread = zoom
+  const indexTip = hand.worldCoords[8];
+  const middleTip = hand.worldCoords[12];
+  const fingerDist = Math.hypot(
+    indexTip.x - middleTip.x,
+    indexTip.y - middleTip.y,
+    indexTip.z - middleTip.z
+  );
+  if (prevSecFingerDist !== null && fingerDist > 0.001) {
+    const ratio = fingerDist / Math.max(prevSecFingerDist, 0.001);
+    const offset = camera.position.clone().sub(S.cameraTarget);
+    offset.multiplyScalar(1 / ratio);
+    const newLen = Math.max(1.5, Math.min(10, offset.length()));
+    offset.normalize().multiplyScalar(newLen);
+    camera.position.copy(S.cameraTarget.clone().add(offset));
+  }
+  prevSecFingerDist = fingerDist;
+
+  // Wave detection: wrist X velocity crosses zero 3+ times in 1 second
+  wristVelHistory.push({ time: performance.now(), x: wrist.x });
+  wristVelHistory = wristVelHistory.filter(e => performance.now() - e.time < 1000);
+  if (wristVelHistory.length >= 6) {
+    let crossings = 0;
+    for (let i = 2; i < wristVelHistory.length; i++) {
+      const v1 = wristVelHistory[i - 1].x - wristVelHistory[i - 2].x;
+      const v2 = wristVelHistory[i].x - wristVelHistory[i - 1].x;
+      if (v1 * v2 < 0) crossings++;
+    }
+    if (crossings >= 3) {
+      resetScene();
+      showToast('👋 场景已重置');
+      wristVelHistory = [];
+    }
   }
 }
 
@@ -1025,6 +1086,29 @@ function animate() {
   const secondaryHand = S.hands.find(h => h.handedness === 'Left');
   if (secondaryHand) {
     handleSceneControl(secondaryHand);
+  }
+
+  // ── Dual-Hand Combined Controls ──
+  if (S.hands.length >= 2) {
+    const h1 = S.hands[0];
+    const h2 = S.hands[1];
+    if (h1.gesture === 'pinch' && h2.gesture === 'pinch') {
+      const p1 = getPinchCenter(h1);
+      const p2 = getPinchCenter(h2);
+      const dualDist = Math.hypot(p1.x - p2.x, p1.y - p2.y, p1.z - p2.z);
+
+      if (S.prevDualDist && dualDist > 0.001) {
+        const ratio = dualDist / S.prevDualDist;
+        const offset = camera.position.clone().sub(S.cameraTarget);
+        offset.multiplyScalar(1 / ratio);
+        const newLen = Math.max(1.5, Math.min(10, offset.length()));
+        offset.normalize().multiplyScalar(newLen);
+        camera.position.copy(S.cameraTarget.clone().add(offset));
+      }
+      S.prevDualDist = dualDist;
+    } else {
+      S.prevDualDist = null;
+    }
   }
 
   updateProximityGlow();
