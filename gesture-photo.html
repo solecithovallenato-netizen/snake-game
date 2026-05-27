@@ -232,7 +232,7 @@ body{
     </div>
     <div class="help-row">
       <div class="help-icon">🤚</div>
-      <div class="help-text">辅手握拳平移 · 捏合旋转<div class="help-detail">辅手（蓝色骨架）控制场景视角</div></div>
+      <div class="help-text">辅手张开移动镜头 · 两指缩放<div class="help-detail">辅手（蓝色骨架）张开控制视角，握拳不动</div></div>
     </div>
     <div class="help-row">
       <div class="help-icon">👋</div>
@@ -393,11 +393,13 @@ scene.add(grid);
 const world = new CANNON.World({
   gravity: new CANNON.Vec3(0, 0, CFG.gravity),
 });
-world.defaultContactMaterial.restitution = 0.1;
-world.defaultContactMaterial.friction = 0.4;
+world.defaultContactMaterial.restitution = 0;
+world.defaultContactMaterial.friction = 0.5;
 world.broadphase = new CANNON.SAPBroadphase(world);
 world.allowSleep = true;
-world.solver.iterations = 20;
+world.solver.iterations = 10;
+world.defaultContactMaterial.contactEquationStiffness = 1e8;
+world.defaultContactMaterial.contactEquationRelaxation = 3;
 
 // Physics ground (static plane)
 const groundBody = new CANNON.Body({
@@ -416,11 +418,18 @@ function createPhysMaterial(type) {
     return { material: world.defaultContactMaterial, params: null };
   }
   const material = new CANNON.Material(type);
-  const contactMaterial = new CANNON.ContactMaterial(material, material, {
+  // Contact with ground (world.defaultMaterial)
+  const contactGround = new CANNON.ContactMaterial(world.defaultMaterial, material, {
     friction: params.friction,
     restitution: params.restitution
   });
-  world.addContactMaterial(contactMaterial);
+  world.addContactMaterial(contactGround);
+  // Contact between same material types
+  const contactSelf = new CANNON.ContactMaterial(material, material, {
+    friction: params.friction * 0.8,
+    restitution: params.restitution * 0.5
+  });
+  world.addContactMaterial(contactSelf);
   return { material, params };
 }
 
@@ -826,48 +835,35 @@ function releaseObject() {
   }
 }
 
-let prevSecPinchDist = null;
 let prevSecWristPos = null;
 let prevSecFingerDist = null;
 let wristVelHistory = [];
 
 function handleSceneControl(hand) {
+  // Only control camera when hand is OPEN
+  if (hand.gesture !== 'open') {
+    prevSecWristPos = null;
+    prevSecFingerDist = null;
+    return;
+  }
+
   const wrist = hand.worldCoords[0];
 
-  // Pinch + move = rotate scene around target
-  if (hand.gesture === 'pinch') {
-    const pinch = getPinchCenter(hand);
-    if (prevSecPinchDist) {
-      const dx = pinch.x - prevSecPinchDist.x;
-      const dy = pinch.y - prevSecPinchDist.y;
-      const offset = cameraTargetPos.clone().sub(cameraTargetLook);
-      const spherical = new THREE.Spherical().setFromVector3(offset);
-      spherical.theta -= dx * 3;
-      spherical.phi -= dy * 3;
-      spherical.phi = Math.max(0.1, Math.min(Math.PI / 2 - 0.1, spherical.phi));
-      spherical.radius = Math.max(1.5, Math.min(10, spherical.radius));
-      const newPos = new THREE.Vector3().setFromSpherical(spherical).add(cameraTargetLook);
-      cameraTargetPos.copy(newPos);
-    }
-    prevSecPinchDist = { x: pinch.x, y: pinch.y };
-  } else {
-    prevSecPinchDist = null;
-  }
+  // Open hand + move = orbit camera around scene
+  if (prevSecWristPos) {
+    const dx = wrist.x - prevSecWristPos.x;
+    const dy = wrist.y - prevSecWristPos.y;
 
-  // Fist + move = pan scene
-  if (hand.gesture === 'fist') {
-    if (prevSecWristPos) {
-      const dx = wrist.x - prevSecWristPos.x;
-      const dy = wrist.y - prevSecWristPos.y;
-      cameraTargetLook.x -= dx * 2;
-      cameraTargetLook.y -= dy * 2;
-      cameraTargetPos.x -= dx * 2;
-      cameraTargetPos.y -= dy * 2;
-    }
-    prevSecWristPos = { x: wrist.x, y: wrist.y };
-  } else {
-    prevSecWristPos = null;
+    const offset = cameraTargetPos.clone().sub(cameraTargetLook);
+    const spherical = new THREE.Spherical().setFromVector3(offset);
+    spherical.theta -= dx * 2;
+    spherical.phi -= dy * 2;
+    spherical.phi = Math.max(0.1, Math.min(Math.PI / 2 - 0.1, spherical.phi));
+    spherical.radius = Math.max(1.5, Math.min(10, spherical.radius));
+    const newPos = new THREE.Vector3().setFromSpherical(spherical).add(cameraTargetLook);
+    cameraTargetPos.copy(newPos);
   }
+  prevSecWristPos = { x: wrist.x, y: wrist.y };
 
   // Two-finger (index+middle) spread = zoom
   const indexTip = hand.worldCoords[8];
@@ -1164,10 +1160,11 @@ function animate() {
   if (S.hands.length >= 2) {
     const h1 = S.hands[0];
     const h2 = S.hands[1];
-    if (h1.gesture === 'pinch' && h2.gesture === 'pinch') {
-      const p1 = getPinchCenter(h1);
-      const p2 = getPinchCenter(h2);
-      const dualDist = Math.hypot(p1.x - p2.x, p1.y - p2.y, p1.z - p2.z);
+    // Both hands open = two-hand zoom
+    if (h1.gesture === 'open' && h2.gesture === 'open') {
+      const w1 = h1.worldCoords[0];
+      const w2 = h2.worldCoords[0];
+      const dualDist = Math.hypot(w1.x - w2.x, w1.y - w2.y, w1.z - w2.z);
 
       if (S.prevDualDist && dualDist > 0.001) {
         const ratio = dualDist / S.prevDualDist;
