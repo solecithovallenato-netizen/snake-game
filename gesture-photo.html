@@ -394,20 +394,17 @@ const world = new CANNON.World({
   gravity: new CANNON.Vec3(0, 0, CFG.gravity),
 });
 world.defaultContactMaterial.restitution = 0;
-world.defaultContactMaterial.friction = 0.5;
+world.defaultContactMaterial.friction = 0.8;
 world.broadphase = new CANNON.SAPBroadphase(world);
 world.allowSleep = true;
-world.solver.iterations = 10;
-world.defaultContactMaterial.contactEquationStiffness = 1e8;
-world.defaultContactMaterial.contactEquationRelaxation = 3;
+world.solver.iterations = 5;
 
-// Physics ground (static plane)
+// Physics ground (static box instead of plane for stability)
 const groundBody = new CANNON.Body({
   type: CANNON.Body.STATIC,
-  shape: new CANNON.Plane(),
+  shape: new CANNON.Box(new CANNON.Vec3(10, 10, 0.1)),
 });
-groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0, 'XYZ');
-groundBody.position.set(0, 0, CFG.groundZ);
+groundBody.position.set(0, 0, CFG.groundZ - 0.05);
 world.addBody(groundBody);
 
 // Contact material factory
@@ -557,6 +554,8 @@ function buildScene(analysisData) {
       material: physMat.material,
       linearDamping: 0.4,
       angularDamping: 0.6,
+      sleepSpeedLimit: 0.15,
+      sleepTimeLimit: 0.5,
     });
     body.position.set(obj.pos[0], obj.pos[1], obj.pos[2]);
 
