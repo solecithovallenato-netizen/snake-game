@@ -110,7 +110,8 @@ const S = {
   constraint: null,
   prevPinch: false,
   cameraBaseZ: 3.5,
-  cameraTarget: new THREE.Vector3(0, 0, 0)
+  cameraTarget: new THREE.Vector3(0, 0, 0),
+  prevDualDist: null,
 };
 
 // ═══════════════════════════════════════════
@@ -514,6 +515,102 @@ function updateHandSkeletons() {
   });
 }
 
+// ═══ 3f. INTERACTION ═══
+
+function getPinchCenter(hand) {
+  const thumb = hand.worldCoords[4];
+  const index = hand.worldCoords[8];
+  return {
+    x: (thumb.x + index.x) / 2,
+    y: (thumb.y + index.y) / 2,
+    z: (thumb.z + index.z) / 2,
+  };
+}
+
+function tryGrab(hand) {
+  const pinch = getPinchCenter(hand);
+  const pinchPos = new CANNON.Vec3(pinch.x, pinch.y, pinch.z);
+
+  let closest = null;
+  let closestDist = Infinity;
+
+  S.objects.forEach(obj => {
+    const dist = obj.body.position.distanceTo(pinchPos);
+    if (dist < 0.3 && dist < closestDist) {
+      closest = obj;
+      closestDist = dist;
+    }
+  });
+
+  if (closest) {
+    S.grabbedObj = closest.id;
+    closest.body.wakeUp();
+
+    const localPinch = new CANNON.Vec3(
+      pinch.x - closest.body.position.x,
+      pinch.y - closest.body.position.y,
+      pinch.z - closest.body.position.z
+    );
+
+    S.constraint = new CANNON.PointToPointConstraint(
+      closest.body,
+      localPinch,
+      new CANNON.Vec3(pinch.x, pinch.y, pinch.z)
+    );
+    world.addConstraint(S.constraint);
+
+    // Visual feedback: highlight object
+    closest.mesh.material.emissive = new THREE.Color(0x332211);
+    closest.mesh.material.emissiveIntensity = 0.5;
+
+    console.log('Grabbed:', closest.name);
+  }
+}
+
+function updateGrabAnchor(hand) {
+  const pinch = getPinchCenter(hand);
+  if (S.constraint) {
+    S.constraint.pivotB.set(pinch.x, pinch.y, pinch.z);
+  }
+}
+
+function releaseObject() {
+  if (S.constraint) {
+    world.removeConstraint(S.constraint);
+    S.constraint = null;
+  }
+
+  if (S.grabbedObj !== null) {
+    const obj = S.objects.find(o => o.id === S.grabbedObj);
+    if (obj) {
+      obj.mesh.material.emissive = new THREE.Color(0x000000);
+      obj.mesh.material.emissiveIntensity = 0;
+      console.log('Released:', obj.name);
+    }
+    S.grabbedObj = null;
+  }
+}
+
+let prevSecHandPos = null;
+
+function handleSceneControl(hand) {
+  if (hand.gesture === 'fist') {
+    const wrist = hand.worldCoords[0];
+    if (prevSecHandPos) {
+      const dx = wrist.x - prevSecHandPos.x;
+      const dy = wrist.y - prevSecHandPos.y;
+      S.cameraTarget.x -= dx * 3;
+      S.cameraTarget.y -= dy * 3;
+      camera.position.x -= dx * 3;
+      camera.position.y -= dy * 3;
+      camera.lookAt(S.cameraTarget);
+    }
+    prevSecHandPos = { x: wrist.x, y: wrist.y };
+  } else {
+    prevSecHandPos = null;
+  }
+}
+
 // ═══════════════════════════════════════════
 // 4. ANIMATION LOOP
 // ═══════════════════════════════════════════
@@ -533,6 +630,29 @@ function animate() {
     obj.mesh.position.copy(obj.body.position);
     obj.mesh.quaternion.copy(obj.body.quaternion);
   });
+
+  // ── Interaction: Grab / Release ──
+  const primaryHand = S.hands.find(h => h.handedness === 'Right') || S.hands[0];
+
+  if (primaryHand) {
+    const isPinching = primaryHand.gesture === 'pinch';
+
+    if (isPinching && !S.prevPinch) {
+      tryGrab(primaryHand);
+    } else if (!isPinching && S.prevPinch && S.grabbedObj !== null) {
+      releaseObject();
+    } else if (isPinching && S.grabbedObj !== null) {
+      updateGrabAnchor(primaryHand);
+    }
+
+    S.prevPinch = isPinching;
+  }
+
+  // ── Scene Control (secondary hand) ──
+  const secondaryHand = S.hands.find(h => h.handedness === 'Left');
+  if (secondaryHand) {
+    handleSceneControl(secondaryHand);
+  }
 
   renderer.render(scene, camera);
 }
