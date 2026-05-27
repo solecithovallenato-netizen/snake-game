@@ -29,6 +29,7 @@ hello.py
 # Claude internals
 .claude/
 CLAUDE.md
+.superpowers/
 
 # OS junk
 Thumbs.db
