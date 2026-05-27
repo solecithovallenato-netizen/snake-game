@@ -481,7 +481,10 @@ function createShadowTexture() {
 }
 
 function buildScene(analysisData) {
+  // Clear any existing objects before building new scene
+  clearAllObjects();
   const objectGroup = new THREE.Group();
+  currentObjectGroup = objectGroup;
 
   for (const obj of analysisData.objects) {
     const physMat = createPhysMaterial(obj.material);
@@ -1011,13 +1014,32 @@ function showToast(msg) {
 }
 
 // ── Reset Scene ──
-function resetScene() {
+let currentObjectGroup = null;
+
+function clearAllObjects() {
   releaseObject();
   S.objects.forEach(obj => {
     world.removeBody(obj.body);
-    scene.remove(obj.mesh);
+    if (obj.mesh.parent) obj.mesh.parent.remove(obj.mesh);
+    if (obj.shadowDisc && obj.shadowDisc.parent) obj.shadowDisc.parent.remove(obj.shadowDisc);
   });
   S.objects = [];
+  if (currentObjectGroup && currentObjectGroup.parent) {
+    currentObjectGroup.parent.remove(currentObjectGroup);
+    // Dispose geometries and materials
+    currentObjectGroup.traverse(child => {
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) {
+        if (child.material.map) child.material.map.dispose();
+        child.material.dispose();
+      }
+    });
+  }
+  currentObjectGroup = null;
+}
+
+function resetScene() {
+  clearAllObjects();
   buildScene(MOCK_ANALYSIS);
 }
 
