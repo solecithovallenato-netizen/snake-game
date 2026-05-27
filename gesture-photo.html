@@ -669,8 +669,13 @@ function onHandResults(results) {
   if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
     handSkeletons.visible = true;
 
+    const seenHands = {};
     results.multiHandLandmarks.forEach((landmarks, idx) => {
       const handedness = results.multiHandedness[idx].label;
+      // Deduplicate: only keep first detection of each handedness
+      if (seenHands[handedness]) return;
+      seenHands[handedness] = true;
+
       const gesture = recognizeGesture(landmarks);
 
       S.hands.push({
@@ -728,8 +733,7 @@ function updateHandSkeletons() {
   }
 
   S.hands.forEach((hand) => {
-    const isPrimary = hand.handedness === 'Right';
-    const color = isPrimary ? 0xd4a574 : 0x7eb8da;
+    const color = 0xd4a574; // both hands gold
 
     // Use worldCoords directly so skeleton matches interaction space
     const points = hand.worldCoords.map(wc =>
