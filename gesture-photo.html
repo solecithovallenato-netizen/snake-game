@@ -43,6 +43,140 @@ body{
   color:rgba(232,213,196,.5);margin-top:20px
 }
 #camera-feed{display:none}
+
+/* === Liquid Glass Panels === */
+.glass-panel{
+  background:rgba(18,16,24,.45);
+  backdrop-filter:blur(20px) saturate(180%);
+  -webkit-backdrop-filter:blur(20px) saturate(180%);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:16px;
+  box-shadow:0 8px 32px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.06),inset 0 0 0 1px rgba(255,255,255,.03)
+}
+
+/* Camera Preview */
+#cam-preview{
+  position:fixed;bottom:90px;right:16px;
+  width:140px;height:105px;
+  border-radius:14px;
+  overflow:hidden;
+  z-index:10;
+  opacity:.6;
+  transition:opacity .5s
+}
+#cam-preview:hover{opacity:.85}
+#cam-preview video{
+  width:100%;height:100%;
+  object-fit:cover;
+  transform:scaleX(-1)
+}
+#cam-label{
+  position:absolute;bottom:4px;left:50%;
+  transform:translateX(-50%);
+  font-size:9px;letter-spacing:1px;
+  color:rgba(232,213,196,.4);
+  text-shadow:0 0 4px rgba(0,0,0,.8)
+}
+
+/* Toast */
+.glass-toast{
+  position:fixed;top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  padding:10px 24px;
+  border-radius:24px;
+  background:rgba(18,16,24,.55);
+  backdrop-filter:blur(16px) saturate(180%);
+  -webkit-backdrop-filter:blur(16px) saturate(180%);
+  border:1px solid rgba(255,255,255,.06);
+  font-size:14px;letter-spacing:2px;
+  color:rgba(232,213,196,.7);
+  opacity:0;
+  transition:opacity .3s;
+  pointer-events:none;
+  z-index:20
+}
+.glass-toast.show{opacity:1}
+
+/* Toolbar */
+#toolbar{
+  position:fixed;bottom:20px;left:50%;
+  transform:translateX(-50%);
+  display:flex;gap:2px;
+  padding:6px;
+  border-radius:24px;
+  z-index:10
+}
+.tool-btn{
+  display:flex;align-items:center;gap:6px;
+  padding:8px 18px;
+  border:none;
+  border-radius:20px;
+  background:transparent;
+  color:rgba(232,213,196,.5);
+  font-size:12px;letter-spacing:1px;
+  cursor:pointer;
+  transition:all .3s;
+  font-family:inherit
+}
+.tool-btn:hover{background:rgba(255,255,255,.04);color:rgba(232,213,196,.85)}
+.tool-btn.active{background:rgba(212,165,116,.1);color:#d4a574}
+.tool-icon{font-size:16px}
+.tool-label{font-size:11px}
+
+/* Info Card */
+.info-card{
+  position:fixed;
+  padding:12px 18px;
+  border-radius:14px;
+  z-index:10;
+  transition:opacity .3s;
+  pointer-events:none
+}
+.info-card.hidden{opacity:0}
+.info-card.visible{opacity:1}
+#info-name{font-size:16px;letter-spacing:2px;color:rgba(232,213,196,.85);margin-bottom:4px}
+#info-material,#info-weight{font-size:11px;letter-spacing:1px;color:rgba(232,213,196,.4)}
+
+/* Help Modal */
+#help-overlay{
+  position:fixed;top:0;left:0;right:0;bottom:0;
+  background:rgba(0,0,0,.65);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  display:flex;align-items:center;justify-content:center;
+  z-index:50;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .4s
+}
+#help-overlay.show{opacity:1;pointer-events:auto}
+#help-card{padding:36px 40px 28px;border-radius:20px;max-width:440px;width:90%;text-align:center}
+#help-title{font-size:18px;letter-spacing:4px;font-weight:300;margin-bottom:20px;color:rgba(232,213,196,.7)}
+.help-row{display:flex;align-items:center;gap:14px;padding:10px 0;border-bottom:1px solid rgba(232,213,196,.04);text-align:left}
+.help-row:last-child{border-bottom:none}
+.help-icon{font-size:22px;width:36px;text-align:center}
+.help-text{font-size:13px;letter-spacing:1px;color:rgba(232,213,196,.6)}
+.help-detail{font-size:10px;color:rgba(232,213,196,.25);letter-spacing:.5px;margin-top:2px}
+#help-dismiss{
+  margin-top:20px;padding:8px 32px;
+  border-radius:20px;
+  border:1px solid rgba(212,165,116,.2);
+  background:transparent;
+  color:rgba(212,165,116,.6);
+  font-size:12px;letter-spacing:2px;
+  cursor:pointer;font-family:inherit;
+  transition:all .3s
+}
+#help-dismiss:hover{border-color:rgba(212,165,116,.4);color:rgba(212,165,116,.9)}
+
+/* Responsive */
+@media(max-width:640px){
+  #cam-preview{width:100px;height:75px;bottom:80px;right:8px}
+  #toolbar{bottom:10px;padding:4px}
+  .tool-btn{padding:6px 12px}
+  .tool-label{display:none}
+  #help-card{padding:24px 20px 20px}
+}
 </style>
 </head>
 <body>
@@ -51,6 +185,61 @@ body{
 <div id="loading">
   <div class="spinner"></div>
   <p id="loading-text">正在启动</p>
+</div>
+
+<!-- Camera preview (glass panel) -->
+<div id="cam-preview" class="glass-panel">
+  <video id="cam-preview-video" muted playsinline></video>
+  <div id="cam-label">手势预览</div>
+</div>
+
+<!-- Toast -->
+<div id="hint-toast" class="glass-toast"></div>
+
+<!-- Bottom toolbar -->
+<div id="toolbar" class="glass-panel">
+  <button class="tool-btn" id="btn-upload" title="上传图片">
+    <span class="tool-icon">📷</span>
+    <span class="tool-label">上传</span>
+  </button>
+  <button class="tool-btn" id="btn-reset" title="重置场景">
+    <span class="tool-icon">🔄</span>
+    <span class="tool-label">重置</span>
+  </button>
+  <button class="tool-btn" id="btn-help" title="手势帮助">
+    <span class="tool-icon">❓</span>
+    <span class="tool-label">帮助</span>
+  </button>
+</div>
+
+<!-- Object info card -->
+<div id="info-card" class="glass-panel info-card hidden">
+  <div id="info-name"></div>
+  <div id="info-material"></div>
+  <div id="info-weight"></div>
+</div>
+
+<!-- Hidden file input -->
+<input type="file" id="file-input" accept="image/*" style="display:none">
+
+<!-- Help modal -->
+<div id="help-overlay">
+  <div id="help-card" class="glass-panel">
+    <div id="help-title">手势控制</div>
+    <div class="help-row">
+      <div class="help-icon">👆</div>
+      <div class="help-text">捏合抓起 · 张开放下<div class="help-detail">主手（金色骨架）拇指+食指捏合抓取物体，张开释放</div></div>
+    </div>
+    <div class="help-row">
+      <div class="help-icon">🤚</div>
+      <div class="help-text">辅手握拳平移 · 捏合旋转<div class="help-detail">辅手（蓝色骨架）控制场景视角</div></div>
+    </div>
+    <div class="help-row">
+      <div class="help-icon">👋</div>
+      <div class="help-text">辅手挥手 · 重置场景<div class="help-detail">所有物体回到初始位置</div></div>
+    </div>
+    <button id="help-dismiss" onclick="document.getElementById('help-overlay').classList.remove('show')">知道了</button>
+  </div>
 </div>
 
 <video id="camera-feed" playsinline style="display:none"></video>
@@ -611,6 +800,90 @@ function handleSceneControl(hand) {
   }
 }
 
+// ═══ 6. UI HANDLERS ═══
+
+// ── Toast ──
+function showToast(msg) {
+  const toast = document.getElementById('hint-toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toast._timeout);
+  toast._timeout = setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+// ── Reset Scene ──
+function resetScene() {
+  releaseObject();
+  S.objects.forEach(obj => {
+    world.removeBody(obj.body);
+    scene.remove(obj.mesh);
+  });
+  S.objects = [];
+  buildScene(MOCK_ANALYSIS);
+}
+
+// ── Info Card ──
+function updateInfoCard() {
+  const card = document.getElementById('info-card');
+  if (S.grabbedObj !== null) {
+    const obj = S.objects.find(o => o.id === S.grabbedObj);
+    if (obj) {
+      card.classList.remove('hidden');
+      card.classList.add('visible');
+      document.getElementById('info-name').textContent = obj.name;
+      document.getElementById('info-material').textContent = '材质: ' + obj.material;
+      document.getElementById('info-weight').textContent = '质量: ' + obj.body.mass.toFixed(2) + ' kg';
+
+      const pos = obj.mesh.position.clone();
+      pos.project(camera);
+      const x = (pos.x * 0.5 + 0.5) * window.innerWidth;
+      const y = (-pos.y * 0.5 + 0.5) * window.innerHeight;
+      card.style.left = Math.max(10, Math.min(window.innerWidth - 160, x - 60)) + 'px';
+      card.style.top = Math.max(10, Math.min(window.innerHeight - 120, y - 100)) + 'px';
+    }
+  } else {
+    card.classList.add('hidden');
+    card.classList.remove('visible');
+  }
+}
+
+// ── Button Handlers ──
+document.getElementById('btn-upload').addEventListener('click', () => {
+  document.getElementById('file-input').click();
+});
+
+document.getElementById('file-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  showToast('AI 分析中...');
+  // Future: replace with real API call
+  setTimeout(() => showToast('使用演示场景'), 1500);
+});
+
+document.getElementById('btn-reset').addEventListener('click', () => {
+  resetScene();
+  showToast('场景已重置');
+});
+
+document.getElementById('btn-help').addEventListener('click', () => {
+  document.getElementById('help-overlay').classList.add('show');
+});
+
+// ── Camera Preview Mirror ──
+const camPreviewVideo = document.getElementById('cam-preview-video');
+setInterval(() => {
+  if (videoEl && videoEl.srcObject && !camPreviewVideo.srcObject) {
+    camPreviewVideo.srcObject = videoEl.srcObject;
+  }
+}, 1000);
+
+// Also try immediately
+setTimeout(() => {
+  if (videoEl && videoEl.srcObject && !camPreviewVideo.srcObject) {
+    camPreviewVideo.srcObject = videoEl.srcObject;
+  }
+}, 2000);
+
 // ═══════════════════════════════════════════
 // 4. ANIMATION LOOP
 // ═══════════════════════════════════════════
@@ -654,6 +927,7 @@ function animate() {
     handleSceneControl(secondaryHand);
   }
 
+  updateInfoCard();
   renderer.render(scene, camera);
 }
 
