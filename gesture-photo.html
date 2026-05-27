@@ -184,7 +184,7 @@ body{
 <!-- Loading overlay -->
 <div id="loading">
   <div class="spinner"></div>
-  <p id="loading-text">正在启动</p>
+  <p id="loading-text">加载 Three.js...</p>
 </div>
 
 <!-- Camera preview (glass panel) -->
@@ -334,6 +334,9 @@ const camera = new THREE.PerspectiveCamera(
 camera.position.set(0, 0.5, CFG.cameraBaseZ);
 camera.lookAt(S.cameraTarget);
 
+const cameraTargetPos = camera.position.clone();
+const cameraTargetLook = S.cameraTarget.clone();
+
 // ── Lights ──
 
 // Ambient
@@ -462,6 +465,20 @@ function computeVolume(obj) {
   return 0.001;
 }
 
+function createShadowTexture() {
+  const size = 128;
+  const c = document.createElement('canvas');
+  c.width = size; c.height = size;
+  const ctx = c.getContext('2d');
+  const gradient = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+  gradient.addColorStop(0, 'rgba(0,0,0,0.6)');
+  gradient.addColorStop(0.5, 'rgba(0,0,0,0.2)');
+  gradient.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+  return new THREE.CanvasTexture(c);
+}
+
 function buildScene(analysisData) {
   const objectGroup = new THREE.Group();
 
@@ -532,7 +549,28 @@ function buildScene(analysisData) {
     objectGroup.add(mesh);
     world.addBody(body);
 
-    S.objects.push({ id: obj.id, name: obj.name, mesh, body, material: obj.material, physParams: physMat.params });
+    // Drop shadow disc
+    const shadowSize = obj.mesh_type === 'box'
+      ? Math.max(obj.size[0], obj.size[2]) * 1.15
+      : (obj.size[0] || 0.5) * 2.2;
+    const shadowGeo = new THREE.PlaneGeometry(shadowSize, shadowSize);
+    const shadowTex = createShadowTexture();
+    const shadowMat = new THREE.MeshBasicMaterial({
+      map: shadowTex,
+      transparent: true,
+      opacity: 0.3,
+      depthWrite: false,
+    });
+    const shadowDisc = new THREE.Mesh(shadowGeo, shadowMat);
+    shadowDisc.rotation.x = -Math.PI / 2;
+    shadowDisc.position.x = mesh.position.x;
+    shadowDisc.position.y = mesh.position.y;
+    shadowDisc.position.z = CFG.groundZ + 0.002;
+    shadowDisc.renderOrder = 1;
+    shadowDisc.material.depthTest = false;
+    objectGroup.add(shadowDisc);
+
+    S.objects.push({ id: obj.id, name: obj.name, mesh, body, shadowDisc, material: obj.material, physParams: physMat.params });
   }
 
   scene.add(objectGroup);
@@ -571,6 +609,8 @@ const videoEl = document.getElementById('camera-feed');
 let handsInstance = null;
 
 async function initHands() {
+  document.getElementById('loading-text').textContent = '初始化摄像头...';
+
   const Hands = window.Hands;
   handsInstance = new Hands({
     locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/${file}`
@@ -584,12 +624,14 @@ async function initHands() {
   });
 
   handsInstance.onResults(onHandResults);
+  document.getElementById('loading-text').textContent = '加载 AI 模型...';
 
   // Get camera
   const stream = await navigator.mediaDevices.getUserMedia({
     video: { width: 640, height: 480, facingMode: 'user' }
   });
   videoEl.srcObject = stream;
+  document.getElementById('loading-text').textContent = '启用手势追踪...';
   await videoEl.play();
 
   // Process frames
@@ -600,8 +642,7 @@ async function initHands() {
     requestAnimationFrame(processFrame);
   }
   processFrame();
-
-  document.getElementById('loading-text').textContent = '摄像头已就绪';
+  document.getElementById('loading-text').textContent = '就绪';
   setTimeout(() => {
     document.getElementById('loading').classList.add('hidden');
   }, 500);
@@ -794,15 +835,14 @@ function handleSceneControl(hand) {
     if (prevSecPinchDist) {
       const dx = pinch.x - prevSecPinchDist.x;
       const dy = pinch.y - prevSecPinchDist.y;
-      const offset = camera.position.clone().sub(S.cameraTarget);
+      const offset = cameraTargetPos.clone().sub(cameraTargetLook);
       const spherical = new THREE.Spherical().setFromVector3(offset);
       spherical.theta -= dx * 3;
       spherical.phi -= dy * 3;
       spherical.phi = Math.max(0.1, Math.min(Math.PI / 2 - 0.1, spherical.phi));
       spherical.radius = Math.max(1.5, Math.min(10, spherical.radius));
-      const newPos = new THREE.Vector3().setFromSpherical(spherical).add(S.cameraTarget);
-      camera.position.copy(newPos);
-      camera.lookAt(S.cameraTarget);
+      const newPos = new THREE.Vector3().setFromSpherical(spherical).add(cameraTargetLook);
+      cameraTargetPos.copy(newPos);
     }
     prevSecPinchDist = { x: pinch.x, y: pinch.y };
   } else {
@@ -814,11 +854,10 @@ function handleSceneControl(hand) {
     if (prevSecWristPos) {
       const dx = wrist.x - prevSecWristPos.x;
       const dy = wrist.y - prevSecWristPos.y;
-      S.cameraTarget.x -= dx * 2;
-      S.cameraTarget.y -= dy * 2;
-      camera.position.x -= dx * 2;
-      camera.position.y -= dy * 2;
-      camera.lookAt(S.cameraTarget);
+      cameraTargetLook.x -= dx * 2;
+      cameraTargetLook.y -= dy * 2;
+      cameraTargetPos.x -= dx * 2;
+      cameraTargetPos.y -= dy * 2;
     }
     prevSecWristPos = { x: wrist.x, y: wrist.y };
   } else {
@@ -835,11 +874,11 @@ function handleSceneControl(hand) {
   );
   if (prevSecFingerDist !== null && fingerDist > 0.001) {
     const ratio = fingerDist / Math.max(prevSecFingerDist, 0.001);
-    const offset = camera.position.clone().sub(S.cameraTarget);
+    const offset = cameraTargetPos.clone().sub(cameraTargetLook);
     offset.multiplyScalar(1 / ratio);
     const newLen = Math.max(1.5, Math.min(10, offset.length()));
     offset.normalize().multiplyScalar(newLen);
-    camera.position.copy(S.cameraTarget.clone().add(offset));
+    cameraTargetPos.copy(cameraTargetLook.clone().add(offset));
   }
   prevSecFingerDist = fingerDist;
 
@@ -1050,6 +1089,13 @@ setTimeout(() => {
 // ═══════════════════════════════════════════
 const clock = new THREE.Clock();
 
+function updateCameraEasing(dt) {
+  const lerpFactor = 1 - Math.exp(-8 * dt);
+  camera.position.lerp(cameraTargetPos, lerpFactor);
+  S.cameraTarget.lerp(cameraTargetLook, lerpFactor);
+  camera.lookAt(S.cameraTarget);
+}
+
 function animate() {
   requestAnimationFrame(animate);
 
@@ -1063,6 +1109,10 @@ function animate() {
   S.objects.forEach(obj => {
     obj.mesh.position.copy(obj.body.position);
     obj.mesh.quaternion.copy(obj.body.quaternion);
+    if (obj.shadowDisc) {
+      obj.shadowDisc.position.x = obj.mesh.position.x;
+      obj.shadowDisc.position.y = obj.mesh.position.y;
+    }
   });
 
   // ── Interaction: Grab / Release ──
@@ -1099,11 +1149,11 @@ function animate() {
 
       if (S.prevDualDist && dualDist > 0.001) {
         const ratio = dualDist / S.prevDualDist;
-        const offset = camera.position.clone().sub(S.cameraTarget);
+        const offset = cameraTargetPos.clone().sub(cameraTargetLook);
         offset.multiplyScalar(1 / ratio);
         const newLen = Math.max(1.5, Math.min(10, offset.length()));
         offset.normalize().multiplyScalar(newLen);
-        camera.position.copy(S.cameraTarget.clone().add(offset));
+        cameraTargetPos.copy(cameraTargetLook.clone().add(offset));
       }
       S.prevDualDist = dualDist;
     } else {
@@ -1114,6 +1164,7 @@ function animate() {
   updateProximityGlow();
   updateParticles(dt);
   updateInfoCard();
+  updateCameraEasing(dt);
   renderer.render(scene, camera);
 }
 
