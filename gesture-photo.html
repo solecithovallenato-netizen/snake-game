@@ -800,6 +800,106 @@ function handleSceneControl(hand) {
   }
 }
 
+// ═══ 3g. PARTICLE SYSTEM ═══
+
+// Particle pool
+const MAX_PARTICLES = 200;
+const particlesPool = [];
+const particleGroup = new THREE.Group();
+scene.add(particleGroup);
+
+// Create shared geometry (small sphere)
+const particleGeo = new THREE.SphereGeometry(0.015, 4, 4);
+
+for (let i = 0; i < MAX_PARTICLES; i++) {
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0xd4a574,
+    transparent: true,
+    opacity: 0,
+  });
+  const p = new THREE.Mesh(particleGeo, mat);
+  p.visible = false;
+  p.userData = { life: 0, velocity: new THREE.Vector3() };
+  particleGroup.add(p);
+  particlesPool.push(p);
+}
+
+function spawnParticles(position, count = 15) {
+  let spawned = 0;
+  const pos = new THREE.Vector3(position.x, position.y, position.z);
+  particlesPool.forEach(p => {
+    if (spawned >= count) return;
+    if (p.userData.life <= 0) {
+      p.position.copy(pos);
+      p.userData.velocity.set(
+        (Math.random() - 0.5) * 0.05,
+        (Math.random() - 0.5) * 0.05,
+        (Math.random() - 0.5) * 0.05
+      );
+      p.userData.life = 0.6 + Math.random() * 0.4;
+      p.visible = true;
+      p.material.opacity = 1;
+      p.scale.setScalar(1);
+      spawned++;
+    }
+  });
+}
+
+function updateParticles(dt) {
+  particlesPool.forEach(p => {
+    if (p.userData.life > 0) {
+      p.userData.life -= dt;
+      const vel = p.userData.velocity.clone().multiplyScalar(dt * 0.3);
+      p.position.add(vel);
+      p.userData.velocity.z += CFG.gravity * dt * 0.1;
+      p.material.opacity = Math.max(0, p.userData.life);
+      p.scale.setScalar(Math.max(0, p.userData.life));
+      if (p.userData.life <= 0) {
+        p.visible = false;
+        p.material.opacity = 0;
+      }
+    }
+  });
+}
+
+// ═══ 3h. PROXIMITY GLOW ═══
+
+function updateProximityGlow() {
+  S.objects.forEach(obj => {
+    // Skip grabbed objects (they already have highlight)
+    if (S.grabbedObj === obj.id) return;
+
+    // Reset glow for non-grabbed objects
+    if (obj.mesh.material.emissive) {
+      obj.mesh.material.emissive = new THREE.Color(0x000000);
+      obj.mesh.material.emissiveIntensity = 0;
+    }
+
+    // Check hand proximity
+    S.hands.forEach(hand => {
+      const pinch = getPinchCenter(hand);
+      const objPos = obj.mesh.position;
+      const dist = Math.hypot(
+        pinch.x - objPos.x,
+        pinch.y - objPos.y,
+        pinch.z - objPos.z
+      );
+
+      if (dist < 0.15) {
+        // Closer = brighter golden glow
+        const glowIntensity = (1 - dist / 0.15) * 0.4;
+        obj.mesh.material.emissive = new THREE.Color(0xd4a574);
+        obj.mesh.material.emissiveIntensity = glowIntensity;
+
+        // Contact particles when very close
+        if (dist < 0.05) {
+          spawnParticles({ x: pinch.x, y: pinch.y, z: pinch.z }, 3);
+        }
+      }
+    });
+  });
+}
+
 // ═══ 6. UI HANDLERS ═══
 
 // ── Toast ──
@@ -927,6 +1027,8 @@ function animate() {
     handleSceneControl(secondaryHand);
   }
 
+  updateProximityGlow();
+  updateParticles(dt);
   updateInfoCard();
   renderer.render(scene, camera);
 }
