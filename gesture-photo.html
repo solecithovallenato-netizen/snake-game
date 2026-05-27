@@ -733,7 +733,8 @@ function updateHandSkeletons() {
   }
 
   S.hands.forEach((hand) => {
-    const color = 0xd4a574; // both hands gold
+    const isPrimary = hand.handedness === 'Right';
+    const color = isPrimary ? 0xd4a574 : 0x7eb8da; // gold right, blue left
 
     // Use worldCoords directly so skeleton matches interaction space
     const points = hand.worldCoords.map(wc =>
