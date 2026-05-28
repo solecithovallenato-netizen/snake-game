@@ -1144,9 +1144,12 @@ function animate() {
     S.prevPinch = isPinching;
   }
 
-  // ── Scene Control (secondary hand, only when 2 hands present) ──
+  // ── Scene Control ──
+  // Two hands: left controls camera. One hand: open=move camera, pinch=grab.
   if (secondaryHand) {
     handleSceneControl(secondaryHand);
+  } else if (!hasTwoHands && primaryHand && primaryHand.gesture === 'open') {
+    handleSceneControl(primaryHand);
   }
 
 
