@@ -745,36 +745,67 @@ function recognizeGesture(landmarks) {
   return 'relaxed';
 }
 
+// Helper: create a cylinder between two 3D points
+function createBone(a, b, radius, material) {
+  const dir = new THREE.Vector3().subVectors(b, a);
+  const len = dir.length();
+  if (len < 0.001) return new THREE.Group();
+  const mid = new THREE.Vector3().addVectors(a, b).multiplyScalar(0.5);
+  const geo = new THREE.CylinderGeometry(radius, radius, len, 8);
+  const mesh = new THREE.Mesh(geo, material);
+  mesh.position.copy(mid);
+  // Align cylinder (default Y axis) to the direction vector
+  const up = new THREE.Vector3(0, 1, 0);
+  const quat = new THREE.Quaternion().setFromUnitVectors(up, dir.normalize());
+  mesh.setRotationFromQuaternion(quat);
+  return mesh;
+}
+
 function updateHandSkeletons() {
   while (handSkeletons.children.length > 0) {
-    handSkeletons.remove(handSkeletons.children[0]);
+    const child = handSkeletons.children[0];
+    if (child.geometry) child.geometry.dispose();
+    if (child.material) child.material.dispose();
+    handSkeletons.remove(child);
   }
 
   S.hands.forEach((hand) => {
     const isPrimary = hand.handedness === 'Right';
-    const color = isPrimary ? 0xd4a574 : 0x7eb8da; // gold right, blue left
+    const color = isPrimary ? 0xd4a574 : 0x7eb8da;
 
-    // Use worldCoords directly so skeleton matches interaction space
     const points = hand.worldCoords.map(wc =>
       new THREE.Vector3(wc.x, wc.y, wc.z)
     );
 
-    HAND_CONNECTIONS.forEach(([a, b]) => {
-      const lineGeo = new THREE.BufferGeometry().setFromPoints([points[a], points[b]]);
-      const lineMat = new THREE.LineBasicMaterial({
-        color, transparent: true, opacity: 0.4, linewidth: 1,
-      });
-      handSkeletons.add(new THREE.Line(lineGeo, lineMat));
+    // Shared material for this hand
+    const boneMat = new THREE.MeshStandardMaterial({
+      color,
+      roughness: 0.3,
+      metalness: 0.1,
+      transparent: true,
+      opacity: 0.75,
     });
 
+    // Bones: cylinders between connected joints
+    HAND_CONNECTIONS.forEach(([a, b]) => {
+      const radius = [4,8,12,16,20].includes(b) ? 0.008 : 0.012;
+      const bone = createBone(points[a], points[b], radius, boneMat);
+      handSkeletons.add(bone);
+    });
+
+    // Joints: spheres
     points.forEach((p, i) => {
       const isTip = [4, 8, 12, 16, 20].includes(i);
-      const r = isTip ? 0.012 : 0.008;
-      const sphereGeo = new THREE.SphereGeometry(r, 8, 8);
-      const sphereMat = new THREE.MeshBasicMaterial({
-        color, transparent: true, opacity: isTip ? 0.7 : 0.35,
+      const r = isTip ? 0.018 : 0.014;
+      const geo = new THREE.SphereGeometry(r, 12, 12);
+      const mat = new THREE.MeshStandardMaterial({
+        color,
+        roughness: 0.2,
+        metalness: 0.2,
+        transparent: true,
+        opacity: isTip ? 0.9 : 0.7,
       });
-      const sphere = new THREE.Mesh(sphereGeo, sphereMat);
+      const sphere = new THREE.Mesh(geo, mat);
       sphere.position.copy(p);
       handSkeletons.add(sphere);
     });
