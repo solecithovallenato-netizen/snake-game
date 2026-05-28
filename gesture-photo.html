@@ -634,8 +634,8 @@ async function initHands() {
   handsInstance.setOptions({
     maxNumHands: 2,
     modelComplexity: 1,
-    minDetectionConfidence: 0.7,
-    minTrackingConfidence: 0.5,
+    minDetectionConfidence: 0.5,
+    minTrackingConfidence: 0.3,
   });
 
   handsInstance.onResults(onHandResults);
@@ -669,20 +669,38 @@ function onHandResults(results) {
   if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
     handSkeletons.visible = true;
 
-    const seenHands = {};
-    results.multiHandLandmarks.forEach((landmarks, idx) => {
-      const handedness = results.multiHandedness[idx].label;
-      // Deduplicate: only keep first detection of each handedness
-      if (seenHands[handedness]) return;
-      seenHands[handedness] = true;
+    // Collect all detections, keep up to 2, fix duplicate labels
+    const detections = results.multiHandLandmarks.map((landmarks, idx) => ({
+      landmarks,
+      label: results.multiHandedness[idx].label,
+      x: landmarks[0].x, // wrist X for position-based disambiguation
+    }));
 
-      const gesture = recognizeGesture(landmarks);
+    // If both hands have same label, use position to assign Left/Right
+    if (detections.length === 2 && detections[0].label === detections[1].label) {
+      // Left side of frame = Left hand, right side = Right hand
+      detections.sort((a, b) => a.x - b.x);
+      detections[0].label = 'Left';
+      detections[1].label = 'Right';
+    }
 
+    // Take at most 2, prefer one of each
+    const kept = [];
+    const seen = {};
+    detections.forEach(d => {
+      if (kept.length >= 2) return;
+      if (seen[d.label]) return;
+      seen[d.label] = true;
+      kept.push(d);
+    });
+
+    kept.forEach(d => {
+      const gesture = recognizeGesture(d.landmarks);
       S.hands.push({
-        landmarks,
-        handedness,
+        landmarks: d.landmarks,
+        handedness: d.label,
         gesture,
-        worldCoords: landmarks.map(lm => ({
+        worldCoords: d.landmarks.map(lm => ({
           x: (lm.x - 0.5) * 2,
           y: -(lm.y - 0.5) * 2,
           z: lm.z * -CFG.depthScale,
