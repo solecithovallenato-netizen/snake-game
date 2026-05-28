@@ -232,7 +232,7 @@ body{
     </div>
     <div class="help-row">
       <div class="help-icon">🤚</div>
-      <div class="help-text">辅手张开移动镜头 · 两指缩放<div class="help-detail">辅手（蓝色骨架）张开控制视角，握拳不动</div></div>
+      <div class="help-text">辅手张开镜头跟随 · 两指拉近拉远<div class="help-detail">辅手（蓝色骨架）张开时镜头跟在手后面</div></div>
     </div>
 <button id="help-dismiss" onclick="document.getElementById('help-overlay').classList.remove('show')">知道了</button>
   </div>
@@ -868,23 +868,17 @@ function handleSceneControl(hand) {
 
   const wrist = hand.worldCoords[0];
 
-  // Open hand + move = orbit camera around scene
-  if (prevSecWristPos) {
-    const dx = wrist.x - prevSecWristPos.x;
-    const dy = wrist.y - prevSecWristPos.y;
+  // Camera follows behind the hand
+  const camDist = 3.5;
+  cameraTargetPos.set(
+    wrist.x,
+    wrist.y + camDist,
+    wrist.z + 0.8
+  );
+  // Look toward the object area
+  cameraTargetLook.set(wrist.x * 0.4, wrist.y * 0.2, -1.8);
 
-    const offset = cameraTargetPos.clone().sub(cameraTargetLook);
-    const spherical = new THREE.Spherical().setFromVector3(offset);
-    spherical.theta -= dx * 1.2;
-    spherical.phi -= dy * 0.8;
-    spherical.phi = Math.max(0.1, Math.min(Math.PI / 2 - 0.1, spherical.phi));
-    spherical.radius = Math.max(1.5, Math.min(10, spherical.radius));
-    const newPos = new THREE.Vector3().setFromSpherical(spherical).add(cameraTargetLook);
-    cameraTargetPos.copy(newPos);
-  }
-  prevSecWristPos = { x: wrist.x, y: wrist.y };
-
-  // Two-finger (index+middle) spread = zoom
+  // Two-finger spread = zoom
   const indexTip = hand.worldCoords[8];
   const middleTip = hand.worldCoords[12];
   const fingerDist = Math.hypot(
@@ -894,11 +888,12 @@ function handleSceneControl(hand) {
   );
   if (prevSecFingerDist !== null && fingerDist > 0.001) {
     const ratio = fingerDist / Math.max(prevSecFingerDist, 0.001);
-    const offset = cameraTargetPos.clone().sub(cameraTargetLook);
-    offset.multiplyScalar(1 / ratio);
-    const newLen = Math.max(1.5, Math.min(10, offset.length()));
-    offset.normalize().multiplyScalar(newLen);
-    cameraTargetPos.copy(cameraTargetLook.clone().add(offset));
+    const newDist = Math.max(2.0, Math.min(8.0, camDist / ratio));
+    cameraTargetPos.set(
+      wrist.x,
+      wrist.y + newDist,
+      wrist.z + 0.8
+    );
   }
   prevSecFingerDist = fingerDist;
 
@@ -1166,29 +1161,6 @@ function animate() {
     handleSceneControl(secondaryHand);
   }
 
-  // ── Dual-Hand Combined Controls ──
-  if (hasTwoHands) {
-    const h1 = S.hands[0];
-    const h2 = S.hands[1];
-    // Both hands open = two-hand zoom
-    if (h1.gesture === 'open' && h2.gesture === 'open') {
-      const w1 = h1.worldCoords[0];
-      const w2 = h2.worldCoords[0];
-      const dualDist = Math.hypot(w1.x - w2.x, w1.y - w2.y, w1.z - w2.z);
-
-      if (S.prevDualDist && dualDist > 0.001) {
-        const ratio = dualDist / S.prevDualDist;
-        const offset = cameraTargetPos.clone().sub(cameraTargetLook);
-        offset.multiplyScalar(1 / ratio);
-        const newLen = Math.max(1.5, Math.min(10, offset.length()));
-        offset.normalize().multiplyScalar(newLen);
-        cameraTargetPos.copy(cameraTargetLook.clone().add(offset));
-      }
-      S.prevDualDist = dualDist;
-    } else {
-      S.prevDualDist = null;
-    }
-  }
 
   updateProximityGlow();
   updateParticles(dt);
