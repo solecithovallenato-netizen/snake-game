@@ -909,17 +909,17 @@ function handleSceneControl(hand) {
     smoothWrist.z += (wrist.z - smoothWrist.z) * alpha;
   }
 
-  // Camera behind the hand, further back, looking toward objects
+  // Layout: OBJECTS ← HAND ← CAMERA (camera behind hand, looking at objects)
   const camDist = 2.5;
   cameraTargetPos.set(
     smoothWrist.x,
     smoothWrist.y + camDist,
     smoothWrist.z + 0.5
   );
-  // Look toward the ground where objects are
+  // Look past the hand toward the objects on the ground
   cameraTargetLook.set(
-    smoothWrist.x * 0.5,
-    smoothWrist.y * 0.3 - 1.0,
+    smoothWrist.x,
+    smoothWrist.y - 1.5,
     -2.0
   );
 
