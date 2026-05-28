@@ -332,8 +332,8 @@ const camera = new THREE.PerspectiveCamera(
   CFG.cameraFar
 );
 camera.up.set(0, 0, 1);
-camera.position.set(0, 4.0, -1.8);
-S.cameraTarget.set(0, 0, -1.8);
+camera.position.set(0, 5.0, 0);
+S.cameraTarget.set(0, 0, -1.5);
 camera.lookAt(S.cameraTarget);
 
 const cameraTargetPos = camera.position.clone();
@@ -1086,7 +1086,7 @@ document.getElementById('btn-help').addEventListener('click', () => {
 const clock = new THREE.Clock();
 
 function updateCameraEasing(dt) {
-  const lerpFactor = 1 - Math.exp(-8 * dt);
+  const lerpFactor = 1 - Math.exp(-15 * dt);
   camera.position.lerp(cameraTargetPos, lerpFactor);
   S.cameraTarget.lerp(cameraTargetLook, lerpFactor);
   camera.lookAt(S.cameraTarget);
