@@ -619,6 +619,7 @@ handSkeletons.visible = false;
 scene.add(handSkeletons);
 
 const videoEl = document.getElementById('camera-feed');
+const camPreviewVideo = document.getElementById('cam-preview-video');
 let handsInstance = null;
 
 async function initHands() {
@@ -644,6 +645,7 @@ async function initHands() {
     video: { width: 640, height: 480, facingMode: 'user' }
   });
   videoEl.srcObject = stream;
+  camPreviewVideo.srcObject = stream;
   document.getElementById('loading-text').textContent = '启用手势追踪...';
   await videoEl.play();
 
@@ -1085,20 +1087,6 @@ document.getElementById('btn-help').addEventListener('click', () => {
   document.getElementById('help-overlay').classList.add('show');
 });
 
-// ── Camera Preview Mirror ──
-const camPreviewVideo = document.getElementById('cam-preview-video');
-setInterval(() => {
-  if (videoEl && videoEl.srcObject && !camPreviewVideo.srcObject) {
-    camPreviewVideo.srcObject = videoEl.srcObject;
-  }
-}, 1000);
-
-// Also try immediately
-setTimeout(() => {
-  if (videoEl && videoEl.srcObject && !camPreviewVideo.srcObject) {
-    camPreviewVideo.srcObject = videoEl.srcObject;
-  }
-}, 2000);
 
 // ═══════════════════════════════════════════
 // 4. ANIMATION LOOP
