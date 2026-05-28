@@ -909,18 +909,18 @@ function handleSceneControl(hand) {
     smoothWrist.z += (wrist.z - smoothWrist.z) * alpha;
   }
 
-  // Camera right behind the back of the hand
-  const camDist = 1.2;
+  // Camera behind the hand, further back, looking toward objects
+  const camDist = 2.5;
   cameraTargetPos.set(
     smoothWrist.x,
     smoothWrist.y + camDist,
-    smoothWrist.z + 0.3
+    smoothWrist.z + 0.5
   );
-  // Look forward from hand toward the scene
+  // Look toward the ground where objects are
   cameraTargetLook.set(
-    smoothWrist.x,
-    smoothWrist.y - 2.0,
-    smoothWrist.z - 0.5
+    smoothWrist.x * 0.5,
+    smoothWrist.y * 0.3 - 1.0,
+    -2.0
   );
 
   // Two-finger spread = zoom
@@ -933,11 +933,11 @@ function handleSceneControl(hand) {
   );
   if (prevSecFingerDist !== null && fingerDist > 0.001) {
     const ratio = fingerDist / Math.max(prevSecFingerDist, 0.001);
-    const newDist = Math.max(0.5, Math.min(5.0, camDist / ratio));
+    const newDist = Math.max(1.0, Math.min(6.0, camDist / ratio));
     cameraTargetPos.set(
       smoothWrist.x,
       smoothWrist.y + newDist,
-      smoothWrist.z + 0.3
+      smoothWrist.z + 0.5
     );
   }
   prevSecFingerDist = fingerDist;
