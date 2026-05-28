@@ -372,15 +372,15 @@ const fillLight = new THREE.DirectionalLight(0xd4a574, 1.5);
 fillLight.position.set(0, -0.5, 5);
 scene.add(fillLight);
 
-// ── Ground Plane ──
-const groundGeo = new THREE.PlaneGeometry(20, 20);
+// ── Ground (solid box) ──
+const groundGeo = new THREE.BoxGeometry(12, 8, 0.3);
 const groundMat = new THREE.MeshStandardMaterial({
-  color: 0x1a1820,
-  roughness: 0.9,
-  metalness: 0.1
+  color: 0x3a3530,
+  roughness: 0.6,
+  metalness: 0.05,
 });
 const ground = new THREE.Mesh(groundGeo, groundMat);
-ground.position.z = CFG.groundZ;
+ground.position.z = CFG.groundZ - 0.15;
 ground.receiveShadow = true;
 scene.add(ground);
 
