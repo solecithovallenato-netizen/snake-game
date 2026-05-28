@@ -862,15 +862,19 @@ let prevSecFingerDist = null;
 function handleSceneControl(hand) {
   const wrist = hand.worldCoords[0];
 
-  // Camera follows behind the hand
-  const camDist = 3.5;
+  // Camera right behind the back of the hand
+  const camDist = 1.2;
   cameraTargetPos.set(
     wrist.x,
     wrist.y + camDist,
-    wrist.z + 0.8
+    wrist.z + 0.3
   );
-  // Look toward the object area
-  cameraTargetLook.set(wrist.x * 0.4, wrist.y * 0.2, -1.8);
+  // Look forward from hand toward the scene
+  cameraTargetLook.set(
+    wrist.x,
+    wrist.y - 2.0,
+    wrist.z - 0.5
+  );
 
   // Two-finger spread = zoom
   const indexTip = hand.worldCoords[8];
@@ -882,11 +886,11 @@ function handleSceneControl(hand) {
   );
   if (prevSecFingerDist !== null && fingerDist > 0.001) {
     const ratio = fingerDist / Math.max(prevSecFingerDist, 0.001);
-    const newDist = Math.max(2.0, Math.min(8.0, camDist / ratio));
+    const newDist = Math.max(0.5, Math.min(5.0, camDist / ratio));
     cameraTargetPos.set(
       wrist.x,
       wrist.y + newDist,
-      wrist.z + 0.8
+      wrist.z + 0.3
     );
   }
   prevSecFingerDist = fingerDist;
