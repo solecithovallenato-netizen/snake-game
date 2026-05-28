@@ -298,7 +298,7 @@ const S = {
   grabbedObj: null,
   constraint: null,
   prevPinch: false,
-  cameraBaseZ: 3.5,
+  cameraBaseZ: 5.0,
   cameraTarget: new THREE.Vector3(0, 0, 0),
   prevDualDist: null,
 };
@@ -335,7 +335,7 @@ const camera = new THREE.PerspectiveCamera(
   CFG.cameraNear,
   CFG.cameraFar
 );
-camera.position.set(0, 0.5, CFG.cameraBaseZ);
+camera.position.set(0, 1.0, CFG.cameraBaseZ);
 camera.lookAt(S.cameraTarget);
 
 const cameraTargetPos = camera.position.clone();
@@ -860,6 +860,7 @@ function releaseObject() {
 let prevSecWristPos = null;
 let prevSecFingerDist = null;
 let wristVelHistory = [];
+let lastWaveResetTime = 0;
 
 function handleSceneControl(hand) {
   // Only control camera when hand is OPEN
@@ -905,20 +906,22 @@ function handleSceneControl(hand) {
   }
   prevSecFingerDist = fingerDist;
 
-  // Wave detection: wrist X velocity crosses zero 3+ times in 1 second
-  wristVelHistory.push({ time: performance.now(), x: wrist.x });
-  wristVelHistory = wristVelHistory.filter(e => performance.now() - e.time < 1000);
-  if (wristVelHistory.length >= 6) {
+  // Wave detection: wrist X velocity crosses zero 6+ times in 1.5s + 3s cooldown
+  const now = performance.now();
+  wristVelHistory.push({ time: now, x: wrist.x });
+  wristVelHistory = wristVelHistory.filter(e => now - e.time < 1500);
+  if (wristVelHistory.length >= 10 && now - lastWaveResetTime > 3000) {
     let crossings = 0;
     for (let i = 2; i < wristVelHistory.length; i++) {
       const v1 = wristVelHistory[i - 1].x - wristVelHistory[i - 2].x;
       const v2 = wristVelHistory[i].x - wristVelHistory[i - 1].x;
       if (v1 * v2 < 0) crossings++;
     }
-    if (crossings >= 3) {
+    if (crossings >= 6) {
       resetScene();
       showToast('👋 场景已重置');
       wristVelHistory = [];
+      lastWaveResetTime = now;
     }
   }
 }
