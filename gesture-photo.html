@@ -860,8 +860,8 @@ function handleSceneControl(hand) {
 
     const offset = cameraTargetPos.clone().sub(cameraTargetLook);
     const spherical = new THREE.Spherical().setFromVector3(offset);
-    spherical.theta -= dx * 2;
-    spherical.phi -= dy * 2;
+    spherical.theta -= dx * 1.2;
+    spherical.phi -= dy * 0.8;
     spherical.phi = Math.max(0.1, Math.min(Math.PI / 2 - 0.1, spherical.phi));
     spherical.radius = Math.max(1.5, Math.min(10, spherical.radius));
     const newPos = new THREE.Vector3().setFromSpherical(spherical).add(cameraTargetLook);
@@ -1137,9 +1137,17 @@ function animate() {
     }
   });
 
-  // ── Interaction: Grab / Release ──
-  const primaryHand = S.hands.find(h => h.handedness === 'Right') || S.hands[0];
+  // ── Hand assignment ──
+  // Single hand: always primary (interaction). Two hands: Left=camera, Right=grab.
+  const hasTwoHands = S.hands.length >= 2;
+  const primaryHand = hasTwoHands
+    ? S.hands.find(h => h.handedness === 'Right')
+    : S.hands[0];
+  const secondaryHand = hasTwoHands
+    ? S.hands.find(h => h.handedness === 'Left')
+    : null;
 
+  // ── Interaction: Grab / Release ──
   if (primaryHand) {
     const isPinching = primaryHand.gesture === 'pinch';
 
@@ -1154,14 +1162,13 @@ function animate() {
     S.prevPinch = isPinching;
   }
 
-  // ── Scene Control (secondary hand) ──
-  const secondaryHand = S.hands.find(h => h.handedness === 'Left');
+  // ── Scene Control (secondary hand, only when 2 hands present) ──
   if (secondaryHand) {
     handleSceneControl(secondaryHand);
   }
 
   // ── Dual-Hand Combined Controls ──
-  if (S.hands.length >= 2) {
+  if (hasTwoHands) {
     const h1 = S.hands[0];
     const h2 = S.hands[1];
     // Both hands open = two-hand zoom
