@@ -232,7 +232,7 @@ body{
     </div>
     <div class="help-row">
       <div class="help-icon">🤚</div>
-      <div class="help-text">辅手张开镜头跟随 · 两指拉近拉远<div class="help-detail">辅手（蓝色骨架）张开时镜头跟在手后面</div></div>
+      <div class="help-text">镜头始终跟在手后面 · 两指缩放<div class="help-detail">辅手（蓝色骨架）控制镜头，主手（金色）捏合抓取</div></div>
     </div>
 <button id="help-dismiss" onclick="document.getElementById('help-overlay').classList.remove('show')">知道了</button>
   </div>
@@ -857,17 +857,9 @@ function releaseObject() {
   }
 }
 
-let prevSecWristPos = null;
 let prevSecFingerDist = null;
 
 function handleSceneControl(hand) {
-  // Only control camera when hand is OPEN
-  if (hand.gesture !== 'open') {
-    prevSecWristPos = null;
-    prevSecFingerDist = null;
-    return;
-  }
-
   const wrist = hand.worldCoords[0];
 
   // Camera follows behind the hand
@@ -1144,12 +1136,10 @@ function animate() {
     S.prevPinch = isPinching;
   }
 
-  // ── Scene Control ──
-  // Two hands: left controls camera. One hand: open=move camera, pinch=grab.
-  if (secondaryHand) {
-    handleSceneControl(secondaryHand);
-  } else if (!hasTwoHands && primaryHand && primaryHand.gesture === 'open') {
-    handleSceneControl(primaryHand);
+  // ── Scene Control: camera always follows hand ──
+  const camHand = secondaryHand || primaryHand;
+  if (camHand) {
+    handleSceneControl(camHand);
   }
 
 
