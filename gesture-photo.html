@@ -234,11 +234,7 @@ body{
       <div class="help-icon">🤚</div>
       <div class="help-text">辅手张开移动镜头 · 两指缩放<div class="help-detail">辅手（蓝色骨架）张开控制视角，握拳不动</div></div>
     </div>
-    <div class="help-row">
-      <div class="help-icon">👋</div>
-      <div class="help-text">辅手挥手 · 重置场景<div class="help-detail">所有物体回到初始位置</div></div>
-    </div>
-    <button id="help-dismiss" onclick="document.getElementById('help-overlay').classList.remove('show')">知道了</button>
+<button id="help-dismiss" onclick="document.getElementById('help-overlay').classList.remove('show')">知道了</button>
   </div>
 </div>
 
@@ -859,8 +855,6 @@ function releaseObject() {
 
 let prevSecWristPos = null;
 let prevSecFingerDist = null;
-let wristVelHistory = [];
-let lastWaveResetTime = 0;
 
 function handleSceneControl(hand) {
   // Only control camera when hand is OPEN
@@ -906,24 +900,6 @@ function handleSceneControl(hand) {
   }
   prevSecFingerDist = fingerDist;
 
-  // Wave detection: wrist X velocity crosses zero 6+ times in 1.5s + 3s cooldown
-  const now = performance.now();
-  wristVelHistory.push({ time: now, x: wrist.x });
-  wristVelHistory = wristVelHistory.filter(e => now - e.time < 1500);
-  if (wristVelHistory.length >= 10 && now - lastWaveResetTime > 3000) {
-    let crossings = 0;
-    for (let i = 2; i < wristVelHistory.length; i++) {
-      const v1 = wristVelHistory[i - 1].x - wristVelHistory[i - 2].x;
-      const v2 = wristVelHistory[i].x - wristVelHistory[i - 1].x;
-      if (v1 * v2 < 0) crossings++;
-    }
-    if (crossings >= 6) {
-      resetScene();
-      showToast('👋 场景已重置');
-      wristVelHistory = [];
-      lastWaveResetTime = now;
-    }
-  }
 }
 
 // ═══ 3g. PARTICLE SYSTEM ═══
