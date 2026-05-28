@@ -331,7 +331,9 @@ const camera = new THREE.PerspectiveCamera(
   CFG.cameraNear,
   CFG.cameraFar
 );
-camera.position.set(0, 1.0, CFG.cameraBaseZ);
+camera.up.set(0, 0, 1);
+camera.position.set(0, 4.0, -1.8);
+S.cameraTarget.set(0, 0, -1.8);
 camera.lookAt(S.cameraTarget);
 
 const cameraTargetPos = camera.position.clone();
