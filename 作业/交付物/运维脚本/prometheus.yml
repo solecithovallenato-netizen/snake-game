@@ -1,0 +1,53 @@
+# ============================================================
+# Prometheus 配置 - 政务数字门户平台 POC
+# 采集目标: node_exporter (主机) + cadvisor (容器) + halo (应用)
+# ============================================================
+
+global:
+  scrape_interval: 15s       # 采集间隔
+  evaluation_interval: 15s   # 规则评估间隔
+  scrape_timeout: 10s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+rule_files: []
+
+scrape_configs:
+  # ==================== Prometheus 自身 ====================
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # ==================== 主机指标 (node_exporter) ====================
+  - job_name: 'node'
+    static_configs:
+      - targets: ['192.168.20.10:9100']
+        labels:
+          instance: 'dmp-svc-01'
+          env: 'poc'
+
+  # ==================== 容器指标 (cAdvisor) ====================
+  - job_name: 'docker'
+    static_configs:
+      - targets: ['cadvisor:8080']
+        labels:
+          instance: 'dmp-svc-01'
+          env: 'poc'
+
+  # ==================== Halo 应用指标 ====================
+  - job_name: 'halo'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['halo:8090']
+        labels:
+          app: 'halo'
+          env: 'poc'
+
+  # ==================== Nginx 指标（如果启用 stub_status） ====================
+  # 需要 Nginx 配置 stub_status 模块后启用
+  # - job_name: 'nginx'
+  #   static_configs:
+  #     - targets: ['nginx:80']
