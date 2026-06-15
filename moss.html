@@ -204,6 +204,220 @@ function showAbout() {
 function hideAbout() {
   document.getElementById('aboutBg').classList.remove('show');
 }
+// ===== CANVAS RENDERING =====
+var cv = document.getElementById('cv');
+var ctx = cv.getContext('2d');
+
+function resizeCanvas() {
+  cv.width = window.innerWidth;
+  cv.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+function normX(x) { return x * cv.width; }
+function normY(y) { return y * cv.height; }
+
+// Draw sky gradient
+function drawSky() {
+  var colors = SEASON_COLORS[state.season] || SEASON_COLORS.summer;
+  var grad = ctx.createLinearGradient(0, 0, 0, cv.height * 0.6);
+  grad.addColorStop(0, colors.sky[0]);
+  grad.addColorStop(1, colors.sky[1]);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, cv.width, cv.height * 0.6);
+}
+
+// Draw clouds
+function drawClouds() {
+  state.clouds.forEach(function(c) {
+    var img = getAsset('cloud_' + Math.floor(Math.abs(c.x * 10) % 3));
+    var cx = normX(c.x), cy = normY(c.y);
+    var w = 200 * c.s, h = 100 * c.s;
+    if (img) {
+      ctx.globalAlpha = 0.5;
+      ctx.drawImage(img, cx - w/2, cy - h/2, w, h);
+      ctx.globalAlpha = 1;
+    } else {
+      // Fallback: draw ellipse
+      ctx.fillStyle = 'rgba(255,255,255,0.2)';
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, w/2, h/2, 0, 0, Math.PI*2);
+      ctx.fill();
+    }
+  });
+}
+
+// Draw horizon line / distant hills
+function drawHorizon() {
+  var colors = SEASON_COLORS[state.season] || SEASON_COLORS.summer;
+  var h = cv.height * 0.55;
+  ctx.fillStyle = 'rgba(139,111,78,0.08)';
+  ctx.beginPath();
+  ctx.moveTo(0, h);
+  for (var x = 0; x <= cv.width; x += 100) {
+    var y = h - 40 - 20 * Math.sin(x * 0.003) - 10 * Math.sin(x * 0.007 + 1.5);
+    ctx.lineTo(x, y);
+  }
+  ctx.lineTo(cv.width, cv.height);
+  ctx.lineTo(0, cv.height);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// Draw ground
+function drawGround() {
+  var groundImg = getAsset('ground');
+  var h = cv.height * 0.55;
+  if (groundImg) {
+    // Tile the ground texture
+    var tw = groundImg.width, th = groundImg.height;
+    for (var x = 0; x < cv.width; x += tw) {
+      for (var y = h; y < cv.height; y += th) {
+        ctx.drawImage(groundImg, x, y, tw, th);
+      }
+    }
+    // Gradient overlay to blend
+    var grad = ctx.createLinearGradient(0, h, 0, h + 60);
+    grad.addColorStop(0, 'rgba(61,48,39,0.3)');
+    grad.addColorStop(1, 'rgba(61,48,39,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, h, cv.width, 60);
+  } else {
+    // Fallback: solid ground
+    var colors = SEASON_COLORS[state.season] || SEASON_COLORS.summer;
+    ctx.fillStyle = colors.ground;
+    ctx.fillRect(0, h, cv.width, cv.height - h);
+  }
+}
+
+// Sort plants by y for correct depth ordering
+function sortPlants() {
+  state.plants.sort(function(a, b) { return a.y - b.y; });
+}
+
+// Draw single plant
+function drawPlant(plant) {
+  var stage = calcStage(plant);
+  if (stage === 'seed') return; // invisible in soil
+
+  var px = normX(plant.x);
+  var py = normY(plant.y);
+  var s = plant.size || 0.6;
+
+  // Check for animation override
+  var animScale = 1;
+  if (state.plantAnims[plant.id]) {
+    var anim = state.plantAnims[plant.id];
+    var elapsed = (Date.now() - anim.startTime) / 1000;
+    if (elapsed < 0.4) {
+      // Spring bounce: 1.0 -> 1.15 -> 1.0
+      var t = elapsed / 0.4;
+      animScale = 1 + 0.15 * Math.sin(t * Math.PI) * Math.exp(-t * 5);
+    } else {
+      delete state.plantAnims[plant.id];
+    }
+  }
+
+  var baseScale = stageScale(stage);
+  var drawScale = s * baseScale * animScale;
+  var alpha = stageAlpha(stage);
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+
+  if (stage === 'withered') {
+    ctx.filter = 'grayscale(100%)';
+  }
+
+  var img = getPlantSprite(plant.type, plant.variant);
+
+  if (img) {
+    var iw = img.width, ih = img.height;
+    var dw = iw * drawScale * 1.2, dh = ih * drawScale * 1.2;
+    ctx.drawImage(img, px - dw/2, py - dh, dw, dh);
+  } else {
+    // Fallback: draw colored shape
+    drawFallbackPlant(plant, px, py, drawScale);
+  }
+
+  // Glowing plant halo
+  if (plant.type === 'glowing' && stage === 'blooming') {
+    ctx.filter = 'none';
+    var glowGrad = ctx.createRadialGradient(px, py - 100 * drawScale, 0, px, py - 100 * drawScale, 80 * drawScale);
+    glowGrad.addColorStop(0, 'rgba(255,215,0,0.5)');
+    glowGrad.addColorStop(1, 'rgba(255,215,0,0)');
+    ctx.fillStyle = glowGrad;
+    ctx.beginPath();
+    ctx.arc(px, py - 100 * drawScale, 80 * drawScale, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+// Fallback: draw plant shape without sprite
+function drawFallbackPlant(plant, px, py, scale) {
+  var colors = {
+    fern: '#4a7c3f', flower: '#e8a0b0', mushroom: '#c44b3b',
+    grass: '#6b8c42', succulent: '#7a9a7a', vine: '#3d6b34', glowing: '#ffd700'
+  };
+  var color = colors[plant.type] || '#6b8c42';
+
+  ctx.fillStyle = color;
+  ctx.beginPath();
+
+  switch(plant.type) {
+    case 'fern':
+      // Spiral curve
+      for (var i = 0; i < 20; i++) {
+        var a = i * 0.3, r = i * 3 * scale;
+        ctx.arc(px, py - r, 4 * scale, a, a + 0.5 * scale);
+      }
+      break;
+    case 'flower':
+      // Petal cluster
+      for (var j = 0; j < 6; j++) {
+        var angle = j * Math.PI / 3;
+        ctx.ellipse(px + Math.cos(angle) * 12 * scale, py - 30 * scale + Math.sin(angle) * 12 * scale, 8 * scale, 14 * scale, angle, 0, Math.PI * 2);
+      }
+      ctx.fillStyle = '#ffd700';
+      ctx.arc(px, py - 30 * scale, 6 * scale, 0, Math.PI * 2);
+      break;
+    case 'mushroom':
+      // Dome cap
+      ctx.ellipse(px, py - 25 * scale, 16 * scale, 10 * scale, 0, Math.PI, 0);
+      ctx.fill();
+      ctx.fillStyle = '#e8d8c8';
+      ctx.fillRect(px - 3 * scale, py - 25 * scale, 6 * scale, 20 * scale);
+      break;
+    case 'grass':
+      // Curved blades
+      for (var k = 0; k < 4; k++) {
+        ctx.moveTo(px, py);
+        ctx.quadraticCurveTo(px + (k-1.5) * 10 * scale, py - 20 * scale, px + (k-1.5) * 8 * scale, py - 35 * scale);
+      }
+      break;
+    case 'succulent':
+      // Layered rosette
+      for (var l = 4; l > 0; l--) {
+        ctx.ellipse(px, py - 15 * scale, l * 8 * scale, l * 5 * scale, 0, 0, Math.PI * 2);
+      }
+      break;
+    case 'vine':
+      // Winding tendril
+      ctx.moveTo(px, py);
+      for (var m = 0; m < 15; m++) {
+        ctx.lineTo(px + 8 * scale * Math.sin(m*0.5), py - m * 3 * scale);
+      }
+      break;
+    case 'glowing':
+      ctx.fillStyle = '#ffd700';
+      ctx.arc(px, py - 30 * scale, 15 * scale, 0, Math.PI*2);
+      break;
+  }
+  ctx.fill();
+}
 </script>
 </body>
 </html>
