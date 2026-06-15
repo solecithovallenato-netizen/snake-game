@@ -201,6 +201,16 @@ class Handler(BaseHTTPRequestHandler):
                 "season": garden_season(),
                 "month": time.localtime().tm_mon
             })
+        elif self.path == "/moss.html" or self.path == "/moss":
+            moss_file = os.path.join(os.path.dirname(__file__), "moss.html")
+            if os.path.exists(moss_file):
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.end_headers()
+                with open(moss_file, "rb") as f:
+                    self.wfile.write(f.read())
+            else:
+                self.send_response(404); self.end_headers()
         else:
             self.send_response(404); self.end_headers()
 
