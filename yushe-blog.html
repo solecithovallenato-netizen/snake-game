@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache">
+<meta name="description" content="虞舍 — 读书·写作·思考，个人独立博客">
+<link rel="alternate" type="application/rss+xml" title="虞舍 RSS" href="/api/blog/rss">
+<title>虞舍 · 博客</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#fbf8f3;--card:#fff;--text:#3d3027;--muted:#a89880;--accent:#8b6f4e;--tag-bg:#f0e8da;--border:#e5ddd5;--shadow:0 1px 4px rgba(0,0,0,.04)}
+.dark{--bg:#1e1b18;--card:#2a2520;--text:#d5cdc4;--muted:#8a7e70;--accent:#c0a880;--tag-bg:#3a332a;--border:#3a332a;--shadow:0 1px 4px rgba(0,0,0,.2)}
+body{font-family:"Noto Serif SC",Georgia,serif;background:var(--bg);color:var(--text);min-height:100vh;transition:background .3s,color .3s;scroll-behavior:smooth}
+.container{max-width:680px;margin:0 auto;padding:20px}
+.container-wide{max-width:900px}
+
+#progress-bar{position:fixed;top:0;left:0;height:3px;background:var(--accent);z-index:1000;transition:width .15s linear;border-radius:0 2px 2px 0}
+#backTop{position:fixed;bottom:30px;right:30px;width:40px;height:40px;border-radius:50%;background:var(--accent);color:#fff;border:none;font-size:18px;cursor:pointer;z-index:99;opacity:0;transform:translateY(20px);pointer-events:none;transition:all .3s;box-shadow:0 2px 12px rgba(0,0,0,.15)}
+#backTop.show{opacity:.85;transform:translateY(0);pointer-events:auto}
+#backTop:hover{opacity:1;transform:translateY(-2px)}
+
+.site-header{text-align:center;padding:60px 0 30px;position:relative}
+.site-header h1{font-size:36px;font-weight:700;letter-spacing:6px;color:var(--text)}
+.site-header h1 a{color:var(--text);text-decoration:none}
+.site-header .tagline{font-size:14px;color:var(--muted);margin-top:8px;letter-spacing:2px}
+.header-actions{position:absolute;top:16px;right:0;display:flex;gap:8px}
+.header-actions button,.header-actions a{background:none;border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:12px;cursor:pointer;color:var(--muted);transition:all .2s;font-family:inherit;text-decoration:none}
+.header-actions button:hover,.header-actions a:hover{border-color:var(--accent);color:var(--accent)}
+
+.daily-quote{text-align:center;padding:0 0 24px;font-size:14px;color:var(--muted);font-style:italic;line-height:1.8}
+.daily-quote .q-text{letter-spacing:1px}
+.daily-quote .q-author{font-size:11px;margin-top:4px;opacity:.6;font-style:normal}
+
+.nav{display:flex;justify-content:center;gap:4px;margin-bottom:20px;flex-wrap:wrap}
+.nav button{background:none;border:none;padding:6px 14px;font-size:13px;cursor:pointer;color:var(--muted);border-radius:20px;transition:all .2s;font-family:inherit}
+.nav button:hover{color:var(--accent);background:var(--tag-bg)}
+.nav button.active{background:var(--accent);color:#fff}
+
+.tag-cloud-wrap{position:relative;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.tag-cloud{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;max-height:32px;overflow:hidden;transition:max-height .3s}
+.tag-cloud.expanded{max-height:300px}
+.tag-cloud .tc-tag{font-size:11px;color:var(--muted);padding:3px 10px;border-radius:14px;background:var(--tag-bg);cursor:pointer;transition:all .2s;border:1px solid transparent;white-space:nowrap}
+.tag-cloud .tc-tag:hover,.tag-cloud .tc-tag.active{color:var(--accent);border-color:var(--accent);background:var(--card)}
+.tag-expand{display:none;text-align:center;margin-top:6px}
+.tag-expand button{background:none;border:none;font-size:11px;color:var(--muted);cursor:pointer;padding:2px 12px;font-family:inherit}
+.tag-expand button:hover{color:var(--accent)}
+
+.hot-list{background:var(--card);border-radius:12px;padding:20px;box-shadow:var(--shadow);margin-bottom:20px}
+.hot-list h4{font-size:13px;color:var(--accent);margin-bottom:12px;letter-spacing:2px}
+.hot-list .hot-item{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px;color:var(--muted);cursor:pointer;border-bottom:1px solid var(--border);transition:color .2s}
+.hot-list .hot-item:last-child{border-bottom:none}
+.hot-list .hot-item:hover{color:var(--accent)}
+.hot-list .hot-item .hot-num{font-size:10px;font-weight:700;color:var(--accent);opacity:.5;margin-right:8px;min-width:16px}
+
+.article{background:var(--card);border-radius:12px;padding:24px;box-shadow:var(--shadow);margin-bottom:16px;cursor:pointer;transition:all .3s;opacity:0;transform:translateY(20px);position:relative}
+.article.revealed{opacity:1;transform:translateY(0)}
+.article:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,0,0,.08)}
+.article.pinned{border-left:3px solid var(--accent)}
+.article .pin-badge{display:none;position:absolute;top:12px;left:12px;font-size:10px;color:var(--accent)}
+.article.pinned .pin-badge{display:block}
+.article .meta{font-size:11px;color:var(--muted);margin-bottom:8px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.article .cat{display:inline-block;padding:2px 8px;background:var(--tag-bg);border-radius:10px;font-size:10px;color:var(--accent);font-weight:600}
+.article h2{font-size:20px;font-weight:700;margin-bottom:8px;line-height:1.4;color:var(--text)}
+.article .excerpt{font-size:14px;color:var(--muted);line-height:1.7}
+.article .excerpt.clamped{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.article .cover-thumb{width:100%;height:140px;object-fit:cover;border-radius:8px;margin-bottom:12px}
+.article .tags{margin-top:10px;display:flex;gap:6px;flex-wrap:wrap}
+.article .tag{font-size:10px;color:var(--muted);padding:1px 6px;border-radius:8px;background:var(--tag-bg)}
+
+/* Capsule article */
+.capsule-card{background:var(--card);border-radius:12px;padding:24px;box-shadow:var(--shadow);margin-bottom:16px;text-align:center;border:1px dashed var(--accent)}
+.capsule-card .capsule-icon{font-size:36px;margin-bottom:12px}
+.capsule-card .capsule-title{font-size:18px;font-weight:700;color:var(--text);margin-bottom:8px}
+.capsule-card .capsule-countdown{font-size:24px;color:var(--accent);font-weight:700;margin-bottom:4px}
+.capsule-card .capsule-label{font-size:11px;color:var(--muted);margin-bottom:8px}
+.capsule-card .capsule-meta{font-size:11px;color:var(--muted)}
+
+/* Birdview */
+#birdview-canvas{display:block;width:100%;border-radius:12px;cursor:grab;background:var(--card);box-shadow:var(--shadow)}
+#birdview-canvas:active{cursor:grabbing}
+.bv-tooltip{position:fixed;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--text);pointer-events:none;z-index:100;box-shadow:0 4px 20px rgba(0,0,0,.15);opacity:0;transition:opacity .15s;max-width:220px}
+.bv-tooltip.show{opacity:1}
+
+/* Poster modal */
+.poster-modal{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s}
+.poster-modal.show{opacity:1;pointer-events:auto}
+.poster-modal .pm-inner{background:var(--card);border-radius:16px;padding:24px;text-align:center;max-width:420px;width:90%}
+.poster-modal canvas{border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,.2);max-width:100%;margin-bottom:16px}
+.poster-modal button{background:var(--accent);color:#fff;border:none;border-radius:20px;padding:10px 24px;font-size:14px;cursor:pointer;font-family:inherit;margin:4px}
+.poster-modal button.secondary{background:var(--bg);color:var(--muted);border:1px solid var(--border)}
+
+.article-detail{background:var(--card);border-radius:12px;padding:32px;box-shadow:var(--shadow)}
+.article-detail h1{font-size:28px;font-weight:700;line-height:1.4;margin-bottom:16px}
+.article-detail .cover-img{width:100%;border-radius:10px;margin-bottom:20px}
+.article-detail .content{font-size:16px;line-height:2;color:var(--text)}
+.article-detail .content p{margin-bottom:16px}
+.article-detail .content pre{background:var(--tag-bg);padding:16px;border-radius:8px;overflow-x:auto;font-size:13px;margin:16px 0}
+.article-detail .content code{font-size:.9em;background:var(--tag-bg);padding:2px 6px;border-radius:4px}
+.article-detail .content blockquote{border-left:3px solid var(--accent);padding:8px 16px;margin:16px 0;color:var(--muted);font-style:italic}
+.back-btn{background:none;border:1px solid var(--border);border-radius:20px;padding:6px 16px;font-size:13px;cursor:pointer;color:var(--muted);margin-bottom:20px;font-family:inherit;transition:all .2s}
+.back-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+.code-block{position:relative}
+.code-block .copy-btn{position:absolute;top:8px;right:8px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:3px 10px;font-size:10px;cursor:pointer;color:var(--muted);opacity:0;transition:opacity .2s;font-family:inherit}
+.code-block:hover .copy-btn{opacity:1}
+.code-block .copy-btn.copied{color:#27ae60;border-color:#27ae60}
+
+.article-stats{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.article-stats span{display:flex;align-items:center;gap:4px}
+
+.toc{background:var(--tag-bg);border-radius:10px;padding:16px 20px;margin-bottom:20px;font-size:13px}
+.toc h4{font-size:13px;color:var(--accent);margin-bottom:8px;letter-spacing:1px}
+.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;transition:color .2s}
+.toc a:hover{color:var(--accent)}
+
+.related{margin-top:24px;padding-top:20px;border-top:1px solid var(--border)}
+.related h3{font-size:15px;color:var(--text);margin-bottom:12px}
+.related .rel-item{display:block;padding:8px 0;text-decoration:none;color:var(--muted);font-size:14px;border-bottom:1px solid var(--border);cursor:pointer;transition:color .2s}
+.related .rel-item:hover{color:var(--accent)}
+
+.comments{margin-top:24px;padding-top:20px;border-top:1px solid var(--border)}
+.comments h3{font-size:16px;margin-bottom:16px;color:var(--text)}
+.comment{padding:10px 0;border-bottom:1px solid var(--border)}
+.comment .c-name{font-size:13px;font-weight:600;color:var(--accent)}
+.comment .c-text{font-size:14px;margin-top:4px;line-height:1.6}
+.comment .c-time{font-size:10px;color:var(--muted);margin-top:4px}
+.comment-form{display:flex;gap:8px;margin-top:16px}
+.comment-form input{flex:1;border-radius:20px;border:1px solid var(--border);padding:10px 16px;font-size:13px;outline:none;background:var(--bg);color:var(--text);font-family:inherit}
+.comment-form input:focus{border-color:var(--accent)}
+.comment-form button{background:var(--accent);color:#fff;border:none;border-radius:20px;padding:10px 20px;font-size:13px;cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap}
+
+.search-bar{margin-bottom:16px}
+.search-bar input{width:100%;border-radius:24px;border:1px solid var(--border);padding:12px 20px;font-size:15px;outline:none;background:var(--card);color:var(--text);font-family:inherit;transition:all .2s}
+.search-bar input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(139,111,78,.1)}
+
+.empty{text-align:center;padding:80px 20px;color:var(--muted)}.empty .icon{font-size:48px;margin-bottom:16px}
+
+.archive-group{margin-bottom:24px}
+.archive-group .ar-month{font-size:18px;font-weight:700;color:var(--accent);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+.archive-group .ar-item{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;transition:color .2s;font-size:14px}
+.archive-group .ar-item:hover{color:var(--accent)}
+.archive-group .ar-item .ar-date{font-size:11px;color:var(--muted);white-space:nowrap;margin-left:12px}
+
+.friends-list{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.friend-card{background:var(--card);border-radius:12px;padding:20px;box-shadow:var(--shadow);text-align:center;transition:all .2s;text-decoration:none}
+.friend-card:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,0,0,.08)}
+.friend-card .f-avatar{width:48px;height:48px;border-radius:50%;background:var(--tag-bg);margin:0 auto 10px;display:flex;align-items:center;justify-content:center;font-size:24px}
+.friend-card .f-name{font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px}
+.friend-card .f-desc{font-size:11px;color:var(--muted);line-height:1.5}
+
+.about-section{text-align:center}
+.about-section .about-avatar{width:80px;height:80px;border-radius:50%;background:var(--tag-bg);margin:0 auto 20px;display:flex;align-items:center;justify-content:center;font-size:40px}
+.about-section h2{font-size:22px;margin-bottom:8px}
+.about-section .about-bio{font-size:14px;color:var(--muted);line-height:2;max-width:400px;margin:0 auto 20px}
+.about-section .about-links{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
+.about-section .about-links a{font-size:13px;color:var(--accent);text-decoration:none;border:1px solid var(--border);border-radius:20px;padding:6px 16px;transition:all .2s}
+.about-section .about-links a:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+.admin-section{margin-top:32px;padding:24px;background:var(--card);border-radius:12px;box-shadow:var(--shadow);display:none}
+.admin-section input,.admin-section textarea,.admin-section select{width:100%;border-radius:12px;border:1px solid var(--border);padding:10px 14px;font-size:14px;outline:none;background:var(--bg);color:var(--text);font-family:inherit;margin-bottom:10px;resize:vertical}
+.admin-section textarea{min-height:150px}
+.admin-section input:focus,.admin-section textarea:focus{border-color:var(--accent)}
+.admin-section button{background:var(--accent);color:#fff;border:none;border-radius:20px;padding:10px 24px;font-size:14px;cursor:pointer;font-family:inherit;font-weight:600}
+.admin-section .row{display:flex;gap:8px;flex-wrap:wrap}
+.admin-section .row input{flex:1;min-width:100px}
+
+.article .admin-actions{position:absolute;top:12px;right:12px;display:none;gap:4px;z-index:2}
+.admin .article .admin-actions{display:flex}
+.admin-actions button{background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:3px 10px;font-size:10px;cursor:pointer;color:var(--muted);transition:all .2s;font-family:inherit}
+.admin-actions button:hover{border-color:var(--accent);color:var(--accent)}
+.admin-actions button.danger:hover{border-color:#c0392b;color:#c0392b}
+.detail-admin-bar{display:none;gap:8px;margin-bottom:12px}
+.admin .detail-admin-bar{display:flex}
+.detail-admin-bar button{background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:5px 14px;font-size:11px;cursor:pointer;color:var(--muted);font-family:inherit;transition:all .2s}
+.detail-admin-bar button:hover{border-color:var(--accent);color:var(--accent)}
+.detail-admin-bar button.danger:hover{border-color:#c0392b;color:#c0392b}
+
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;padding:10px 24px;border-radius:20px;font-size:13px;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+
+.site-footer{text-align:center;padding:40px 20px;color:var(--muted);font-size:12px;letter-spacing:1px;border-top:1px solid var(--border);margin-top:40px}
+.site-footer a{color:var(--accent);text-decoration:none}
+.site-footer .sep{margin:0 8px;opacity:.4}
+
+@media(max-width:480px){
+  .container{padding:12px}.site-header h1{font-size:28px}.article h2{font-size:18px}
+  .article-detail{padding:20px}.header-actions{top:8px;right:8px}
+  #backTop{bottom:20px;right:16px;width:36px;height:36px;font-size:16px}
+  .article-stats{font-size:11px;gap:10px}.friends-list{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div id="progress-bar"></div>
+<div class="container" id="mainContainer">
+  <div class="site-header">
+    <h1><a href="/" onclick="renderView();return false">虞 舍</a></h1>
+    <p class="tagline">读书 · 写作 · 思考</p>
+    <div class="header-actions">
+      <button onclick="renderAbout()">关于</button>
+      <a href="/moss" style="text-decoration:none;color:inherit"><button>🌿 花园</button></a>
+      <button onclick="randomArticle()" title="随便看看">🎲</button>
+      <button onclick="toggleDark()" id="darkBtn" title="暗黑模式">🌙</button>
+    </div>
+  </div>
+  <div class="daily-quote" id="dailyQuote"></div>
+  <div class="search-bar" id="searchBar"><input type="text" id="searchInput" placeholder="搜索文章... 按 / 快速聚焦" oninput="renderArticles()"></div>
+  <div class="nav" id="navBar">
+    <button class="active" data-cat="all">全部</button>
+    <button data-cat="技术">技术</button>
+    <button data-cat="生活">生活</button>
+    <button data-cat="随笔">随笔</button>
+    <button data-cat="分享">分享</button>
+    <button data-cat="__archive__">📅 归档</button>
+    <button data-cat="__capsule__">⏳ 胶囊</button>
+    <button data-cat="__birdview__">🗺️ 鸟瞰</button>
+    <button data-cat="__friends__">🔗 友链</button>
+    <button data-cat="__hot__">🔥 热榜</button>
+  </div>
+  <div class="tag-cloud-wrap" id="tagCloudWrap" style="display:none">
+    <div class="tag-cloud" id="tagCloud"></div>
+    <div class="tag-expand" id="tagExpand"><button onclick="toggleTagCloud()">展开全部 ▾</button></div>
+  </div>
+  <div id="articleList"></div>
+  <div id="articleDetail" style="display:none"></div>
+  <canvas id="birdview-canvas" style="display:none" width="900" height="600"></canvas>
+  <div class="bv-tooltip" id="bvTooltip"></div>
+
+  <div class="admin-section" id="adminPanel">
+    <h3 style="margin-bottom:16px;font-size:16px;color:var(--accent)">📝 写文章</h3>
+    <div class="row"><input type="text" id="newTitle" placeholder="文章标题"><select id="newCat"><option>技术</option><option>生活</option><option>随笔</option><option>分享</option></select></div>
+    <input type="text" id="newTags" placeholder="标签，用逗号分隔">
+    <input type="text" id="newCover" placeholder="封面图 URL（可选）">
+    <div class="row"><input type="text" id="newReveal" placeholder="定时发布：2026/12/31 留空=立即发布"><span style="font-size:11px;color:var(--muted);white-space:nowrap">时间胶囊</span></div>
+    <textarea id="newContent" placeholder="正文（支持 Markdown 标题和换行）"></textarea>
+    <button onclick="publishArticle()" id="publishBtn">发布</button>
+    <button onclick="cancelEdit()" id="cancelEditBtn" style="display:none;background:var(--bg);color:var(--muted);border:1px solid var(--border)">取消</button>
+    <span style="font-size:11px;color:var(--muted);margin-left:8px">Ctrl+K 切换 | / 搜索 Esc 返回</span>
+  </div>
+
+  <footer class="site-footer">
+    虞舍<span class="sep">·</span>读书 · 写作 · 思考
+    <br><span style="opacity:.6">&copy; 2025–2026 Yushe Blog</span>
+    <br><span style="font-size:10px;opacity:.35"><a href="/api/blog/rss">RSS 订阅</a> · 独立博客 · 自建空间</span>
+  </footer>
+</div>
+
+<div class="poster-modal" id="posterModal">
+  <div class="pm-inner">
+    <canvas id="posterCanvas" width="600" height="800" style="width:300px;height:400px"></canvas>
+    <div>
+      <button onclick="downloadPoster()">💾 下载海报</button>
+      <button class="secondary" onclick="closePoster()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<button id="backTop" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="回到顶部">↑</button>
+<div class="toast" id="toast"></div>
+
+<script>
+var API='/api/blog',allArticles=[],activeCat='all',isAdmin=false,adminPwd='ys2026',editingId=null,activeTag='';
+
+function h(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML}
+function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2000)}
+function fmtDate(ts){var d=new Date(ts);return d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate()}
+function wordCount(t){return (t||'').replace(/\s/g,'').length}
+function readTime(t){var c=wordCount(t);var m=Math.max(1,Math.ceil(c/400));return m+' 分钟'}
+function fmtArchive(ts){var d=new Date(ts);return d.getFullYear()+'年'+(d.getMonth()+1)+'月'}
+function isRevealed(a){var ra=a.revealAt;if(!ra)return true;return Date.now()>=ra}
+function countdown(ts){var diff=ts-Date.now();if(diff<=0)return '已解锁';
+  var d=Math.floor(diff/86400000),h=Math.floor((diff%86400000)/3600000);
+  if(d>0)return d+' 天 '+h+' 小时后解锁';
+  var m=Math.floor((diff%3600000)/60000);
+  return h+' 小时 '+m+' 分钟后解锁'}
+
+// Daily Quote
+var quotes=[{t:'技术是改变世界的力量，但文字是理解世界的方式。',a:''},{t:'好的代码像一首诗，好的文章像一个人。',a:''},{t:'写作是为了知道自己在想什么。',a:'—— William Zinsser'},{t:'简单是最高级的复杂。',a:'—— Leonardo da Vinci'},{t:'要么写值得读的东西，要么做值得写的事。',a:'—— Benjamin Franklin'},{t:'程序员的浪漫，是把一行行代码写成诗。',a:''},{t:'安静地写，慢慢地读，深深地想。',a:''},{t:'思而不学则殆，学而不思则罔。',a:'—— 孔子'},{t:'阅读是随身携带的避难所。',a:'—— W. Somerset Maugham'},{t:'万物皆有裂痕，那是光照进来的地方。',a:'—— Leonard Cohen'},{t:'一个人只拥有此生此世是不够的，他还应该拥有诗意的世界。',a:'—— 王小波'}];
+function initQuote(){var d=new Date(),seed=d.getFullYear()*1000+d.getMonth()*50+d.getDate(),q=quotes[seed%quotes.length];document.getElementById('dailyQuote').innerHTML='<div class="q-text">"'+h(q.t)+'"</div>'+(q.a?'<div class="q-author">'+h(q.a)+'</div>':'')}
+
+// Dark
+if(localStorage.getItem('blog_dark')==='1'){document.documentElement.classList.add('dark');document.getElementById('darkBtn').textContent='☀️'}
+function toggleDark(){var isDark=document.documentElement.classList.toggle('dark');localStorage.setItem('blog_dark',isDark?'1':'0');document.getElementById('darkBtn').textContent=isDark?'☀️':'🌙'}
+
+async function loadArticles(){try{var r=await fetch(API+'/articles');allArticles=await r.json();renderView()}catch(e){}}
+function sortArticles(list){return list.sort(function(a,b){if((a.pinned||0)!==(b.pinned||0))return(b.pinned||0)-(a.pinned||0);return(b.createdAt||0)-(a.createdAt||0)})}
+function randomArticle(){var visible=allArticles.filter(isRevealed);if(!visible.length)return;showArticle(visible[Math.floor(Math.random()*visible.length)].id)}
+
+function renderView(){
+  var cat=activeCat;
+  document.getElementById('mainContainer').classList.remove('container-wide');
+  document.getElementById('birdview-canvas').style.display='none';
+  document.getElementById('searchBar').style.display=(cat==='__birdview__'||cat==='__capsule__')?'none':'block';
+  if(cat==='__archive__'){renderArchive();return}
+  if(cat==='__friends__'){renderFriends();return}
+  if(cat==='__hot__'){renderHot();return}
+  if(cat==='__birdview__'){renderBirdview();return}
+  if(cat==='__capsule__'){renderCapsules();return}
+  if(cat==='__about__'){renderAbout();return}
+  renderArticles();renderTagCloud();
+}
+
+function renderArticles(){
+  var q=(document.getElementById('searchInput').value||'').toLowerCase();
+  var list=allArticles.filter(function(a){if(!isRevealed(a))return false;if(activeCat!=='all'&&a.category!==activeCat)return false;if(activeTag){var tags=(a.tags||'').split(',').map(function(t){return t.trim().toLowerCase()});if(tags.indexOf(activeTag.toLowerCase())<0)return false}if(q&&a.title.toLowerCase().indexOf(q)<0&&(a.content||'').toLowerCase().indexOf(q)<0)return false;return true});
+  sortArticles(list);
+  var html='';
+  if(!list.length)html='<div class="empty"><div class="icon">📖</div><p>暂无文章</p></div>';
+  else list.forEach(function(a){
+    var excerpt=(a.content||'').replace(/#{1,6}\s/g,'').replace(/\*\*/g,'').replace(/`/g,'').replace(/\n/g,' ').slice(0,200);
+    var tags=(a.tags||'').split(',').filter(Boolean);
+    html+='<div class="article'+(a.pinned?' pinned':'')+'" onclick="showArticle(\''+a.id+'\')">'+
+      (a.pinned?'<div class="pin-badge">📌</div>':'')+
+      '<div class="admin-actions" onclick="event.stopPropagation()">'+
+        '<button onclick="togglePin(event,\''+a.id+'\')">📌</button>'+
+        '<button onclick="editArticle(\''+a.id+'\')">✏️</button>'+
+        '<button class="danger" onclick="deleteArticle(\''+a.id+'\')">🗑</button>'+
+      '</div>'+
+      (a.cover?'<img class="cover-thumb" src="'+h(a.cover)+'" loading="lazy">':'')+
+      '<div class="meta"><span class="cat">'+h(a.category||'未分类')+'</span><span>'+fmtDate(a.createdAt)+'</span><span>⏱ '+readTime(a.content||'')+'</span><span>💬 '+(a.comments||[]).length+'</span><span>👁 '+(a.views||0)+'</span></div>'+
+      '<h2>'+h(a.title)+'</h2>'+
+      '<div class="excerpt clamped">'+h(excerpt)+(excerpt.length>=200?'...':'')+'</div>'+
+      (tags.length?'<div class="tags">'+tags.map(function(t){return'<span class="tag">#'+h(t.trim())+'</span>'}).join('')+'</div>':'')+
+    '</div>';
+  });
+  showList(html);
+  document.getElementById('tagCloudWrap').style.display=activeTag||(!list.length)?'block':'block';
+  setTimeout(function(){
+    document.querySelectorAll('.article:not(.revealed)').forEach(function(el,i){setTimeout(function(){el.classList.add('revealed')},i*80)});
+  },50);
+}
+
+// Capsule
+function renderCapsules(){
+  document.getElementById('tagCloudWrap').style.display='none';
+  var now=Date.now();
+  var capsules=allArticles.filter(function(a){return !isRevealed(a)});
+  var html='<div style="padding:20px 0"><h2 style="text-align:center;font-size:20px;margin-bottom:20px">⏳ 时间胶囊</h2>';
+  if(!capsules.length)html+='<div class="empty"><div class="icon">⏳</div><p>暂无等待解锁的文章</p></div>';
+  else{
+    capsules.sort(function(a,b){return(a.revealAt||0)-(b.revealAt||0)});
+    capsules.forEach(function(a){
+      var cd=countdown(a.revealAt);
+      html+='<div class="capsule-card"><div class="capsule-icon">🔒</div><div class="capsule-countdown">'+h(cd)+'</div><div class="capsule-label">'+(cd==='已解锁'?'已可阅读':'等待发布')+'</div><div class="capsule-title">'+h(a.title)+'</div><div class="capsule-meta">'+h(a.category||'')+' · '+fmtDate(new Date(a.revealAt))+' 解锁</div></div>';
+    });
+  }
+  html+='<p style="text-align:center;font-size:12px;color:var(--muted);margin-top:16px">创建文章时设置未来日期，它就会变成一颗等待成熟的时间胶囊 💊</p></div>';
+  showList(html);
+}
+
+// Birdview
+var bvState={ox:0,oy:0,cx:0,cy:0,scale:1,dragging:false};
+function renderBirdview(){
+  document.getElementById('tagCloudWrap').style.display='none';
+  document.getElementById('mainContainer').classList.add('container-wide');
+  document.getElementById('searchBar').style.display='none';
+  var canvas=document.getElementById('birdview-canvas');
+  canvas.style.display='block';
+  bvState={ox:0,oy:0,cx:0,cy:0,scale:1,dragging:false};
+  drawBirdview();
+
+  canvas.onmousedown=function(e){bvState.dragging=true;bvState.cx=e.clientX;bvState.cy=e.clientY;e.preventDefault()};
+  canvas.onmousemove=function(e){
+    if(bvState.dragging){bvState.ox+=e.clientX-bvState.cx;bvState.cy+=e.clientY-bvState.cy;bvState.cx=e.clientX;bvState.cy=e.clientY;drawBirdview();return}
+    // Hover detection
+    var rect=canvas.getBoundingClientRect();
+    var mx=(e.clientX-rect.left-bvState.ox)/bvState.scale,my=(e.clientY-rect.top-bvState.oy)/bvState.scale;
+    var hovered=null;
+    var C=allArticles.filter(isRevealed).map(function(a,i){
+      var catIdx=['技术','生活','随笔','分享'].indexOf(a.category||'');
+      if(catIdx<0)catIdx=0;
+      var cx=150+catIdx*180+30*Math.sin(i*3.7)+10*Math.sin(i*1.3);
+      var cy=100+60*(i%8)+40*Math.cos(i*2.1)+Math.floor(i/8)*70;
+      var r=3+Math.min(12,(a.views||0)/5);
+      return {a:a,cx:cx,cy:cy,r:r};
+    });
+    for(var i=C.length-1;i>=0;i--){var d=Math.hypot(mx-C[i].cx,my-C[i].cy);if(d<C[i].r+6){hovered=C[i].a;break}}
+    if(hovered){
+      var tt=document.getElementById('bvTooltip');
+      tt.innerHTML='<b>'+h(hovered.title)+'</b><br><span style="font-size:10px;opacity:.6">'+h(hovered.category)+' · '+fmtDate(hovered.createdAt)+' · '+readTime(hovered.content||'')+'</span>';
+      tt.style.left=e.clientX+12+'px';tt.style.top=e.clientY-40+'px';tt.classList.add('show');
+      canvas.style.cursor='pointer';
+      canvas._hoverId=hovered.id;
+    }else{var tt=document.getElementById('bvTooltip');tt.classList.remove('show');canvas.style.cursor='grab';canvas._hoverId=null}
+  };
+  canvas.onmouseup=function(e){bvState.dragging=false;
+    if(canvas._hoverId&&Math.abs(e.clientX-bvState.cx)<5&&Math.abs(e.clientY-bvState.cy)<5){showArticle(canvas._hoverId)}
+  };
+  canvas.onwheel=function(e){e.preventDefault();bvState.scale*=e.deltaY<0?1.1:0.9;bvState.scale=Math.max(.5,Math.min(3,bvState.scale));drawBirdview()};
+  canvas.ontouchstart=function(e){var t=e.touches[0];bvState.dragging=true;bvState.cx=t.clientX;bvState.cy=t.clientY};
+  canvas.ontouchmove=function(e){if(bvState.dragging&&e.touches.length===1){var t=e.touches[0];bvState.ox+=t.clientX-bvState.cx;bvState.cy+=t.clientY-bvState.cy;bvState.cx=t.clientX;bvState.cy=t.clientY;drawBirdview()}};
+  canvas.ontouchend=function(){bvState.dragging=false};
+}
+
+function drawBirdview(){
+  var canvas=document.getElementById('birdview-canvas');
+  var ctx=canvas.getContext('2d');
+  var W=canvas.width,H=canvas.height;
+  var bg=getComputedStyle(document.body).getPropertyValue('--card').trim();
+  ctx.fillStyle=bg||'#fff';ctx.fillRect(0,0,W,H);
+
+  ctx.save();ctx.translate(bvState.ox,bvState.oy);ctx.scale(bvState.scale,bvState.scale);
+
+  // Regions
+  var cats=['技术','生活','随笔','分享'];
+  var colors=['rgba(139,111,78,.06)','rgba(139,111,78,.04)','rgba(139,111,78,.02)','rgba(139,111,78,.08)'];
+  cats.forEach(function(c,i){
+    ctx.fillStyle=colors[i];ctx.beginPath();
+    ctx.roundRect(80+i*180,40,160,520,12);ctx.fill();
+  });
+  // Category labels
+  ctx.fillStyle='rgba(139,111,78,.3)';ctx.font='28px "Noto Serif SC",serif';ctx.textAlign='center';
+  cats.forEach(function(c,i){ctx.fillText(c,80+i*180+80,80)});
+
+  // Articles as dots
+  var articles=allArticles.filter(isRevealed);
+  var pos=[];
+  articles.forEach(function(a,i){
+    var catIdx=cats.indexOf(a.category||'');if(catIdx<0)catIdx=0;
+    var cx=80+catIdx*180+80+Math.sin(i*3.7)*55+Math.cos(i*1.9)*30;
+    var cy=110+55*(i%7)+40*Math.sin(i*2.1)+Math.floor(i/7)*60;
+    var r=3+Math.min(10,(a.views||0)/3);
+    pos.push({a:a,cx:cx,cy:cy,r:r});
+  });
+
+  // Draw connections (same tags)
+  pos.forEach(function(p1){
+    pos.forEach(function(p2){
+      if(p1.a.id>=p2.a.id)return;
+      var t1=(p1.a.tags||'').split(',').map(function(t){return t.trim()});
+      var t2=(p2.a.tags||'').split(',').map(function(t){return t.trim()});
+      var overlap=t1.filter(function(t){return t2.indexOf(t)>=0});
+      if(overlap.length>=2){
+        ctx.strokeStyle='rgba(139,111,78,'+(.05+overlap.length*.02)+')';
+        ctx.lineWidth=.5;ctx.beginPath();ctx.moveTo(p1.cx,p1.cy);ctx.lineTo(p2.cx,p2.cy);ctx.stroke();
+      }
+    });
+  });
+
+  // Draw dots
+  pos.forEach(function(p){
+    ctx.fillStyle='rgba(139,111,78,'+(.4+p.r*.05)+')';ctx.beginPath();ctx.arc(p.cx,p.cy,p.r,0,Math.PI*2);ctx.fill();
+    if(p.a.pinned){ctx.fillStyle='#d4a574';ctx.beginPath();ctx.arc(p.cx,p.cy-2,2,0,Math.PI*2);ctx.fill()}
+  });
+
+  ctx.restore();
+
+  // Legend
+  ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--muted').trim()||'#a89880';
+  ctx.font='11px sans-serif';ctx.textAlign='left';
+  ctx.fillText('拖拽移动 · 滚轮缩放 · 点击文章 · 连线=同标签',10,H-10);
+}
+
+// Poster generation
+function generatePoster(a){
+  var canvas=document.getElementById('posterCanvas');
+  var ctx=canvas.getContext('2d');
+  var W=600,H=800;
+  // Background
+  var bg='#fbf8f3';try{bg=getComputedStyle(document.body).getPropertyValue('--bg').trim()}catch(e){}
+  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+  // Decorative top bar
+  ctx.fillStyle='#8b6f4e';ctx.fillRect(0,0,W,6);
+  // Title
+  ctx.fillStyle='#3d3027';ctx.font='bold 42px "Noto Serif SC",Georgia,serif';ctx.textAlign='center';
+  var title=a.title||'Untitled';
+  var lines=wrapText(ctx,title,W-120);
+  lines.forEach(function(l,i){ctx.fillText(l,W/2,80+i*52)});
+  var titleEnd=80+lines.length*52+20;
+  // Meta
+  ctx.fillStyle='#a89880';ctx.font='18px "Noto Serif SC",serif';
+  ctx.fillText(fmtDate(a.createdAt||Date.now())+' · '+readTime(a.content||''),W/2,titleEnd);
+  // Divider
+  ctx.fillStyle='#e5ddd5';ctx.fillRect(100,titleEnd+20,W-200,1);
+  // Excerpt
+  var excerpt=(a.content||'').replace(/#{1,6}\s/g,'').replace(/\*\*/g,'').replace(/`/g,'').slice(0,400);
+  ctx.fillStyle='#a89880';ctx.font='20px "Noto Serif SC",serif';
+  var exLines=wrapText(ctx,excerpt,W-120);
+  exLines.slice(0,10).forEach(function(l,i){ctx.fillText(l,W/2,titleEnd+60+i*32)});
+  // QR / footer
+  ctx.fillStyle='#3d3027';ctx.font='16px "Noto Serif SC",serif';
+  ctx.fillText('虞舍 · 读书 写作 思考',W/2,H-80);
+  ctx.fillStyle='#a89880';ctx.font='13px sans-serif';ctx.fillText('yushe-blog',W/2,H-55);
+}
+
+function wrapText(ctx,text,maxWidth){
+  var words=text.split('');var lines=[];var current='';
+  for(var i=0;i<words.length;i++){
+    var test=current+words[i];
+    if(ctx.measureText(test).width>maxWidth&&current.length>0){lines.push(current);current=words[i]}
+    else current=test;
+  }
+  if(current)lines.push(current);
+  return lines;
+}
+
+function openPoster(id){
+  var a=allArticles.find(function(x){return x.id===id});if(!a)return;
+  generatePoster(a);
+  document.getElementById('posterModal').classList.add('show');
+}
+
+function closePoster(){document.getElementById('posterModal').classList.remove('show')}
+
+function downloadPoster(){
+  var canvas=document.getElementById('posterCanvas');
+  var link=document.createElement('a');link.download='虞舍_文章海报.png';link.href=canvas.toDataURL();link.click();toast('海报已下载')
+}
+
+// -- existing functions continue --
+function renderTagCloud(){
+  var tags={};
+  allArticles.filter(isRevealed).forEach(function(a){(a.tags||'').split(',').forEach(function(t){t=t.trim();if(t){tags[t]=(tags[t]||0)+1}})});
+  var keys=Object.keys(tags).sort(function(a,b){return tags[b]-tags[a]});
+  var wrap=document.getElementById('tagCloudWrap');
+  if(!keys.length){wrap.style.display='none';return}
+  wrap.style.display='block';document.getElementById('tagCloud').classList.remove('expanded');
+  var html='';
+  keys.forEach(function(t){html+='<span class="tc-tag'+(activeTag===t?' active':'')+'" onclick="filterByTag(\''+h(t)+'\')">'+h(t)+' ('+tags[t]+')</span>'});
+  if(activeTag)html+='<span class="tc-tag" onclick="filterByTag(null)" style="font-weight:600">✕ 清除</span>';
+  document.getElementById('tagCloud').innerHTML=html;
+  setTimeout(function(){var c=document.getElementById('tagCloud');document.getElementById('tagExpand').style.display=c.scrollHeight>40?'block':'none'},100);
+}
+function filterByTag(tag){activeTag=tag||'';renderArticles();renderTagCloud()}
+function toggleTagCloud(){var c=document.getElementById('tagCloud'),b=document.getElementById('tagExpand').querySelector('button');if(c.classList.contains('expanded')){c.classList.remove('expanded');b.textContent='展开全部 ▾'}else{c.classList.add('expanded');b.textContent='收起 ▴'}}
+
+function renderArchive(){
+  document.getElementById('tagCloudWrap').style.display='none';
+  var groups={};
+  allArticles.filter(isRevealed).forEach(function(a){var m=fmtArchive(a.createdAt);if(!groups[m])groups[m]=[];groups[m].push(a)});
+  var keys=Object.keys(groups).sort().reverse();
+  var html='';
+  if(!keys.length)html='<div class="empty"><div class="icon">📅</div><p>暂无文章</p></div>';
+  else keys.forEach(function(m){html+='<div class="archive-group"><div class="ar-month">'+m+'</div>';sortArticles(groups[m]).forEach(function(a){html+='<div class="ar-item" onclick="showArticle(\''+a.id+'\')"><span>'+h(a.title)+'</span><span class="ar-date">'+fmtDate(a.createdAt)+' · '+readTime(a.content||'')+'</span></div>'});html+='</div>'});
+  showList(html);
+}
+function renderFriends(){
+  document.getElementById('tagCloudWrap').style.display='none';
+  var friends=[{name:'GitHub',desc:'全球最大代码托管平台',icon:'🐙',url:'https://github.com'},{name:'掘金',desc:'开发者技术社区',icon:'💎',url:'https://juejin.cn'},{name:'阮一峰的网络日志',desc:'科技爱好者周刊',icon:'📰',url:'https://ruanyifeng.com/blog'},{name:'Hacker News',desc:'硅谷技术社区',icon:'🔷',url:'https://news.ycombinator.com'},{name:'MDN Web Docs',desc:'Web 开发文档',icon:'📘',url:'https://developer.mozilla.org'},{name:'Stack Overflow',desc:'程序员问答社区',icon:'📚',url:'https://stackoverflow.com'}];
+  var html='<div style="padding:20px 0"><h2 style="text-align:center;font-size:20px;margin-bottom:20px">🔗 友情链接</h2><div class="friends-list">';
+  friends.forEach(function(f){html+='<a class="friend-card" href="'+h(f.url)+'" target="_blank" rel="noopener"><div class="f-avatar">'+f.icon+'</div><div class="f-name">'+h(f.name)+'</div><div class="f-desc">'+h(f.desc)+'</div></a>'});
+  html+='</div></div>';showList(html);
+}
+function renderHot(){
+  document.getElementById('tagCloudWrap').style.display='none';
+  var sorted=allArticles.filter(isRevealed).sort(function(a,b){return(b.views||0)-(a.views||0)}).slice(0,10);
+  var html='<div style="padding:20px 0"><h2 style="text-align:center;font-size:20px;margin-bottom:20px">🔥 热门文章 TOP 10</h2><div class="hot-list">';
+  sorted.forEach(function(a,i){html+='<div class="hot-item" onclick="showArticle(\''+a.id+'\')"><span><span class="hot-num">'+(i+1)+'.</span>'+h(a.title)+'</span><span style="font-size:11px">'+h(a.views||0)+' 👁</span></div>'});
+  html+='</div></div>';showList(html);
+}
+function renderAbout(){
+  document.getElementById('tagCloudWrap').style.display='none';
+  var totalWords=allArticles.reduce(function(s,a){return s+wordCount(a.content||'')},0);
+  var html='<div class="about-section" style="padding:40px 0"><div class="about-avatar">🏡</div><h2>关于虞舍</h2><div class="about-bio"><p>虞舍是一个独立个人博客，创建于 2025 年。</p><p>这里记录技术笔记、生活感悟和阅读分享。没有算法推荐，没有流量焦虑，只有安静的文字。</p><p>目前共有 <b>'+allArticles.length+'</b> 篇文章，累计约 <b>'+Math.floor(totalWords/10000)+'</b> 万字。</p></div><div class="about-links"><a href="javascript:void(0)" onclick="activeCat=\'all\';renderView()">📖 全部文章</a><a href="/api/blog/rss" target="_blank">📡 RSS 订阅</a>'+(isAdmin?'<a href="javascript:void(0)" onclick="setAdmin(false)">🔒 退出管理</a>':'')+'</div></div>';
+  showList(html);
+}
+function showList(html){
+  document.getElementById('articleList').style.display='block';
+  document.getElementById('articleDetail').style.display='none';
+  document.getElementById('articleList').innerHTML=html;
+  document.getElementById('progress-bar').style.width='0%';
+}
+
+function showArticle(id){
+  var a=allArticles.find(function(x){return x.id===id});if(!a)return;
+  fetch(API+'/articles/'+id+'/view',{method:'POST'});a.views=(a.views||0)+1;
+  var tags=(a.tags||'').split(',').filter(Boolean),comments=a.comments||[],wc=wordCount(a.content||''),rt=readTime(a.content||'');
+  var rawHtml=h(a.content),contentWithIds=rawHtml,tocHtml='';
+  var headings=rawHtml.match(/<h3>[^<]+<\/h3>/g);
+  if(headings&&headings.length){tocHtml='<div class="toc"><h4>📑 目录</h4>';headings.forEach(function(hd,i){var text=hd.replace(/<\/?h3>/g,''),id='hd-'+i+'-'+text.replace(/[^a-zA-Z0-9一-龥\x20]/g,'').replace(/\s+/g,'-').slice(0,30);contentWithIds=contentWithIds.replace(hd,'<h3 id="'+id+'">'+text+'</h3>');tocHtml+='<a href="#'+id+'" class="toc-h3">'+text+'</a>'});tocHtml+='</div>'}
+  contentWithIds=contentWithIds.replace(/<pre>/g,'<div class="code-block"><pre>').replace(/<\/pre>/g,'</pre><button class="copy-btn" onclick="copyCode(this)">📋 复制</button></div>');
+  var related=[],myTags=tags.map(function(t){return t.trim().toLowerCase()});
+  allArticles.filter(isRevealed).forEach(function(o){if(o.id!==a.id){var oTags=(o.tags||'').split(',').map(function(t){return t.trim().toLowerCase()}),overlap=myTags.filter(function(t){return oTags.indexOf(t)>=0});if(overlap.length>0)related.push({a:o,score:overlap.length})}});
+  related.sort(function(x,y){return y.score-x.score});related=related.slice(0,3);
+  var relatedHtml='';
+  if(related.length){relatedHtml='<div class="related"><h3>📎 相关文章</h3>';related.forEach(function(r){relatedHtml+='<div class="rel-item" onclick="showArticle(\''+r.a.id+'\')">'+h(r.a.title)+' <span style="font-size:11px;opacity:.5">'+readTime(r.a.content||'')+'</span></div>'});relatedHtml+='</div>'}
+  var html='<div class="detail-admin-bar">'+
+      '<button onclick="togglePin(event,\''+a.id+'\')">'+(a.pinned?'📌 取消置顶':'📌 置顶')+'</button>'+
+      '<button onclick="editArticle(\''+a.id+'\')">✏️ 编辑</button>'+
+      '<button onclick="openPoster(\''+a.id+'\')">🎨 海报</button>'+
+      '<button class="danger" onclick="deleteArticle(\''+a.id+'\')">🗑 删除</button>'+
+    '</div>'+
+    '<button class="back-btn" onclick="renderView()">← 返回</button>'+
+    '<div class="article-detail"><h1>'+h(a.title)+'</h1>'+
+      '<div class="article-stats"><span class="cat">'+h(a.category||'未分类')+'</span><span>📅 '+fmtDate(a.createdAt)+'</span><span>⏱ '+rt+'</span><span>📝 '+wc+' 字</span><span>👁 '+(a.views||0)+' 次阅读</span></div>'+
+      tocHtml+
+      (a.cover?'<img class="cover-img" src="'+h(a.cover)+'">':'')+
+      '<div class="content">'+contentWithIds.replace(/\n\n/g,'</p><p>').replace(/\n/g,'<br>').replace(/<p>/g,'<p>')+'</div></div>'+
+    relatedHtml+
+    '<div class="comments"><h3>评论 ('+comments.length+')</h3>'+comments.map(function(c){return'<div class="comment"><div class="c-name">'+h(c.name||'匿名')+'</div><div class="c-text">'+h(c.text)+'</div><div class="c-time">'+fmtDate(c.time)+'</div></div>'}).join('')+'</div>'+
+    '<div class="comment-form"><input type="text" id="commentName" placeholder="昵称"><input type="text" id="commentText" placeholder="写评论..." onkeydown="if(event.key===\'Enter\')addComment(\''+a.id+'\')"><button onclick="addComment(\''+a.id+'\')">评论</button></div>';
+  document.getElementById('articleList').style.display='none';document.getElementById('articleDetail').style.display='block';
+  document.getElementById('tagCloudWrap').style.display='none';document.getElementById('articleDetail').innerHTML=html;
+  window.scrollTo({top:0,behavior:'smooth'});updateProgress();
+}
+
+function copyCode(btn){var code=btn.parentElement.querySelector('pre').textContent;navigator.clipboard.writeText(code).then(function(){btn.textContent='✅ 已复制';btn.classList.add('copied');setTimeout(function(){btn.textContent='📋 复制';btn.classList.remove('copied')},2000)})}
+async function addComment(id){var name=document.getElementById('commentName').value.trim()||'读者',text=document.getElementById('commentText').value.trim();if(!text)return;try{await fetch(API+'/articles/'+id+'/comments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,text:text})});showArticle(id);toast('评论成功')}catch(e){toast('评论失败')}}
+
+async function publishArticle(){
+  var title=document.getElementById('newTitle').value.trim(),content=document.getElementById('newContent').value.trim(),category=document.getElementById('newCat').value,tags=document.getElementById('newTags').value,cover=document.getElementById('newCover').value.trim(),revealStr=document.getElementById('newReveal').value.trim();
+  if(!title||!content){toast('标题和内容不能为空');return}
+  try{
+    var body={title:title,content:content,category:category,tags:tags};
+    if(cover)body.cover=cover;
+    if(revealStr){body.revealAt=new Date(revealStr).getTime();if(isNaN(body.revealAt)){toast('日期格式错误');return}}
+    if(editingId){await fetch(API+'/articles/'+editingId,{method:'PUT',headers:{'Content-Type':'application/json','X-Admin-Password':adminPwd},body:JSON.stringify(body)});toast('更新成功')}
+    else{await fetch(API+'/articles',{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Password':adminPwd},body:JSON.stringify(body)});toast('发布成功')}
+    cancelEdit();loadArticles();
+  }catch(e){toast('操作失败')}
+}
+
+function editArticle(id){var a=allArticles.find(function(x){return x.id===id});if(!a)return;editingId=id;document.getElementById('newTitle').value=a.title;document.getElementById('newContent').value=a.content;document.getElementById('newCat').value=a.category||'技术';document.getElementById('newTags').value=a.tags||'';document.getElementById('newCover').value=a.cover||'';document.getElementById('newReveal').value=a.revealAt?new Date(a.revealAt).toLocaleDateString('zh-CN'):'';document.getElementById('adminPanel').style.display='block';document.getElementById('publishBtn').textContent='更新';document.getElementById('cancelEditBtn').style.display='inline-block';var h3=document.getElementById('adminPanel').querySelector('h3');if(h3)h3.textContent='✏️ 编辑文章';window.scrollTo({top:document.getElementById('adminPanel').offsetTop-20,behavior:'smooth'})}
+function cancelEdit(){editingId=null;document.getElementById('newTitle').value='';document.getElementById('newContent').value='';document.getElementById('newTags').value='';document.getElementById('newCover').value='';document.getElementById('newReveal').value='';document.getElementById('publishBtn').textContent='发布';document.getElementById('cancelEditBtn').style.display='none';var h3=document.getElementById('adminPanel').querySelector('h3');if(h3)h3.textContent='📝 写文章'}
+async function deleteArticle(id){if(!confirm('确定删除？'))return;try{await fetch(API+'/articles/'+id,{method:'DELETE',headers:{'X-Admin-Password':adminPwd}});toast('已删除');loadArticles()}catch(e){toast('删除失败')}}
+async function togglePin(e,id){e.stopPropagation();var a=allArticles.find(function(x){return x.id===id});if(!a)return;var newPin=a.pinned?0:1;try{await fetch(API+'/articles/'+id,{method:'PUT',headers:{'Content-Type':'application/json','X-Admin-Password':adminPwd},body:JSON.stringify({pinned:newPin})});a.pinned=newPin;renderView()}catch(e){toast('操作失败')}}
+
+function updateProgress(){var detail=document.getElementById('articleDetail');if(detail.style.display==='none'){document.getElementById('progress-bar').style.width='0%';return}var st=window.pageYOffset||document.documentElement.scrollTop,dt=detail.offsetTop,dh=detail.offsetHeight,wh=window.innerHeight,total=dt+dh-wh;if(total<=0)total=1;document.getElementById('progress-bar').style.width=Math.min(100,Math.max(0,(st-dt)/total*100))+'%'}
+function updateBackTop(){var btn=document.getElementById('backTop');if(window.scrollY>400)btn.classList.add('show');else btn.classList.remove('show')}
+window.addEventListener('scroll',function(){updateProgress();updateBackTop()});
+
+function setAdmin(on){isAdmin=on;sessionStorage.setItem('blog_admin',on?'1':'');if(on){document.body.classList.add('admin');document.getElementById('adminPanel').style.display='block'}else{document.body.classList.remove('admin');document.getElementById('adminPanel').style.display='none';cancelEdit()}}
+if(sessionStorage.getItem('blog_admin')==='1')setAdmin(true);
+document.addEventListener('keydown',function(e){if(e.ctrlKey&&e.key==='k'){setAdmin(!isAdmin);e.preventDefault();return}if(e.key==='/'&&document.activeElement!==document.getElementById('searchInput')&&document.activeElement.tagName!=='INPUT'&&document.activeElement.tagName!=='TEXTAREA'){document.getElementById('searchInput').focus();e.preventDefault()}if(e.key==='Escape'&&document.getElementById('articleDetail').style.display!=='none'){renderView();e.preventDefault()}});
+document.getElementById('navBar').addEventListener('click',function(e){if(e.target.tagName==='BUTTON'){document.querySelectorAll('#navBar button').forEach(function(b){b.classList.remove('active')});e.target.classList.add('active');activeCat=e.target.dataset.cat;activeTag='';document.getElementById('searchInput').value='';renderView()}});
+
+// Close poster on ESC or click outside
+document.getElementById('posterModal').addEventListener('click',function(e){if(e.target===this)closePoster()});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closePoster()});
+
+initQuote();loadArticles();
+</script>
+</body>
+</html>
