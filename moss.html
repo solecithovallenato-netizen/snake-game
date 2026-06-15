@@ -111,11 +111,11 @@ function drawBG(){
   ctx.fillStyle=g;ctx.fillRect(0,0,cv.width,cv.height);
 }
 
-// Warm light source (sun/moon glow)
+// Warm light source (subtle sun/moon glow)
 function drawLight(){
   var p=PAL[S.season]||PAL.summer;
-  var g=ctx.createRadialGradient(cv.width*.5,cv.height*.2,cv.width*.02,cv.width*.5,cv.height*.2,cv.width*.8);
-  g.addColorStop(0,p.light+'30');g.addColorStop(.3,p.light+'10');g.addColorStop(1,'transparent');
+  var g=ctx.createRadialGradient(cv.width*.5,cv.height*.15,cv.width*.01,cv.width*.5,cv.height*.4,cv.width*.6);
+  g.addColorStop(0,p.light+'15');g.addColorStop(.5,p.light+'05');g.addColorStop(1,'transparent');
   ctx.fillStyle=g;ctx.fillRect(0,0,cv.width,cv.height);
 }
 
@@ -185,11 +185,11 @@ function drawPlant(p){
   // Draw plant body
   drawPlantShape(p.type,p.variant,px,py,t);
 
-  // Blooming glow
+  // Blooming glow — subtle
   if(st==='blooming'){
-    var gr=ctx.createRadialGradient(px,py-t*60,0,px,py-t*60,t*40);
-    gr.addColorStop(0,'rgba(240,220,140,.35)');gr.addColorStop(1,'rgba(240,220,140,0)');
-    ctx.fillStyle=gr;ctx.beginPath();ctx.arc(px,py-t*60,t*40,0,Math.PI*2);ctx.fill();
+    var gr=ctx.createRadialGradient(px,py-t*55,0,px,py-t*55,t*28);
+    gr.addColorStop(0,'rgba(240,220,140,.12)');gr.addColorStop(1,'rgba(240,220,140,0)');
+    ctx.fillStyle=gr;ctx.beginPath();ctx.arc(px,py-t*55,t*28,0,Math.PI*2);ctx.fill();
   }
 
   ctx.restore();
@@ -248,14 +248,14 @@ function updateFF(dt){
 }
 function drawFF(){
   ff.forEach(function(f){
-    var a=.15+.25*Math.sin(f.ph*2+S.time*.001);
+    var a=.06+.12*Math.sin(f.ph*2+S.time*.001);
     var px=X(f.x),py=Y(f.y);
     ctx.fillStyle='rgba(240,220,140,'+a+')';
-    ctx.beginPath();ctx.arc(px,py,f.z*3,0,Math.PI*2);ctx.fill();
-    // glow
-    var g=ctx.createRadialGradient(px,py,0,px,py,f.z*12);
-    g.addColorStop(0,'rgba(240,220,140,'+(a*.4)+')');g.addColorStop(1,'rgba(240,220,140,0)');
-    ctx.fillStyle=g;ctx.beginPath();ctx.arc(px,py,f.z*12,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(px,py,f.z*1.5,0,Math.PI*2);ctx.fill();
+    // subtle glow
+    var g=ctx.createRadialGradient(px,py,0,px,py,f.z*8);
+    g.addColorStop(0,'rgba(240,220,140,'+(a*.3)+')');g.addColorStop(1,'rgba(240,220,140,0)');
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(px,py,f.z*8,0,Math.PI*2);ctx.fill();
   });
 }
 
