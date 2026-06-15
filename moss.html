@@ -70,7 +70,140 @@ canvas{display:block;position:fixed;top:0;left:0;width:100%;height:100%}
 <div id="toast"></div>
 
 <script>
-// === JavaScript will be added in subsequent tasks ===
+// ===== CONFIG =====
+var API = '/garden';
+var SID = sessionStorage._moss_sid || (sessionStorage._moss_sid = 'sess_' + Math.random().toString(36).slice(2, 10));
+var ASSET_BASE = 'moss-assets/';
+
+// ===== STATE =====
+var state = {
+  plants: [],
+  totalVisits: 0,
+  season: 'summer',
+  month: 6,
+  assets: {},        // Image objects keyed by name
+  assetsLoaded: false,
+  rainParticles: [],
+  snowParticles: [],
+  plantAnims: {},    // plantId -> {scale, targetScale, startTime}
+  clouds: [{x:0.1,y:0.05,s:1},{x:0.5,y:0.08,s:0.7},{x:0.8,y:0.03,s:1.2}],
+  lastFrame: 0
+};
+
+// ===== SEASON SYSTEM =====
+function getSeason(m) {
+  m = m || new Date().getMonth() + 1;
+  if (m >= 3 && m <= 5) return 'spring';
+  if (m >= 6 && m <= 8) return 'summer';
+  if (m >= 9 && m <= 11) return 'autumn';
+  return 'winter';
+}
+
+var SEASON_COLORS = {
+  spring: { sky: ['#d4e8d0','#e8f0dd'], ground: '#8b9e70', icon: '🌸' },
+  summer: { sky: ['#e8f0d0','#f0f5e0'], ground: '#7a8b50', icon: '☀️' },
+  autumn: { sky: ['#f0e0c8','#f0e8d8'], ground: '#a08060', icon: '🍂' },
+  winter: { sky: ['#e0e4e8','#eceff4'], ground: '#8a8078', icon: '❄️' }
+};
+
+// ===== API CLIENT =====
+async function apiGet(path) {
+  var r = await fetch(API + path, { headers: {'X-Session-Id': SID} });
+  return r.json();
+}
+
+async function apiPost(path, body) {
+  var r = await fetch(API + path, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-Session-Id': SID},
+    body: JSON.stringify(body || {})
+  });
+  return r.json();
+}
+
+// ===== ASSET LOADER =====
+var ASSET_LIST = [
+  'fern_0', 'fern_1', 'fern_2',
+  'flower_0', 'flower_1', 'flower_2',
+  'mushroom_0', 'mushroom_1', 'mushroom_2',
+  'grass_0', 'grass_1', 'grass_2',
+  'succulent_0', 'succulent_1', 'succulent_2',
+  'vine_0', 'vine_1', 'vine_2',
+  'ground', 'cloud_0', 'cloud_1', 'cloud_2', 'drop'
+];
+
+function loadAssets() {
+  var promises = ASSET_LIST.map(function(name) {
+    return new Promise(function(resolve) {
+      var img = new Image();
+      img.onload = function() { state.assets[name] = img; resolve(true); };
+      img.onerror = function() { resolve(false); }; // Graceful fallback
+      img.src = ASSET_BASE + name + '.png';
+    });
+  });
+  return Promise.all(promises).then(function() {
+    state.assetsLoaded = true;
+    console.log('Assets loaded: ' + Object.keys(state.assets).length + '/' + ASSET_LIST.length);
+  });
+}
+
+function getAsset(name) {
+  return state.assets[name] || null;
+}
+
+function getPlantSprite(type, variant) {
+  var key = type + '_' + (variant || 0);
+  return getAsset(key);
+}
+
+// ===== STAGE CALC =====
+function calcStage(plant) {
+  var h = plant.health;
+  if (typeof h === 'undefined') h = 30;
+  if (h <= 0) return 'withered';
+  if (h < 20) return 'seed';
+  if (h < 40) return 'sprout';
+  if (h < 70) return 'growing';
+  return 'blooming';
+}
+
+function stageScale(stage) {
+  if (stage === 'seed') return 0.1;
+  if (stage === 'sprout') return 0.3;
+  if (stage === 'growing') return 0.6;
+  if (stage === 'blooming') return 1.0;
+  return 0.6; // withered
+}
+
+function stageAlpha(stage) {
+  if (stage === 'withered') return 0.4;
+  return 1.0;
+}
+
+// ===== UI HELPERS =====
+function toast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, 2000);
+}
+
+function updateUI() {
+  document.getElementById('visitCount').textContent = '访问 ' + state.totalVisits + ' 次';
+  var blooming = state.plants.filter(function(p) { return calcStage(p) === 'blooming'; }).length;
+  var alive = state.plants.filter(function(p) { return calcStage(p) !== 'withered'; }).length;
+  document.getElementById('plantSummary').textContent = alive + ' 株植物 · ' + blooming + ' 朵盛开';
+  var colors = SEASON_COLORS[state.season] || SEASON_COLORS.summer;
+  document.getElementById('seasonIcon').textContent = colors.icon;
+}
+
+function showAbout() {
+  document.getElementById('aboutBg').classList.add('show');
+}
+
+function hideAbout() {
+  document.getElementById('aboutBg').classList.remove('show');
+}
 </script>
 </body>
 </html>
