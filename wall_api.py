@@ -404,6 +404,35 @@ class Handler(BaseHTTPRequestHandler):
                     return
             self.send_response(404); self.end_headers()
 
+        elif self.path == "/garden/visit":
+            sid = self.headers.get("X-Session-Id", "anon")
+            data = garden_load()
+            now = int(time.time() * 1000)
+
+            # Always increment total visits
+            data["totalVisits"] = data.get("totalVisits", 0) + 1
+            data["lastVisitAt"] = now
+
+            # Spawn new plant with season-weighted type
+            ptype = garden_random_plant_type()
+            new_plant = {
+                "id": str(int(time.time() * 1000000)),
+                "type": ptype,
+                "x": random.random() * 0.8 + 0.1,
+                "y": random.random() * 0.45 + 0.25,
+                "size": random.random() * 0.5 + 0.3,
+                "health": 30,
+                "stage": "sprout",
+                "variant": random.randint(0, 2),
+                "createdAt": now,
+                "lastWateredAt": now,
+                "wateredBy": [sid]
+            }
+            data["plants"].append(new_plant)
+            garden_enforce_cap(data)
+            garden_save(data)
+            self._json({"ok": True, "totalVisits": data["totalVisits"], "newPlant": new_plant})
+
         else:
             self.send_response(404); self.end_headers()
 
