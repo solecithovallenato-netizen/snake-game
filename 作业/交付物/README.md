@@ -34,7 +34,9 @@
 │   └── backup.sh                      ← 数据库自动备份脚本
 │
 └── PPT/
-    └── 答辩PPT大纲.md                 ← 18页幻灯片的完整大纲+讲稿
+    ├── 答辩PPT.pptx                   ← 18页原生可编辑PPT（政务蓝+金配色）
+    ├── 答辩PPT大纲.md                 ← 完整大纲+讲稿（含答辩策略+FAQ）
+    └── generate_ppt.py               ← PPT生成脚本（python-pptx，可重新生成）
 ```
 
 ---

@@ -1,53 +1,88 @@
 # ============================================================
-# Prometheus 配置 - 政务数字门户平台 POC
-# 采集目标: node_exporter (主机) + cadvisor (容器) + halo (应用)
+# Prometheus 配置 — 政务数字门户平台 POC
+# 环境: 鲲鹏 ARM64 / openEuler 22.03
+# 采集目标: node_exporter (主机) + cadvisor (容器) + Halo (应用)
+# 部署: docker-compose 管理，配置文件挂载为只读
 # ============================================================
 
 global:
-  scrape_interval: 15s       # 采集间隔
-  evaluation_interval: 15s   # 规则评估间隔
-  scrape_timeout: 10s
+  scrape_interval:     15s   # 全局采集间隔
+  evaluation_interval: 15s   # 告警规则评估间隔
+  scrape_timeout:      10s   # 单次采集超时
 
+# ==================== 告警管理 ====================
 alerting:
   alertmanagers:
     - static_configs:
-        - targets: []
+        - targets: []        # 暂未部署 AlertManager，留空
 
+# ==================== 告警规则文件 ====================
 rule_files: []
+  # - "alerts/*.yml"        # 后续可添加告警规则目录
 
+# ==================== 采集配置 ====================
 scrape_configs:
-  # ==================== Prometheus 自身 ====================
+
+  # --------------------------------------------------
+  # Prometheus 自身指标
+  # --------------------------------------------------
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
 
-  # ==================== 主机指标 (node_exporter) ====================
+  # --------------------------------------------------
+  # 主机指标 — node_exporter (network_mode: host)
+  # 暴露端口: 9100
+  # 采集地址使用宿主机 IP，因 node_exporter 使用 host 网络模式
+  # Docker Compose 内部 DNS 无法解析 host 网络模式的容器名
+  # --------------------------------------------------
   - job_name: 'node'
+    scrape_interval: 30s           # 主机指标可放宽采集间隔
     static_configs:
       - targets: ['192.168.20.10:9100']
         labels:
           instance: 'dmp-svc-01'
           env: 'poc'
 
-  # ==================== 容器指标 (cAdvisor) ====================
+  # --------------------------------------------------
+  # 容器指标 — cAdvisor (bridge 网络)
+  # 暴露端口: 8080
+  # Docker Compose 内部 DNS 解析服务名 cadvisor:8080
+  # --------------------------------------------------
   - job_name: 'docker'
+    scrape_interval: 30s
     static_configs:
       - targets: ['cadvisor:8080']
         labels:
           instance: 'dmp-svc-01'
           env: 'poc'
 
-  # ==================== Halo 应用指标 ====================
+  # --------------------------------------------------
+  # Halo 博客应用指标 (Spring Boot Actuator)
+  # 端口: 8090，指标路径: /actuator/prometheus
+  # 需 Halo 开启 Actuator 并暴露 prometheus 端点
+  # --------------------------------------------------
   - job_name: 'halo'
     metrics_path: '/actuator/prometheus'
+    scrape_interval: 15s
     static_configs:
       - targets: ['halo:8090']
         labels:
           app: 'halo'
           env: 'poc'
 
-  # ==================== Nginx 指标（如果启用 stub_status） ====================
-  # 需要 Nginx 配置 stub_status 模块后启用
+  # --------------------------------------------------
+  # Nginx 指标（需启用 stub_status 模块）
+  # 使用前取消注释，并在 nginx.conf 中配置 /nginx_status 端点
+  # --------------------------------------------------
   # - job_name: 'nginx'
+  #   metrics_path: '/nginx_status'
   #   static_configs:
   #     - targets: ['nginx:80']
+  #       labels:
+  #         app: 'nginx'
+  #         env: 'poc'
+
+# ==================== 存储配置 ====================
+# 数据目录在 docker-compose.yml 中挂载为 /prometheus
+# 保留策略: 30 天 (通过 docker-compose 启动参数配置)
