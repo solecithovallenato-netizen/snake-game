@@ -150,6 +150,21 @@ var stars=[];
 var pebbles=[];
 (function initPebbles(){for(var i=0;i<30;i++)pebbles.push({x:.05+Math.random()*.9,y:.5+Math.random()*.45,r:1.5+Math.random()*5,o:.03+Math.random()*.06})})();
 
+// Fallen leaves on the ground
+var leaves=[];
+(function initLeaves(){for(var i=0;i<12;i++)leaves.push({x:.05+Math.random()*.9,y:.48+Math.random()*.45,a:Math.random()*Math.PI*2,r:.6+Math.random()*1.2,ph:Math.random()*Math.PI*2,sp:.2+Math.random()*.5})})();
+
+// Dew sparkles along grass edge
+var dews=[];
+(function initDews(){for(var i=0;i<35;i++)dews.push({x:.02+Math.random()*.96,ph:Math.random()*Math.PI*2,sp:.5+Math.random()*1.2,r:.3+Math.random()*.6})})();
+
+// Wild mushrooms (decorative scenery, not interactive)
+var wildMushrooms=[];
+(function initWild(){for(var i=0;i<5;i++)wildMushrooms.push({x:.05+Math.random()*.9,y:.52+Math.random()*.42,r:3+Math.random()*6})})();
+
+// Butterfly
+var butterfly={x:.5,y:.4,vx:0,vy:0,targetX:.5,targetY:.4,ph:0,wing:0,timer:0};
+
 // Earth surface curve function — returns y for given normalized x
 function earthY(nx){
   var w=cv.width,h=cv.height,baseY=h*.48,moundH=h*.52;
@@ -233,12 +248,70 @@ function drawTrees(){
 function drawPebbles(){
   pebbles.forEach(function(b){
     var px=X(b.x),py=Y(b.y);
-    // Only draw if on/near earth
     var ey=earthY(b.x)/cv.height;
     if(Math.abs(b.y-ey)>.06&&b.y<ey)return;
     ctx.fillStyle='rgba(255,255,255,'+b.o+')';
     ctx.beginPath();ctx.ellipse(px,py,b.r,b.r*.6,0,0,Math.PI*2);ctx.fill();
   });
+}
+
+// Fallen leaves
+function drawLeaves(){
+  leaves.forEach(function(l){
+    var px=X(l.x),py=Y(l.y);
+    l.ph+=.003;l.a+=Math.sin(l.ph)*.005;
+    ctx.save();ctx.translate(px,py);ctx.rotate(l.a);
+    ctx.fillStyle='rgba(160,120,60,.15)';
+    ctx.beginPath();ctx.ellipse(0,0,l.r*3,l.r,0,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='rgba(120,90,40,.2)';ctx.lineWidth=.5;
+    ctx.beginPath();ctx.moveTo(0,-l.r);ctx.lineTo(0,l.r);ctx.stroke();
+    ctx.restore();
+  });
+}
+
+// Dew sparkles
+function drawDews(){
+  dews.forEach(function(d){
+    var px=X(d.x),py=Y(earthY(d.x)/cv.height)-3;
+    d.ph+=.02;
+    var a=.1+.15*Math.sin(d.ph*d.sp);
+    ctx.fillStyle='rgba(255,255,255,'+a+')';
+    ctx.beginPath();ctx.arc(px,py,d.r,0,Math.PI*2);ctx.fill();
+  });
+}
+
+// Wild mushrooms
+function drawWildMushrooms(){
+  wildMushrooms.forEach(function(m){
+    var px=X(m.x),py=Y(m.y);
+    ctx.fillStyle='rgba(180,160,140,.15)';
+    ctx.beginPath();ctx.ellipse(px,py-m.r,m.r,m.r*.6,Math.PI,0,0);ctx.fill();
+    ctx.fillStyle='rgba(200,180,160,.1)';
+    ctx.fillRect(px-m.r*.2,py-m.r,m.r*.4,m.r);
+  });
+}
+
+// Butterfly
+function updateButterfly(dt){
+  var b=butterfly;b.timer-=dt;
+  if(b.timer<=0){
+    b.timer=2+Math.random()*4;
+    b.targetX=.1+Math.random()*.8;
+    b.targetY=.35+Math.random()*.55;
+  }
+  b.vx+=(b.targetX-b.x)*dt*.3;b.vy+=(b.targetY-b.y)*dt*.3;
+  b.vx*=Math.pow(.01,dt);b.vy*=Math.pow(.01,dt);
+  b.x+=b.vx*dt;b.y+=b.vy*dt;
+  b.wing+=dt*12;
+}
+function drawButterfly(){
+  var b=butterfly,px=X(b.x),py=Y(b.y);
+  var wa=.4*Math.sin(b.wing);
+  ctx.fillStyle='rgba(220,180,140,.25)';
+  ctx.beginPath();ctx.ellipse(px+5,py-5,6,3,wa,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(px-5,py-5,6,3,-wa,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(240,220,180,.3)';
+  ctx.beginPath();ctx.ellipse(px,py,2,4,0,0,Math.PI*2);ctx.fill();
 }
 
 // Stars (night only)
@@ -519,9 +592,9 @@ document.getElementById('aboutBg').addEventListener('click',function(e){if(e.tar
 function drawAll(){
   ctx.clearRect(0,0,cv.width,cv.height);
   drawBG();drawStars();drawMoon();drawLight();drawTrees();
-  drawEarth();drawPebbles();drawFog();
+  drawEarth();drawPebbles();drawLeaves();drawWildMushrooms();drawDews();drawFog();
   drSnow();drRain();
-  updateFF(.016);drawFF();updateDrift(.016);drawDrift();
+  updateFF(.016);drawFF();updateDrift(.016);drawDrift();updateButterfly(.016);drawButterfly();
   drawSnail();
   sortP();S.plants.forEach(function(p){drawPlant(p)})
   drawVignette();
