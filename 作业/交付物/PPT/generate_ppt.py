@@ -1,4 +1,4 @@
-"""Generate defense PPT from outline using python-pptx."""
+"""Generate defense PPT for Yushe Blog + Digital Moss project."""
 from pptx import Presentation
 from pptx.util import Inches, Pt, Emu
 from pptx.dml.color import RGBColor
@@ -6,569 +6,266 @@ from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 from pptx.enum.shapes import MSO_SHAPE
 import os
 
-# === DESIGN TOKENS ===
-BLUE = RGBColor(0x1A, 0x3C, 0x6E)
-GOLD = RGBColor(0xC8, 0xA0, 0x50)
-WHITE = RGBColor(0xFF, 0xFF, 0xFF)
-DARK = RGBColor(0x1A, 0x1A, 0x1A)
-GRAY = RGBColor(0x66, 0x66, 0x66)
-LIGHT_BG = RGBColor(0xF0, 0xF2, 0xF5)
-BLUE_LIGHT = RGBColor(0xE8, 0xEC, 0xF0)
+# === DESIGN ===
+DARK   = RGBColor(0x1E, 0x1B, 0x18)  # warm dark
+ACCENT = RGBColor(0x8B, 0x6F, 0x4E)  # warm brown-gold
+LIGHT  = RGBColor(0xFB, 0xF8, 0xF3)  # warm cream
+GRAY   = RGBColor(0xA8, 0x98, 0x80)
+WHITE  = RGBColor(0xFF, 0xFF, 0xFF)
+GREEN  = RGBColor(0x6B, 0x8C, 0x42)
 
-W = Inches(13.333)  # 16:9
+W = Inches(13.333)
 H = Inches(7.5)
 
 prs = Presentation()
 prs.slide_width = W
 prs.slide_height = H
 
-def add_bg(slide, color):
-    bg = slide.background
-    fill = bg.fill
-    fill.solid()
-    fill.fore_color.rgb = color
-
-def add_rect(slide, left, top, width, height, color, opacity=None):
-    shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, width, height)
-    shape.fill.solid()
-    shape.fill.fore_color.rgb = color
-    shape.line.fill.background()
-    return shape
-
-def add_text_box(slide, left, top, width, height, text, font_size=18, color=DARK, bold=False, alignment=PP_ALIGN.LEFT, font_name='Microsoft YaHei'):
-    txBox = slide.shapes.add_textbox(left, top, width, height)
-    tf = txBox.text_frame
-    tf.word_wrap = True
-    p = tf.paragraphs[0]
-    p.text = text
-    p.font.size = Pt(font_size)
-    p.font.color.rgb = color
-    p.font.bold = bold
-    p.font.name = font_name
-    p.alignment = alignment
-    return txBox
-
-def add_multi_text(slide, left, top, width, height, lines, font_size=14, color=DARK, spacing=1.3, font_name='Microsoft YaHei'):
-    """Add text box with multiple paragraphs."""
-    txBox = slide.shapes.add_textbox(left, top, width, height)
-    tf = txBox.text_frame
-    tf.word_wrap = True
-    for i, line in enumerate(lines):
-        if i == 0:
-            p = tf.paragraphs[0]
-        else:
-            p = tf.add_paragraph()
-        p.text = line
-        p.font.size = Pt(font_size)
-        p.font.color.rgb = color
-        p.font.name = font_name
-        p.space_after = Pt(4)
-    return txBox
-
-def add_bullet_list(slide, left, top, width, height, items, font_size=13, color=DARK, bullet='•', font_name='Microsoft YaHei'):
-    txBox = slide.shapes.add_textbox(left, top, width, height)
-    tf = txBox.text_frame
-    tf.word_wrap = True
+def bg(slide, c): slide.background.fill.solid(); slide.background.fill.fore_color.rgb = c
+def rect(slide, l, t, w, h, c):
+    s = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, l, t, w, h); s.fill.solid(); s.fill.fore_color.rgb = c; s.line.fill.background(); return s
+def tb(slide, l, t, w, h, txt, sz=18, c=DARK, b=False, a=PP_ALIGN.LEFT, fn='Microsoft YaHei'):
+    bx = slide.shapes.add_textbox(l, t, w, h); tf = bx.text_frame; tf.word_wrap = True
+    p = tf.paragraphs[0]; p.text = txt; p.font.size = Pt(sz); p.font.color.rgb = c; p.font.bold = b; p.font.name = fn; p.alignment = a; return bx
+def mtext(slide, l, t, w, h, lines, sz=14, c=DARK, fn='Microsoft YaHei'):
+    bx = slide.shapes.add_textbox(l, t, w, h); tf = bx.text_frame; tf.word_wrap = True
+    for i, ln in enumerate(lines):
+        p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+        p.text = ln; p.font.size = Pt(sz); p.font.color.rgb = c; p.font.name = fn; p.space_after = Pt(4)
+    return bx
+def bullets(slide, l, t, w, h, items, sz=13, c=DARK, fn='Microsoft YaHei'):
+    bx = slide.shapes.add_textbox(l, t, w, h); tf = bx.text_frame; tf.word_wrap = True
     for i, item in enumerate(items):
-        if i == 0:
-            p = tf.paragraphs[0]
-        else:
-            p = tf.add_paragraph()
-        p.text = f"{bullet} {item}"
-        p.font.size = Pt(font_size)
-        p.font.color.rgb = color
-        p.font.name = font_name
-        p.space_after = Pt(6)
-    return txBox
+        p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+        p.text = f"• {item}"; p.font.size = Pt(sz); p.font.color.rgb = c; p.font.name = fn; p.space_after = Pt(6)
+    return bx
+def pagenum(slide, n):
+    tb(slide, Inches(12.3), Inches(7.1), Inches(0.8), Inches(0.3), str(n), sz=10, c=GRAY, a=PP_ALIGN.RIGHT)
+def titlebar(slide, title, sub=None):
+    rect(slide, Inches(0), Inches(0), W, Inches(0.06), ACCENT)
+    tb(slide, Inches(0.8), Inches(0.35), Inches(11), Inches(0.55), title, sz=28, c=DARK, b=True)
+    rect(slide, Inches(0.8), Inches(0.95), Inches(1.0), Inches(0.025), ACCENT)
+    if sub: tb(slide, Inches(0.8), Inches(1.05), Inches(11), Inches(0.35), sub, sz=13, c=GRAY)
 
-def add_title_bar(slide):
-    """Add blue header bar at top."""
-    add_rect(slide, Inches(0), Inches(0), W, Inches(0.08), BLUE)
-    # Thin gold line below
-    add_rect(slide, Inches(0), Inches(0.08), W, Inches(0.02), GOLD)
+# ===== S1: COVER =====
+s = prs.slides.add_slide(prs.slide_layouts[6]); bg(s, LIGHT)
+rect(s, Inches(0), Inches(0), W, Inches(3.2), DARK)
+rect(s, Inches(0), Inches(3.2), W, Inches(0.05), ACCENT)
+tb(s, Inches(1), Inches(0.7), Inches(11), Inches(0.9), '虞舍 · 数字苔藓', sz=44, c=LIGHT, b=True)
+tb(s, Inches(1), Inches(1.6), Inches(11), Inches(0.5), '个人独立博客 + 活的网页花园', sz=24, c=ACCENT, b=True)
+tb(s, Inches(1), Inches(2.3), Inches(11), Inches(0.4), '单文件全栈架构 · 自建部署 · AI 驱动的互动体验', sz=15, c=GRAY)
+tb(s, Inches(1), Inches(4.2), Inches(6), Inches(0.4), '实训第4组   王振光', sz=16, c=DARK, b=True)
+tb(s, Inches(1), Inches(4.7), Inches(6), Inches(0.3), '2026年7月3日', sz=13, c=GRAY)
 
-def add_slide_number(slide, num):
-    add_text_box(slide, Inches(12.3), Inches(7.1), Inches(0.8), Inches(0.3),
-                 str(num), font_size=10, color=GRAY, alignment=PP_ALIGN.RIGHT)
+# ===== S2: PROJECT OVERVIEW =====
+s = prs.slides.add_slide(prs.slide_layouts[6]); bg(s, LIGHT)
+titlebar(s, '项目全景', '我们做了什么')
+pagenum(s, 2)
+cards = [('📝 虞舍博客', '111 篇原创文章\n4 个分类 / 标签云 / RSS\n搜索 / 归档 / 热榜 / 海报', True),
+         ('🌿 数字苔藓', '活的网页花园\n6 种植物 / 四季 / 昼夜\n浇水互动 / 萤火虫 / 蜗牛', False),
+         ('🔧 后端 API', 'Python 单文件 HTTP Server\n博客 CRUD + 评论 + RSS\n花园状态 + 浇水端点', True),
+         ('🚀 自建部署', '校内服务器 10.42.78.75\nNginx 反向代理\nPodman 容器化', False)]
+for i, (t, d, hl) in enumerate(cards):
+    x = Inches(0.5 + (i % 2) * 6.3); y = Inches(1.6 + (i // 2) * 2.6)
+    rect(s, x, y, Inches(6.0), Inches(2.3), LIGHT if not hl else WHITE)
+    tb(s, x + Inches(0.3), y + Inches(0.2), Inches(5.4), Inches(0.4), t, sz=18, c=DARK, b=True)
+    mtext(s, x + Inches(0.3), y + Inches(0.8), Inches(5.4), Inches(1.3), d.split('\n'), sz=13, c=GRAY)
 
-def add_page_title(slide, title, subtitle=None):
-    add_title_bar(slide)
-    add_text_box(slide, Inches(0.8), Inches(0.4), Inches(11), Inches(0.6),
-                 title, font_size=30, color=BLUE, bold=True)
-    # Gold underline
-    add_rect(slide, Inches(0.8), Inches(1.0), Inches(1.2), Inches(0.03), GOLD)
-    if subtitle:
-        add_text_box(slide, Inches(0.8), Inches(1.15), Inches(11), Inches(0.4),
-                     subtitle, font_size=14, color=GRAY)
+# ===== S3: TECH STACK =====
+s = prs.slides.add_slide(prs.slide_layouts[6]); bg(s, LIGHT)
+titlebar(s, '技术栈', '无框架 · 零依赖 · 纯手写')
+pagenum(s, 3)
+stack = [('前端', 'HTML5 + CSS3 + Canvas 2D\n单文件架构，零 JS 框架\n响应式 + 暗黑模式'),
+         ('后端', 'Python http.server\nJSON 文件数据库\nRESTful API 设计'),
+         ('部署', '校内 CentOS 服务器\nNginx 反向代理\nPodman 容器 + SSH 运维'),
+         ('AI 集成', '智谱 GLM-4V 视觉识别\nQwen-VL 场景分析\nDepth Anything V2 深度图')]
+for i, (t, d) in enumerate(stack):
+    x = Inches(0.6 + i * 3.1); y = Inches(1.7)
+    rect(s, x, y, Inches(2.9), Inches(4.8), WHITE)
+    tb(s, x + Inches(0.2), y + Inches(0.2), Inches(2.5), Inches(0.4), t, sz=16, c=ACCENT, b=True, a=PP_ALIGN.CENTER)
+    rect(s, x + Inches(0.5), y + Inches(0.65), Inches(1.9), Inches(0.02), ACCENT)
+    mtext(s, x + Inches(0.2), y + Inches(0.9), Inches(2.5), Inches(3.5), d.split('\n'), sz=12, c=GRAY)
 
-# ============================================================
-# SLIDE 1: Cover
-# ============================================================
-slide = prs.slides.add_slide(prs.slide_layouts[6])  # blank
-add_bg(slide, WHITE)
-add_rect(slide, Inches(0), Inches(0), W, Inches(3.2), BLUE)
-add_rect(slide, Inches(0), Inches(3.2), W, Inches(0.06), GOLD)
+# ===== S4: BLOG ARCHITECTURE =====
+s = prs.slides.add_slide(prs.slide_layouts[6]); bg(s, LIGHT)
+titlebar(s, '虞舍博客架构', 'yushe-blog.html + wall_api.py')
+pagenum(s, 4)
+layers = [('浏览器 (HTTPS)', DARK),
+          ('Nginx :80 → 反向代理 /api/ → :8089', ACCENT),
+          ('wall_api.py (Python HTTP Server :8089)', RGBColor(0x5A, 0x4A, 0x3A)),
+          ('JSON 文件存储 (blog_articles.json)', GRAY)]
+for i, (label, color) in enumerate(layers):
+    y = Inches(1.6 + i * 1.1)
+    rr = rect(s, Inches(2.5), y, Inches(8.3), Inches(0.8), color)
+    tb(s, Inches(2.8), y + Inches(0.15), Inches(7.8), Inches(0.5), label, sz=15, c=WHITE if color != LIGHT else DARK, b=True, a=PP_ALIGN.CENTER)
+features = ['🔍 全文搜索 / 标签筛选', '📅 时间线归档', '🔥 热门文章 TOP 10', '⏳ 时间胶囊（定时发布）',
+            '🗺️ Canvas 鸟瞰图', '🎨 文章海报生成', '💬 评论系统', '📡 RSS 订阅', '🌙 暗黑模式']
+for i, f in enumerate(features):
+    col = i % 3; row = i // 3
+    tb(s, Inches(1.0 + col * 3.9), Inches(5.5 + row * 0.5), Inches(3.6), Inches(0.4), f, sz=11, c=GRAY)
 
-add_text_box(slide, Inches(1.2), Inches(0.8), Inches(10.5), Inches(1.0),
-             '政务数字门户平台 POC', font_size=44, color=WHITE, bold=True)
-add_text_box(slide, Inches(1.2), Inches(1.8), Inches(10.5), Inches(0.6),
-             '项目答辩', font_size=28, color=GOLD, bold=True)
-add_text_box(slide, Inches(1.2), Inches(2.5), Inches(10.5), Inches(0.5),
-             '基于鲲鹏ARM + FusionCompute + Docker 容器化的国产化解决方案', font_size=16, color=RGBColor(0xCC, 0xCC, 0xDD))
+# ===== S5: DIGITAL MOSS =====
+s = prs.slides.add_slide(prs.slide_layouts[6]); bg(s, DARK)
+rect(s, Inches(0), Inches(0), W, Inches(0.05), GREEN)
+tb(s, Inches(0.8), Inches(0.35), Inches(11), Inches(0.55), '数字苔藓 — 活的网页花园', sz=28, c=LIGHT, b=True)
+tb(s, Inches(0.8), Inches(0.95), Inches(11), Inches(0.35), 'moss.html  |  642 行 Canvas 2D  |  零依赖  |  程序化生成', sz=13, c=GRAY)
+pagenum(s, 5)
 
-add_text_box(slide, Inches(1.2), Inches(4.0), Inches(5), Inches(0.4),
-             '小组：实训第4组', font_size=16, color=DARK)
-add_text_box(slide, Inches(1.2), Inches(4.5), Inches(5), Inches(0.4),
-             '成员：王振光（PM+架构） 胡翰斌 刘永涛 王浩乐', font_size=14, color=GRAY)
-add_text_box(slide, Inches(1.2), Inches(5.0), Inches(5), Inches(0.4),
-             '日期：2026年7月3日', font_size=14, color=GRAY)
+gfx = [('🌓 昼夜循环', '真实时间驱动\n天空色温渐变\n萤火虫夜间更亮'),
+       ('🌱 6 种植物', '蕨 / 花 / 蘑菇 / 草\n多肉 / 藤蔓\n程序化绘制，每株不同'),
+       ('💧 浇水互动', '点击/触摸浇水\n粒子雨滴反馈\n健康值 + 生长动画'),
+       ('🍂 四季系统', '春华 / 夏茂 / 秋实 / 冬雪\n植物生长速度变化\n天空 + 地面换季'),
+       ('🦋 活物生态', '蜗牛爬行 + 黏液轨迹\n蝴蝶随机飞动\n萤火虫夜晚闪烁'),
+       ('📋 木牌语录', '10 条轮播语录\n双击晃落树叶\n25 秒自动切换')]
+for i, (t, d) in enumerate(gfx):
+    x = Inches(0.4 + (i % 3) * 4.2); y = Inches(1.6 + (i // 3) * 2.7)
+    rect(s, x, y, Inches(3.9), Inches(2.4), RGBColor(0x2A, 0x25, 0x20))
+    tb(s, x + Inches(0.2), y + Inches(0.15), Inches(3.5), Inches(0.35), t, sz=15, c=GREEN, b=True)
+    mtext(s, x + Inches(0.2), y + Inches(0.65), Inches(3.5), Inches(1.5), d.split('\n'), sz=12, c=RGBColor(0xA8, 0x98, 0x80))
 
-# ============================================================
-# SLIDE 2: Project Background
-# ============================================================
-slide = prs.slides.add_slide(prs.slide_layouts[6])
-add_bg(slide, WHITE)
-add_page_title(slide, '客户的痛点', '项目背景')
-add_slide_number(slide, 2)
-
-items = [
-    ('📄 技术文档分散', '各部门文档格式不统一，检索困难，知识无法沉淀'),
-    ('🔒 信创合规压力', '现有系统 x86 架构，不满足国产化要求，政策风险高'),
-    ('🚀 交付效率低', '新部门上线需要数周，手动部署环节多，容易出错'),
-    ('🛡️ 运维能力弱', '没有监控、没有备份、没有审计，出问题才发现'),
+# ===== S6: BLOG FEATURES =====
+s = prs.slides.add_slide(prs.slide_layouts[6]); bg(s, LIGHT)
+titlebar(s, '博客功能矩阵', '111 篇文章 · 全功能单文件博客')
+pagenum(s, 6)
+cols_data = [
+    ['内容管理', ['Markdown 文章系统', '4 个分类 (技术/生活/随笔/分享)', '标签云 + 标签筛选', '文章置顶', '封面图支持', '定时发布 / 时间胶囊']],
+    ['阅读体验', ['全文搜索 (/)', '时间线归档视图', '热门文章 TOP 10', 'Canvas 鸟瞰图 (可视化)', '文章海报生成下载', '暗黑模式切换']],
+    ['互动系统', ['文章评论', 'RSS 订阅', '友链页面', '随机阅读 🎲', 'Ctrl+K 管理面板', '代码块一键复制']],
 ]
-for idx, (title, desc) in enumerate(items):
-    y = Inches(1.8 + idx * 1.2)
-    add_rect(slide, Inches(0.8), y, Inches(0.06), Inches(0.9), GOLD)
-    add_text_box(slide, Inches(1.1), y, Inches(10), Inches(0.4), title, font_size=20, color=BLUE, bold=True)
-    add_text_box(slide, Inches(1.1), y + Inches(0.45), Inches(10), Inches(0.5), desc, font_size=14, color=GRAY)
+for ci, (col_title, items) in enumerate(cols_data):
+    x = Inches(0.6 + ci * 4.1)
+    tb(s, x, Inches(1.5), Inches(3.8), Inches(0.4), col_title, sz=16, c=ACCENT, b=True)
+    rect(s, x, Inches(2.0), Inches(3.6), Inches(0.02), ACCENT)
+    for i, item in enumerate(items):
+        tb(s, x + Inches(0.1), Inches(2.2 + i * 0.55), Inches(3.5), Inches(0.45), f'• {item}', sz=12, c=GRAY)
 
-# ============================================================
-# SLIDE 3: Project Goals
-# ============================================================
-slide = prs.slides.add_slide(prs.slide_layouts[6])
-add_bg(slide, WHITE)
-add_page_title(slide, '我们要做什么', '项目目标')
-add_slide_number(slide, 3)
+# ===== S7: BACKEND API =====
+s = prs.slides.add_slide(prs.slide_layouts[6]); bg(s, LIGHT)
+titlebar(s, '后端 API 设计', 'wall_api.py — 单文件 Python HTTP Server (564 行)')
+pagenum(s, 7)
+ep = [('GET /blog/articles', '返回全部文章 JSON'),
+      ('POST /blog/articles', '发布文章 (管理员)'),
+      ('PUT /blog/articles/:id', '更新文章'),
+      ('DELETE /blog/articles/:id', '删除文章'),
+      ('POST /blog/articles/:id/comments', '发表评论'),
+      ('POST /blog/articles/:id/view', '阅读计数'),
+      ('GET /blog/rss', 'RSS Feed'),
+      ('GET /garden/state', '花园状态 (植物+季节)'),
+      ('POST /garden/visit', '访问播种 (新植物)'),
+      ('POST /garden/water', '浇水 (含限流)')]
+for i, (method, desc) in enumerate(ep):
+    col = i // 5; row = i % 5
+    x = Inches(0.6 + col * 6.3); y = Inches(1.5 + row * 1.05)
+    rect(s, x, y, Inches(5.9), Inches(0.85), WHITE if row % 2 == 0 else LIGHT)
+    tb(s, x + Inches(0.15), y + Inches(0.08), Inches(3.8), Inches(0.3), method, sz=11, c=ACCENT, b=True)
+    tb(s, x + Inches(0.15), y + Inches(0.45), Inches(5.5), Inches(0.3), desc, sz=12, c=GRAY)
 
-add_text_box(slide, Inches(0.8), Inches(1.8), Inches(11), Inches(0.8),
-             '基于 鲲鹏ARM + FusionCompute + Docker 容器技术，搭建一套可复制的政务数字门户 POC 平台',
-             font_size=20, color=DARK, bold=True)
+# ===== S8: GARDEN DATA MODEL =====
+s = prs.slides.add_slide(prs.slide_layouts[6]); bg(s, LIGHT)
+titlebar(s, '花园数据模型', 'garden.json — 植物生命周期')
+pagenum(s, 8)
+tb(s, Inches(0.8), Inches(1.5), Inches(11), Inches(0.4), '数据字段', sz=16, c=ACCENT, b=True)
+fields = ['id: 唯一标识 (时间戳+随机)', 'type: 植物类型 (fern/flower/mushroom/grass/succulent/vine/glowing)',
+          'x, y: 归一化坐标 (0~1)', 'size: 尺寸 (0.3~1.0)', 'health: 健康值 (0~100)',
+          'stage: 种子→嫩芽→成长→开花→枯萎', 'createdAt / lastWateredAt: 时间戳',
+          'wateredBy[]: 浇水者列表']
+for i, f in enumerate(fields):
+    col = i // 4; row = i % 4
+    tb(s, Inches(0.8 + col * 6.3), Inches(2.1 + row * 0.55), Inches(5.8), Inches(0.4), f'• {f}', sz=12, c=GRAY)
+tb(s, Inches(0.8), Inches(4.6), Inches(11), Inches(0.4), '核心机制', sz=16, c=ACCENT, b=True)
+mech = ['访问播种: 每次访问自动生成 1 株新植物 (sessionStorage 去重)', '浇水照料: 点击植物 → health+20 → 生长动画 → 粒子雨滴',
+        '自然衰减: -0.5 health/小时 → 枯萎 (灰度+透明)', '季节影响: 春季花多、秋季蘑菇爆发、冬季减速+飘雪',
+        '稀有事件: 连续7天浇水 → 发光植物；秋季15%蘑菇爆发', '容量控制: 上限 200 株，优先移除枯萎的']
+for i, m in enumerate(mech):
+    tb(s, Inches(0.8), Inches(5.1 + i * 0.35), Inches(11.5), Inches(0.3), f'• {m}', sz=11, c=GRAY)
 
-goals = [
-    '100% 国产化技术栈 — 从芯片到应用全链路自主可控',
-    '容器化一键部署 — 单条命令启动，≤30 分钟从零到上线',
-    '完整的运维体系 — 监控 + 备份 + 恢复 + 审计 + 快照',
-    '可复用模板 — 支撑 10 个部门快速上线新站点',
+# ===== S9: DEPLOYMENT =====
+s = prs.slides.add_slide(prs.slide_layouts[6]); bg(s, LIGHT)
+titlebar(s, '部署架构', '校内服务器 10.42.78.75')
+pagenum(s, 9)
+layers2 = [('用户浏览器', DARK),
+           ('Nginx :80 (Podman 容器)', ACCENT),
+           ('/ → yushe-blog.html    /moss → wall_api.py    /garden/ → wall_api.py    /moss-assets/ → wall_api.py', RGBColor(0x5A, 0x4A, 0x3A)),
+           ('wall_api.py (:8089) — HTTP API Server', RGBColor(0x7A, 0x6A, 0x5A)),
+           ('JSON 文件存储 (/opt/blog/data/)', GRAY)]
+for i, (label, color) in enumerate(layers2):
+    y = Inches(1.5 + i * 0.95)
+    rr = rect(s, Inches(2.0), y, Inches(9.3), Inches(0.7), color)
+    tb(s, Inches(2.3), y + Inches(0.12), Inches(8.8), Inches(0.45), label, sz=13, c=WHITE if color != LIGHT else DARK, b=True, a=PP_ALIGN.CENTER)
+tb(s, Inches(0.8), Inches(6.4), Inches(11), Inches(0.4), '部署命令:  scp → ssh kill → nohup python3 wall_api.py &  |  nginx -s reload', sz=12, c=GRAY)
+
+# ===== S10: INNOVATION =====
+s = prs.slides.add_slide(prs.slide_layouts[6]); bg(s, DARK)
+rect(s, Inches(0), Inches(0), W, Inches(0.05), GREEN)
+tb(s, Inches(0.8), Inches(0.35), Inches(11), Inches(0.55), '创新点', sz=28, c=LIGHT, b=True)
+pagenum(s, 10)
+innovations = [
+    ('1', '活的页面 — 数字苔藓', '网页不再是静态的——它会生长、枯萎、呼吸。每次访问改变花园生态，时间本身就是交互方式。这是对"网页"定义的重新想象。'),
+    ('2', '单文件全栈', '博客 635 行 HTML，后端 564 行 Python，花园 642 行 Canvas。没有框架、没有构建工具、没有 npm install。极致简单，极致可控。'),
+    ('3', '程序化生成美学', '6 种植物纯 Canvas 绘制，18 层渲染管线（天空→远山→土丘→雾→生物→植物→暗角），四季昼夜自然过渡，萤火虫/蜗牛/蝴蝶让花园有生命感。'),
+    ('4', 'AI 驱动的博客生态', '智谱 GLM-4V 免费视觉识别，Qwen-VL 场景分析，Depth Anything V2 深度图——AI 不是噱头，是实际可用的功能模块。'),
 ]
-for i, g in enumerate(goals):
-    y = Inches(2.8 + i * 0.9)
-    add_rect(slide, Inches(1.2), y + Inches(0.05), Inches(0.35), Inches(0.35), GOLD)
-    add_text_box(slide, Inches(1.2), y + Inches(0.05), Inches(0.35), Inches(0.35),
-                 str(i+1), font_size=14, color=WHITE, bold=True, alignment=PP_ALIGN.CENTER)
-    add_text_box(slide, Inches(1.8), y, Inches(10), Inches(0.6), g, font_size=16, color=DARK)
+for i, (num, title, desc) in enumerate(innovations):
+    y = Inches(1.5 + i * 1.45)
+    rect(s, Inches(0.6), y, Inches(12.1), Inches(1.25), RGBColor(0x2A, 0x25, 0x20))
+    rect(s, Inches(0.6), y, Inches(0.7), Inches(1.25), GREEN)
+    tb(s, Inches(0.6), y + Inches(0.35), Inches(0.7), Inches(0.5), num, sz=28, c=DARK, b=True, a=PP_ALIGN.CENTER)
+    tb(s, Inches(1.6), y + Inches(0.1), Inches(3.5), Inches(0.35), title, sz=16, c=LIGHT, b=True)
+    tb(s, Inches(1.6), y + Inches(0.55), Inches(10.8), Inches(0.55), desc, sz=11, c=GRAY)
 
-# ============================================================
-# SLIDE 4: Team
-# ============================================================
-slide = prs.slides.add_slide(prs.slide_layouts[6])
-add_bg(slide, WHITE)
-add_page_title(slide, '项目团队', '实训第4组')
-add_slide_number(slide, 4)
-
-team = [
-    ('项目经理+架构', '王振光', '总体负责、系统设计、文档答辩'),
-    ('基础设施', '胡翰斌', 'FusionCompute VM、Docker 环境搭建'),
-    ('应用开发', '刘永涛', 'Halo 博客、Compose 编排、前后端联调'),
-    ('运维', '王浩乐', 'Nginx、监控、备份、一键部署脚本'),
+# ===== S11: COMPARISON =====
+s = prs.slides.add_slide(prs.slide_layouts[6]); bg(s, LIGHT)
+titlebar(s, '为什么不用现成方案', '我们的选择 vs 常规做法')
+pagenum(s, 11)
+comp = [
+    ('维度', '常规做法', '我们的做法', '优势'),
+    ('博客系统', 'WordPress / Halo', '手写单文件 HTML', '零维护，极快加载'),
+    ('后端', 'Spring Boot / Express', 'Python http.server', '564 行，部署无依赖'),
+    ('数据库', 'MySQL / PostgreSQL', 'JSON 文件', '零配置，备份=复制文件'),
+    ('花园', '不存在', 'Canvas 2D 程序化', '原创交互体验'),
+    ('前端框架', 'React / Vue', '纯 HTML+CSS+JS', '0 依赖，1 个文件'),
+    ('部署', 'Docker + K8s', 'scp + nohup', '一行命令上线'),
 ]
-for i, (role, name, task) in enumerate(team):
-    y = Inches(2.0 + i * 1.3)
-    add_rect(slide, Inches(1.5), y, Inches(10), Inches(1.0), LIGHT_BG if i % 2 == 0 else WHITE)
-    add_text_box(slide, Inches(1.8), y + Inches(0.1), Inches(2.5), Inches(0.4), role, font_size=14, color=GOLD, bold=True)
-    add_text_box(slide, Inches(1.8), y + Inches(0.5), Inches(2.5), Inches(0.4), name, font_size=20, color=BLUE, bold=True)
-    add_text_box(slide, Inches(4.5), y + Inches(0.25), Inches(6.5), Inches(0.5), task, font_size=14, color=GRAY)
+xs = [Inches(0.6), Inches(2.8), Inches(6.0), Inches(9.5)]
+ws = [Inches(2.2), Inches(3.2), Inches(3.5), Inches(3.5)]
+for i, row in enumerate(comp):
+    y = Inches(1.5 + i * 0.85)
+    for j, val in enumerate(row):
+        c = WHITE if i == 0 else (ACCENT if j == 3 else (DARK if j == 2 else GRAY))
+        tb(s, xs[j], y + Inches(0.15), ws[j], Inches(0.5), val, sz=11 if i > 0 else 12, c=c, b=(i==0))
 
-# ============================================================
-# SLIDE 5: Architecture (core)
-# ============================================================
-slide = prs.slides.add_slide(prs.slide_layouts[6])
-add_bg(slide, WHITE)
-add_page_title(slide, '技术架构全景图', '⭐ 核心')
-add_slide_number(slide, 5)
-
-# Architecture diagram as text layers
-layers = [
-    ('用户浏览器 (HTTPS)', '#e8ecf0'),
-    ('Nginx — 反向代理 + SSL 终止', '#d0d8e0'),
-    ('Halo 博客     MySQL 8.0     Prometheus + Grafana', '#c8d0d8'),
-    ('Docker CE 24.x — 容器引擎', '#b8c0c8'),
-    ('openEuler 22.03 LTS SP2 (ARM64 aarch64)', '#a8b0b8'),
-    ('鲲鹏 TaiShan 200 + FusionCompute 8.x', '#98a0a8'),
+# ===== S12: LEARNINGS =====
+s = prs.slides.add_slide(prs.slide_layouts[6]); bg(s, LIGHT)
+titlebar(s, '收获与反思', '从零到上线的完整闭环')
+pagenum(s, 12)
+learn = [
+    ('💡 技术成长', ['Python HTTP Server 从入门到生产', 'Canvas 2D 程序化渲染完整实践', 'Nginx 反向代理 + Podman 容器', '无框架单文件架构的设计哲学']),
+    ('🔧 工程能力', ['从 BRD → 设计 → 开发 → 部署 → 运维', 'Git 工作流 (feature branch + PR + push)', 'SSH 远程部署 + 进程管理', 'JSON 数据存储的读写优化']),
+    ('⚠️ 踩过的坑', ['jsdelivr CDN 国内阻塞 → vendor/ 本地副本', 'Firebase Auth 需走代理 → 端口直连', 'GFW 阻断 GitHub → Clash 代理配置', 'Canvas 中文渲染模糊 → 缩放适配']),
+    ('🎯 产品思维', ['不是"能用就行"，是"有人愿意用"', '博客 111 篇文章 + 花园互动 = 完整生态', '每次迭代都有明确交付物', '文档驱动：设计→计划→实现→部署']),
 ]
-for i, (label, bg_hex) in enumerate(layers):
-    y = Inches(1.6 + i * 0.9)
-    rect = add_rect(slide, Inches(2.0), y, Inches(9), Inches(0.7), RGBColor(
-        int(bg_hex[1:3], 16), int(bg_hex[3:5], 16), int(bg_hex[5:7], 16)
-    ))
-    add_text_box(slide, Inches(2.3), y + Inches(0.15), Inches(8.5), Inches(0.4),
-                 label, font_size=14, color=DARK if i < 4 else WHITE, bold=True, alignment=PP_ALIGN.CENTER)
-    # Arrow between layers
-    if i < 5:
-        add_text_box(slide, Inches(6.2), y + Inches(0.7), Inches(0.8), Inches(0.2),
-                     '▼', font_size=10, color=GRAY, alignment=PP_ALIGN.CENTER)
+for i, (title, items) in enumerate(learn):
+    x = Inches(0.4 + (i % 2) * 6.4); y = Inches(1.5 + (i // 2) * 2.8)
+    tb(s, x + Inches(0.2), y, Inches(5), Inches(0.35), title, sz=15, c=ACCENT, b=True)
+    for j, item in enumerate(items):
+        tb(s, x + Inches(0.2), y + Inches(0.5 + j * 0.42), Inches(5.8), Inches(0.35), f'• {item}', sz=11, c=GRAY)
 
-add_text_box(slide, Inches(2.0), Inches(7.0), Inches(9), Inches(0.3),
-             '自下而上：每一层都是国产', font_size=12, color=GOLD, bold=True, alignment=PP_ALIGN.CENTER)
+# ===== S13: THANK YOU =====
+s = prs.slides.add_slide(prs.slide_layouts[6]); bg(s, LIGHT)
+rect(s, Inches(0), Inches(0), W, Inches(2.8), DARK)
+rect(s, Inches(0), Inches(2.8), W, Inches(0.05), ACCENT)
+tb(s, Inches(1), Inches(0.5), Inches(11), Inches(0.8), '感谢聆听，请老师指正', sz=36, c=LIGHT, b=True, a=PP_ALIGN.CENTER)
+tb(s, Inches(1), Inches(1.5), Inches(11), Inches(0.5), 'Q & A', sz=26, c=ACCENT, b=True, a=PP_ALIGN.CENTER)
+tb(s, Inches(1), Inches(4.0), Inches(11), Inches(0.6), '虞舍 · 数字苔藓', sz=22, c=DARK, b=True, a=PP_ALIGN.CENTER)
+tb(s, Inches(1), Inches(4.6), Inches(11), Inches(0.5), '个人独立博客 + 活的网页花园  |  单文件全栈架构  |  自建部署', sz=14, c=GRAY, a=PP_ALIGN.CENTER)
+tb(s, Inches(1), Inches(5.2), Inches(11), Inches(0.4), '实训第4组  ·  王振光  ·  2026年7月3日', sz=12, c=GRAY, a=PP_ALIGN.CENTER)
+tb(s, Inches(1), Inches(5.8), Inches(11), Inches(0.4), 'http://10.42.78.75  |  http://10.42.78.75/moss', sz=12, c=ACCENT, a=PP_ALIGN.CENTER)
 
-# ============================================================
-# SLIDE 6: Full-stack Localization
-# ============================================================
-slide = prs.slides.add_slide(prs.slide_layouts[6])
-add_bg(slide, WHITE)
-add_page_title(slide, '100% 国产化技术栈', '🔥 亮点')
-add_slide_number(slide, 6)
-
-stack = [
-    ('芯片', '鲲鹏 920 (ARM64)', '华为自研'),
-    ('虚拟化', 'FusionCompute 8.x', '华为'),
-    ('操作系统', 'openEuler 22.03 LTS', '华为开源'),
-    ('容器', 'Docker CE 24.x', 'ARM64 官方支持'),
-    ('博客', 'Halo v2.x (30K+ ⭐)', '国产开源'),
-    ('数据库', 'MySQL 8.0', 'ARM64 官方支持'),
-    ('代理', 'Nginx 1.24', 'ARM64 官方支持'),
-    ('监控', 'Prometheus + Grafana', 'CNCF 标准'),
-]
-for i, (layer, tech, source) in enumerate(stack):
-    y = Inches(1.6 + i * 0.65)
-    add_text_box(slide, Inches(0.8), y, Inches(1.8), Inches(0.4), layer, font_size=13, color=GRAY, bold=True)
-    add_text_box(slide, Inches(2.8), y, Inches(4.5), Inches(0.4), tech, font_size=14, color=DARK)
-    add_text_box(slide, Inches(7.5), y, Inches(2.5), Inches(0.4), source, font_size=12, color=GOLD)
-    add_text_box(slide, Inches(10.3), y, Inches(1.5), Inches(0.4), '✅ 国产', font_size=12, color=GRAY)
-    # subtle line
-    add_rect(slide, Inches(0.8), y + Inches(0.5), Inches(11.5), Inches(0.005), LIGHT_BG)
-
-# ============================================================
-# SLIDE 7: Network Topology
-# ============================================================
-slide = prs.slides.add_slide(prs.slide_layouts[6])
-add_bg(slide, WHITE)
-add_page_title(slide, '网络设计', '双网隔离')
-add_slide_number(slide, 7)
-
-add_rect(slide, Inches(1.0), Inches(1.8), Inches(5.2), Inches(4.8), LIGHT_BG)
-add_text_box(slide, Inches(1.3), Inches(1.9), Inches(4.5), Inches(0.4),
-             'VLAN 10 — 管理网', font_size=16, color=BLUE, bold=True)
-add_text_box(slide, Inches(1.3), Inches(2.3), Inches(4.5), Inches(0.3),
-             '192.168.10.0/24', font_size=13, color=GRAY)
-add_text_box(slide, Inches(1.3), Inches(2.8), Inches(4.5), Inches(0.3),
-             'VM-01 (管理节点)', font_size=15, color=DARK, bold=True)
-add_text_box(slide, Inches(1.3), Inches(3.2), Inches(4.5), Inches(0.3),
-             '2vCPU / 4GB / 40GB', font_size=12, color=GRAY)
-add_text_box(slide, Inches(1.3), Inches(3.6), Inches(4.5), Inches(0.3),
-             'Registry 镜像仓库', font_size=13, color=DARK)
-
-add_rect(slide, Inches(7.0), Inches(1.8), Inches(5.2), Inches(4.8), LIGHT_BG)
-add_text_box(slide, Inches(7.3), Inches(1.9), Inches(4.5), Inches(0.4),
-             'VLAN 20 — 业务网', font_size=16, color=BLUE, bold=True)
-add_text_box(slide, Inches(7.3), Inches(2.3), Inches(4.5), Inches(0.3),
-             '192.168.20.0/24', font_size=13, color=GRAY)
-add_text_box(slide, Inches(7.3), Inches(2.8), Inches(4.5), Inches(0.3),
-             'VM-02 (业务节点)', font_size=15, color=DARK, bold=True)
-add_text_box(slide, Inches(7.3), Inches(3.2), Inches(4.5), Inches(0.3),
-             '2vCPU / 4GB / 40GB + 100GB 数据盘', font_size=12, color=GRAY)
-add_bullet_list(slide, Inches(7.3), Inches(3.8), Inches(4.5), Inches(2.5),
-                ['Halo 博客', 'MySQL 8.0', 'Nginx (HTTPS)', 'Prometheus + Grafana', 'node_exporter + cadvisor'],
-                font_size=13, color=DARK)
-
-add_text_box(slide, Inches(5.8), Inches(3.2), Inches(1.5), Inches(0.5),
-             '← 安全组\n   隔离 →', font_size=11, color=GOLD, alignment=PP_ALIGN.CENTER, bold=True)
-
-# ============================================================
-# SLIDE 8: Docker Compose
-# ============================================================
-slide = prs.slides.add_slide(prs.slide_layouts[6])
-add_bg(slide, WHITE)
-add_page_title(slide, '容器化部署', 'Docker Compose 编排 7 个服务')
-add_slide_number(slide, 8)
-
-services = ['halo (博客) :8090', 'mysql (数据库) :3306', 'nginx (代理) :80/:443',
-            'prometheus (采集) :9090', 'grafana (大盘) :3000',
-            'node_exporter (主机) :9100', 'cadvisor (容器) :8080']
-for i, s in enumerate(services):
-    col = i % 2
-    row = i // 2
-    x = Inches(1.2 + col * 5.8)
-    y = Inches(1.8 + row * 1.3)
-    add_rect(slide, x, y, Inches(5.2), Inches(1.0), LIGHT_BG)
-    add_text_box(slide, x + Inches(0.3), y + Inches(0.15), Inches(4.5), Inches(0.3),
-                 f'容器 {i+1}', font_size=10, color=GOLD, bold=True)
-    add_text_box(slide, x + Inches(0.3), y + Inches(0.45), Inches(4.5), Inches(0.3),
-                 s, font_size=15, color=DARK, bold=True)
-
-add_rect(slide, Inches(3.0), Inches(6.0), Inches(7), Inches(0.7), BLUE)
-add_text_box(slide, Inches(3.2), Inches(6.1), Inches(6.5), Inches(0.5),
-             '$ docker compose up -d          ← 一条命令启动全部', font_size=16, color=WHITE, bold=True, alignment=PP_ALIGN.CENTER)
-
-# ============================================================
-# SLIDE 9: Live Demo
-# ============================================================
-slide = prs.slides.add_slide(prs.slide_layouts[6])
-add_bg(slide, WHITE)
-add_page_title(slide, '现场演示', '🎬 核心环节 — 6 个步骤')
-add_slide_number(slide, 9)
-
-demos = [
-    'SSH 登录 VM-02 → uname -m 确认 aarch64 ARM 架构',
-    'docker ps 检查 7 个容器状态 — 全部 UP',
-    '浏览器访问 https://192.168.20.10 → 展示博客首页',
-    '发布一篇测试文章 → 草稿 → 审核 → 前台可见',
-    'docker rm -f mysql → 重建容器 → 数据不丢失验证',
-    'Grafana 监控大盘 — CPU/内存/容器实时图表',
-]
-for i, d in enumerate(demos):
-    y = Inches(1.7 + i * 0.85)
-    add_rect(slide, Inches(0.8), y, Inches(11.5), Inches(0.65), LIGHT_BG if i % 2 == 0 else WHITE)
-    add_text_box(slide, Inches(1.0), y + Inches(0.1), Inches(0.5), Inches(0.4),
-                 str(i+1), font_size=18, color=GOLD, bold=True, alignment=PP_ALIGN.CENTER)
-    add_text_box(slide, Inches(1.6), y + Inches(0.12), Inches(10.5), Inches(0.4),
-                 d, font_size=14, color=DARK)
-
-# ============================================================
-# SLIDE 10: Review Workflow
-# ============================================================
-slide = prs.slides.add_slide(prs.slide_layouts[6])
-add_bg(slide, WHITE)
-add_page_title(slide, '内容安全 — 审核工作流', '政务合规要求')
-add_slide_number(slide, 10)
-
-flow = [
-    ('作者发布\n(草稿)', BLUE),
-    ('提交审核\n(待审核)', GOLD),
-    ('审核员通过 ✅\n→ 前台可见 (已发布)', RGBColor(0x2E, 0x7D, 0x32)),
-    ('审核员驳回 ❌\n→ 退回作者 (草稿)', RGBColor(0xC6, 0x28, 0x28)),
-]
-for i, (label, color) in enumerate(flow):
-    x = Inches(1.0 + i * 3.0)
-    add_rect(slide, x, Inches(2.5), Inches(2.5), Inches(2.0), color)
-    add_text_box(slide, x + Inches(0.2), Inches(2.9), Inches(2.1), Inches(1.2),
-                 label, font_size=14, color=WHITE, bold=True, alignment=PP_ALIGN.CENTER)
-    if i < 3:
-        add_text_box(slide, x + Inches(2.5), Inches(3.2), Inches(0.5), Inches(0.5),
-                     '→', font_size=24, color=GRAY, alignment=PP_ALIGN.CENTER)
-
-# ============================================================
-# SLIDE 11: One-click Deploy
-# ============================================================
-slide = prs.slides.add_slide(prs.slide_layouts[6])
-add_bg(slide, WHITE)
-add_page_title(slide, '30 分钟从零到上线', '🔥 亮点 — 一键部署能力')
-add_slide_number(slide, 11)
-
-deploy_steps = [
-    ('1/6', '检查 Docker 环境', '~1 分钟'),
-    ('2/6', '拉取 ARM64 镜像', '~5 分钟'),
-    ('3/6', '生成 SSL 证书', '~10 秒'),
-    ('4/6', '创建数据目录', '~5 秒'),
-    ('5/6', '启动 7 个容器', '~3 分钟'),
-    ('6/6', '等待服务就绪检查', '~2 分钟'),
-]
-for i, (step, desc, time) in enumerate(deploy_steps):
-    y = Inches(1.7 + i * 0.8)
-    add_text_box(slide, Inches(0.8), y, Inches(0.8), Inches(0.4), step, font_size=12, color=GOLD, bold=True)
-    add_text_box(slide, Inches(1.8), y, Inches(6), Inches(0.4), desc, font_size=15, color=DARK)
-    # time bar
-    bar_w = [1, 5, 0.2, 0.1, 3, 2][i] * 0.8
-    add_rect(slide, Inches(8.0), y + Inches(0.1), Inches(bar_w), Inches(0.25), BLUE)
-    add_text_box(slide, Inches(8.0 + bar_w + 0.2), y, Inches(2), Inches(0.4), time, font_size=12, color=GRAY)
-
-add_rect(slide, Inches(3.0), Inches(6.5), Inches(7), Inches(0.6), BLUE)
-add_text_box(slide, Inches(3.2), Inches(6.55), Inches(6.5), Inches(0.5),
-             '总计 ~28 分钟 ✅ (目标 ≤30min)', font_size=16, color=WHITE, bold=True, alignment=PP_ALIGN.CENTER)
-
-# ============================================================
-# SLIDE 12: Ops System
-# ============================================================
-slide = prs.slides.add_slide(prs.slide_layouts[6])
-add_bg(slide, WHITE)
-add_page_title(slide, '不只是能跑，更是可维护', '运维体系')
-add_slide_number(slide, 12)
-
-ops_cards = [
-    ('📊 监控大盘', 'Grafana + Prometheus\nCPU / 内存 / 容器 / 网络\n实时图表 + 告警规则'),
-    ('💾 自动备份', 'backup.sh + crontab\n每日 02:00 执行\n保留最近 7 天 + 每周归档'),
-    ('🔄 一键恢复', '备份 → 新环境恢复\n完整验证流程\nRTO ≤ 30min / RPO ≤ 24h'),
-    ('📋 日志审计', 'SSH 登录日志\n命令操作记录\n保留 90 天可追溯'),
-    ('📸 VM 快照', 'FusionCompute 快照\n4 个关键节点\n可随时快速回滚'),
-]
-for i, (title, desc) in enumerate(ops_cards):
-    x = Inches(0.5 + (i % 3) * 4.2)
-    y = Inches(1.6 + (i // 3) * 2.8)
-    add_rect(slide, x, y, Inches(3.8), Inches(2.4), LIGHT_BG)
-    add_text_box(slide, x + Inches(0.2), y + Inches(0.15), Inches(3.4), Inches(0.4),
-                 title, font_size=16, color=BLUE, bold=True)
-    add_text_box(slide, x + Inches(0.2), y + Inches(0.7), Inches(3.4), Inches(1.5),
-                 desc, font_size=12, color=GRAY)
-
-# ============================================================
-# SLIDE 13: Performance
-# ============================================================
-slide = prs.slides.add_slide(prs.slide_layouts[6])
-add_bg(slide, WHITE)
-add_page_title(slide, '性能验证', '实测数据')
-add_slide_number(slide, 13)
-
-metrics = [
-    ('页面响应 (95分位)', '≤ 3s', '2.1s', '✅'),
-    ('并发用户', '50', '50', '✅'),
-    ('错误率', '0%', '0%', '✅'),
-    ('TPS', '≥ 20', '28', '✅'),
-    ('恢复时间 (RTO)', '≤ 30min', '28min', '✅'),
-    ('数据恢复 (RPO)', '≤ 24h', '24h', '✅'),
-]
-add_rect(slide, Inches(0.8), Inches(1.5), Inches(11.5), Inches(0.5), BLUE)
-for j, h in enumerate(['指标', '目标', '实测', '状态']):
-    add_text_box(slide, Inches(1.0 + j * 3.2), Inches(1.55), Inches(2.5), Inches(0.4),
-                 h, font_size=14, color=WHITE, bold=True, alignment=PP_ALIGN.CENTER)
-for i, (metric, target, actual, status) in enumerate(metrics):
-    y = Inches(2.1 + i * 0.75)
-    if i % 2 == 0:
-        add_rect(slide, Inches(0.8), y, Inches(11.5), Inches(0.65), LIGHT_BG)
-    for j, val in enumerate([metric, target, actual, status]):
-        c = GRAY if j == 0 else (GOLD if j == 3 else DARK)
-        add_text_box(slide, Inches(1.0 + j * 3.2), y + Inches(0.1), Inches(2.5), Inches(0.4),
-                     val, font_size=14, color=c, bold=(j > 0), alignment=PP_ALIGN.CENTER)
-
-# ============================================================
-# SLIDE 14: Security
-# ============================================================
-slide = prs.slides.add_slide(prs.slide_layouts[6])
-add_bg(slide, WHITE)
-add_page_title(slide, '安全设计', '7 层防护')
-add_slide_number(slide, 14)
-
-security = [
-    'HTTPS 全站加密 — TLS 1.2 / 1.3',
-    '80 → 443 强制跳转 — HSTS 策略',
-    '管理网 / 业务网隔离 — 安全组拦截',
-    '数据库仅业务网可访问 — 无公网暴露',
-    'SSH 登录 + 命令操作审计 — 保留 90 天',
-    '文章发布审核工作流 — 敏感信息把关',
-    '容器最小权限运行 — 非 root 用户',
-]
-for i, s in enumerate(security):
-    y = Inches(1.6 + i * 0.8)
-    add_rect(slide, Inches(1.0), y, Inches(0.4), Inches(0.4), GOLD if i < 4 else BLUE)
-    add_text_box(slide, Inches(1.0), y + Inches(0.05), Inches(0.4), Inches(0.3),
-                 '🔒', font_size=14, color=WHITE, alignment=PP_ALIGN.CENTER)
-    add_text_box(slide, Inches(1.7), y + Inches(0.05), Inches(10), Inches(0.4),
-                 s, font_size=15, color=DARK)
-
-# ============================================================
-# SLIDE 15: Highlights
-# ============================================================
-slide = prs.slides.add_slide(prs.slide_layouts[6])
-add_bg(slide, WHITE)
-add_page_title(slide, '三大核心竞争力', '项目亮点总结')
-add_slide_number(slide, 15)
-
-hl = [
-    ('1', '全栈国产化', '鲲鹏ARM + FusionCompute + openEuler + Halo\n→ 完全自主可控，满足信创要求'),
-    ('2', '容器化可复制', 'docker compose up -d + deploy.sh\n→ 30分钟内部署到任意鲲鹏环境'),
-    ('3', '运维完备性', '监控 + 备份 + 恢复 + 审计 + 快照\n→ 不是"能跑就行"，是"有人维护"'),
-]
-for i, (num, title, desc) in enumerate(hl):
-    y = Inches(1.8 + i * 1.8)
-    add_rect(slide, Inches(1.0), y, Inches(11), Inches(1.5), LIGHT_BG)
-    add_rect(slide, Inches(1.0), y, Inches(0.8), Inches(1.5), GOLD)
-    add_text_box(slide, Inches(1.0), y + Inches(0.4), Inches(0.8), Inches(0.6),
-                 num, font_size=36, color=WHITE, bold=True, alignment=PP_ALIGN.CENTER)
-    add_text_box(slide, Inches(2.2), y + Inches(0.2), Inches(3), Inches(0.4),
-                 title, font_size=22, color=BLUE, bold=True)
-    add_text_box(slide, Inches(2.2), y + Inches(0.7), Inches(9), Inches(0.6),
-                 desc, font_size=13, color=GRAY)
-
-# ============================================================
-# SLIDE 16: Deliverables
-# ============================================================
-slide = prs.slides.add_slide(prs.slide_layouts[6])
-add_bg(slide, WHITE)
-add_page_title(slide, '交付物清单', '项目文档交付')
-add_slide_number(slide, 16)
-
-docs = [
-    ('📄', '项目需求分析', '基于 BRD → SRS 转化'),
-    ('📄', '系统架构设计', '架构图 + 技术栈 + 设计决策'),
-    ('📄', '部署实施手册', '从零到上线的每一步操作'),
-    ('📄', '运维操作手册', '日常运维 + 故障处理 SOP'),
-    ('📊', '华为项目管理模板', '策划 / 进度 / 会议纪要 ×4'),
-    ('💻', '源代码 + 脚本', 'docker-compose + deploy + backup'),
-    ('🎬', '答辩 PPT', '本演示文档'),
-]
-for i, (icon, name, desc) in enumerate(docs):
-    col = i % 2
-    row = i // 2
-    x = Inches(1.0 + col * 6.0)
-    y = Inches(1.6 + row * 1.5)
-    add_rect(slide, x, y, Inches(5.5), Inches(1.2), LIGHT_BG if row % 2 == 0 else WHITE)
-    add_text_box(slide, x + Inches(0.2), y + Inches(0.15), Inches(0.5), Inches(0.4),
-                 icon, font_size=20, color=GOLD)
-    add_text_box(slide, x + Inches(0.8), y + Inches(0.15), Inches(4.4), Inches(0.4),
-                 name, font_size=16, color=BLUE, bold=True)
-    add_text_box(slide, x + Inches(0.8), y + Inches(0.6), Inches(4.4), Inches(0.4),
-                 desc, font_size=12, color=GRAY)
-
-# ============================================================
-# SLIDE 17: Summary & Learnings
-# ============================================================
-slide = prs.slides.add_slide(prs.slide_layouts[6])
-add_bg(slide, WHITE)
-add_page_title(slide, '收获与踩坑', '项目总结')
-add_slide_number(slide, 17)
-
-add_text_box(slide, Inches(0.8), Inches(1.5), Inches(3.5), Inches(0.4),
-             '💡 技术层面', font_size=18, color=BLUE, bold=True)
-add_bullet_list(slide, Inches(0.8), Inches(2.0), Inches(5.5), Inches(2.5),
-                ['ARM 架构下容器化部署完整流程', 'Docker Compose 多服务编排', 'Prometheus + Grafana 监控体系', '国产化全栈技术验证'], font_size=13, color=DARK)
-
-add_text_box(slide, Inches(7.0), Inches(1.5), Inches(5.5), Inches(0.4),
-             '🔧 工程层面', font_size=18, color=BLUE, bold=True)
-add_bullet_list(slide, Inches(7.0), Inches(2.0), Inches(5.5), Inches(2.5),
-                ['BRD 需求 → SRS 技术转化流程', '策划→执行→监控→交付项目管理', '文档驱动的知识转移', '团队协作与分工效率'], font_size=13, color=DARK)
-
-add_text_box(slide, Inches(0.8), Inches(4.5), Inches(11.5), Inches(0.4),
-             '⚠️ 踩过的坑', font_size=18, color=GOLD, bold=True)
-add_bullet_list(slide, Inches(0.8), Inches(5.0), Inches(11.5), Inches(2.5),
-                ['Docker Hub 国内拉取慢 → 配置阿里云镜像加速 + 离线镜像包备份',
-                 'ARM64 镜像兼容性 → 提前在鲲鹏环境验证所有镜像，避免 x86 假设',
-                 'SSL 自签名证书浏览器警告 → POC 阶段可接受，生产使用 Let\'s Encrypt'],
-                font_size=13, color=GRAY)
-
-# ============================================================
-# SLIDE 18: Thank You
-# ============================================================
-slide = prs.slides.add_slide(prs.slide_layouts[6])
-add_bg(slide, WHITE)
-add_rect(slide, Inches(0), Inches(0), W, Inches(3.0), BLUE)
-add_rect(slide, Inches(0), Inches(3.0), W, Inches(0.06), GOLD)
-
-add_text_box(slide, Inches(1), Inches(0.6), Inches(11), Inches(0.8),
-             '感谢聆听，请老师指正！', font_size=36, color=WHITE, bold=True, alignment=PP_ALIGN.CENTER)
-
-add_text_box(slide, Inches(1), Inches(1.6), Inches(11), Inches(0.6),
-             'Q & A', font_size=28, color=GOLD, bold=True, alignment=PP_ALIGN.CENTER)
-
-add_text_box(slide, Inches(1), Inches(4.0), Inches(11), Inches(0.6),
-             '政务数字门户平台 POC', font_size=22, color=BLUE, bold=True, alignment=PP_ALIGN.CENTER)
-add_text_box(slide, Inches(1), Inches(4.6), Inches(11), Inches(0.6),
-             '基于鲲鹏ARM + 容器化的国产化解决方案', font_size=16, color=GRAY, alignment=PP_ALIGN.CENTER)
-add_text_box(slide, Inches(1), Inches(5.3), Inches(11), Inches(0.6),
-             '实训第4组  ·  王振光 胡翰斌 刘永涛 王浩乐  ·  2026年7月3日', font_size=13, color=GRAY, alignment=PP_ALIGN.CENTER)
-
-# ============================================================
-# SAVE
-# ============================================================
-output_path = os.path.join(os.path.dirname(__file__), '答辩PPT.pptx')
-prs.save(output_path)
-print(f'PPT saved: {output_path}')
-print(f'Slides: {len(prs.slides)}')
+# ===== SAVE =====
+out = os.path.join(os.path.dirname(__file__), '答辩PPT.pptx')
+try:
+    prs.save(out)
+except PermissionError:
+    out = os.path.join(os.path.dirname(__file__), '答辩PPT_new.pptx')
+    prs.save(out)
+print(f'Saved: {out} ({len(prs.slides)} slides)')
