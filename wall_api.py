@@ -22,6 +22,121 @@ def load():
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
+def garden_season():
+    m = time.localtime().tm_mon
+    if 3 <= m <= 5: return "spring"
+    if 6 <= m <= 8: return "summer"
+    if 9 <= m <= 11: return "autumn"
+    return "winter"
+
+def garden_season_weights():
+    """Return weighted plant type probabilities for current season."""
+    s = garden_season()
+    if s == "spring": return [("flower", 0.60), ("grass", 0.20), ("fern", 0.05), ("mushroom", 0.05), ("succulent", 0.05), ("vine", 0.05)]
+    if s == "summer": return [("fern", 0.30), ("vine", 0.20), ("grass", 0.20), ("flower", 0.10), ("mushroom", 0.10), ("succulent", 0.10)]
+    if s == "autumn": return [("mushroom", 0.40), ("grass", 0.30), ("fern", 0.10), ("flower", 0.10), ("vine", 0.05), ("succulent", 0.05)]
+    return [("succulent", 0.40), ("grass", 0.40), ("fern", 0.05), ("flower", 0.05), ("mushroom", 0.05), ("vine", 0.05)]
+
+def garden_random_plant_type():
+    import random
+    weights = garden_season_weights()
+    r = random.random()
+    acc = 0
+    for ptype, w in weights:
+        acc += w
+        if r <= acc:
+            return ptype
+    return weights[-1][0]
+
+def garden_apply_decay(plant, now_ms=None):
+    """Apply health decay: -0.5 per hour since last watered. Returns effective health."""
+    if now_ms is None:
+        now_ms = int(time.time() * 1000)
+    h = plant.get("health", 30)
+    if h <= 0:
+        return 0  # Already withered, permanent
+    last = plant.get("lastWateredAt", plant.get("createdAt", now_ms))
+    hours = (now_ms - last) / 3600000.0
+    decay = hours * 0.5
+    effective = max(0, h - decay)
+    # Update plant record with decayed value
+    plant["health"] = effective
+    if effective <= 0:
+        plant["stage"] = "withered"
+    elif effective < 20:
+        plant["stage"] = "seed"
+    elif effective < 40:
+        plant["stage"] = "sprout"
+    elif effective < 70:
+        plant["stage"] = "growing"
+    else:
+        plant["stage"] = "blooming"
+    return effective
+
+def garden_check_glowing(data):
+    """Check if last 7 consecutive days each have >=1 watering. If yes, add glowing plant."""
+    import random
+    dw = data.get("dailyWaterings", {})
+    # Check last 7 days
+    t = time.time()
+    consecutive = 0
+    for i in range(7):
+        day = time.strftime("%Y-%m-%d", time.localtime(t - (i+1)*86400))
+        if dw.get(day, 0) >= 1:
+            consecutive += 1
+        else:
+            break
+    if consecutive >= 7 and not any(p.get("type") == "glowing" for p in data["plants"]):
+        data["plants"].append({
+            "id": "glow-" + str(int(time.time()*1000000)),
+            "type": "glowing",
+            "x": random.random() * 0.7 + 0.15,
+            "y": random.random() * 0.5 + 0.1,
+            "size": 1.0,
+            "health": 100,
+            "stage": "blooming",
+            "variant": 0,
+            "createdAt": int(time.time()*1000),
+            "lastWateredAt": int(time.time()*1000),
+            "wateredBy": []
+        })
+        return True
+    return False
+
+def garden_check_mushroom_boom(data):
+    """15% chance in autumn to spawn 5 extra mushrooms."""
+    import random
+    s = garden_season()
+    if s != "autumn": return False
+    if random.random() > 0.15: return False
+    for _ in range(5):
+        data["plants"].append({
+            "id": "boom-" + str(int(time.time()*1000000)) + "-" + str(_),
+            "type": "mushroom",
+            "x": random.random() * 0.8 + 0.1,
+            "y": random.random() * 0.4 + 0.3,
+            "size": random.random() * 0.5 + 0.3,
+            "health": 40 + int(random.random() * 20),
+            "stage": "growing",
+            "variant": random.randint(0, 2),
+            "createdAt": int(time.time()*1000),
+            "lastWateredAt": int(time.time()*1000),
+            "wateredBy": []
+        })
+    return True
+
+def garden_enforce_cap(data, max_plants=200):
+    """Remove oldest plants if over cap. Prefer withered > non-blooming."""
+    plants = data["plants"]
+    if len(plants) <= max_plants: return
+    # Sort: withered first, then by createdAt (oldest first)
+    def sort_key(p):
+        is_withered = 0 if p.get("health", 0) <= 0 else 1
+        is_blooming = 1 if p.get("stage") == "blooming" else 0
+        return (is_withered, -is_blooming, p.get("createdAt", 0))
+    plants.sort(key=sort_key)
+    data["plants"] = plants[-(max_plants):]
+
 def save(posts):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(posts, f, ensure_ascii=False, indent=2)
@@ -69,6 +184,22 @@ class Handler(BaseHTTPRequestHandler):
                 posts = [p for p in posts if p.get("status") in ("approved", None, "")]
             posts.sort(key=lambda p: p.get("createdAt", 0), reverse=True)
             self._json(posts)
+        elif self.path == "/garden/state":
+            data = garden_load()
+            # Apply decay to all plants before returning
+            now_ms = int(time.time() * 1000)
+            for p in data["plants"]:
+                garden_apply_decay(p, now_ms)
+            garden_check_glowing(data)
+            garden_check_mushroom_boom(data)
+            garden_enforce_cap(data)
+            garden_save(data)
+            self._json({
+                "totalVisits": data["totalVisits"],
+                "plants": data["plants"],
+                "season": garden_season(),
+                "month": time.localtime().tm_mon
+            })
         else:
             self.send_response(404); self.end_headers()
 
