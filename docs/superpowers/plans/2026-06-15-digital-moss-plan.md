@@ -1,0 +1,1195 @@
+# Digital Moss (数字苔藓) Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** 构建一个活的网页花园——每次访问播种新植物，浇水照料，植物随时间生长或枯萎。Canvas 2D 渲染 + Python 后端 JSON 持久化。
+
+**Architecture:** 后端在 wall_api.py 新增 `/garden/*` 3 个 REST 端点，数据存 `/opt/blog/data/garden.json`。前端 moss.html 单文件 Canvas 2D 渲染 7 层画面，GPT 生成的水彩风格 PNG 精灵放在 `moss-assets/` 目录。
+
+**Tech Stack:** Python http.server + JSON file storage / HTML5 Canvas 2D + requestAnimationFrame / 零前端依赖
+
+---
+
+### Task 1: Backend — Garden data layer (constants, load/save helpers, CORS)
+
+**Files:**
+- Modify: `wall_api.py` (top section + OPTIONS handler)
+
+- [ ] **Step 1: Add GARDEN_FILE constant and helper functions at top of file**
+
+After line 6 (`BLOG_FILE = ...`), insert:
+
+```python
+GARDEN_FILE = "/opt/blog/data/garden.json"
+
+def garden_load():
+    if not os.path.exists(GARDEN_FILE):
+        return {"totalVisits": 0, "lastVisitAt": 0, "dailyWaterings": {}, "plants": []}
+    with open(GARDEN_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def garden_save(data):
+    os.makedirs(os.path.dirname(GARDEN_FILE), exist_ok=True)
+    with open(GARDEN_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+```
+
+- [ ] **Step 2: Update do_OPTIONS to include X-Session-Id header**
+
+Replace the `Access-Control-Allow-Headers` line in `do_OPTIONS`:
+
+```python
+self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Admin-Password, X-Session-Id")
+```
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add wall_api.py && git commit -m "feat(garden): add garden data layer helpers"
+```
+
+---
+
+### Task 2: Backend — GET /garden/state & session helpers
+
+**Files:**
+- Modify: `wall_api.py` (do_GET method)
+
+- [ ] **Step 1: Add season helper function**
+
+After the `garden_save` function, insert:
+
+```python
+def garden_season():
+    m = time.localtime().tm_mon
+    if 3 <= m <= 5: return "spring"
+    if 6 <= m <= 8: return "summer"
+    if 9 <= m <= 11: return "autumn"
+    return "winter"
+
+def garden_season_weights():
+    """Return weighted plant type probabilities for current season."""
+    s = garden_season()
+    if s == "spring": return [("flower", 0.60), ("grass", 0.20), ("fern", 0.05), ("mushroom", 0.05), ("succulent", 0.05), ("vine", 0.05)]
+    if s == "summer": return [("fern", 0.30), ("vine", 0.20), ("grass", 0.20), ("flower", 0.10), ("mushroom", 0.10), ("succulent", 0.10)]
+    if s == "autumn": return [("mushroom", 0.40), ("grass", 0.30), ("fern", 0.10), ("flower", 0.10), ("vine", 0.05), ("succulent", 0.05)]
+    return [("succulent", 0.40), ("grass", 0.40), ("fern", 0.05), ("flower", 0.05), ("mushroom", 0.05), ("vine", 0.05)]
+
+def garden_random_plant_type():
+    import random
+    weights = garden_season_weights()
+    r = random.random()
+    acc = 0
+    for ptype, w in weights:
+        acc += w
+        if r <= acc:
+            return ptype
+    return weights[-1][0]
+
+def garden_check_glowing(data):
+    """Check if last 7 consecutive days each have >=1 watering. If yes, add glowing plant."""
+    import random
+    dw = data.get("dailyWaterings", {})
+    today = time.strftime("%Y-%m-%d")
+    # Check last 7 days
+    t = time.time()
+    consecutive = 0
+    for i in range(7):
+        day = time.strftime("%Y-%m-%d", time.localtime(t - (i+1)*86400))
+        if dw.get(day, 0) >= 1:
+            consecutive += 1
+        else:
+            break
+    if consecutive >= 7 and not any(p.get("type") == "glowing" for p in data["plants"]):
+        data["plants"].append({
+            "id": "glow-" + str(int(time.time()*1000000)),
+            "type": "glowing",
+            "x": random.random() * 0.7 + 0.15,
+            "y": random.random() * 0.5 + 0.1,
+            "size": 1.0,
+            "health": 100,
+            "stage": "blooming",
+            "variant": 0,
+            "createdAt": int(time.time()*1000),
+            "lastWateredAt": int(time.time()*1000),
+            "wateredBy": []
+        })
+        return True
+    return False
+
+def garden_check_mushroom_boom(data):
+    """15% chance in autumn to spawn 5 extra mushrooms."""
+    import random
+    s = garden_season()
+    if s != "autumn": return False
+    if random.random() > 0.15: return False
+    for _ in range(5):
+        data["plants"].append({
+            "id": "boom-" + str(int(time.time()*1000000)) + "-" + str(_),
+            "type": "mushroom",
+            "x": random.random() * 0.8 + 0.1,
+            "y": random.random() * 0.4 + 0.3,
+            "size": random.random() * 0.5 + 0.3,
+            "health": 40 + int(random.random() * 20),
+            "stage": "growing",
+            "variant": random.randint(0, 2),
+            "createdAt": int(time.time()*1000),
+            "lastWateredAt": int(time.time()*1000),
+            "wateredBy": []
+        })
+    return True
+
+def garden_apply_decay(plant, now_ms=None):
+    """Apply health decay: -0.5 per hour since last watered. Returns effective health."""
+    if now_ms is None:
+        now_ms = int(time.time() * 1000)
+    h = plant.get("health", 30)
+    if h <= 0:
+        return 0  # Already withered, permanent
+    last = plant.get("lastWateredAt", plant.get("createdAt", now_ms))
+    hours = (now_ms - last) / 3600000.0
+    decay = hours * 0.5
+    effective = max(0, h - decay)
+    # Update plant record with decayed value
+    plant["health"] = effective
+    if effective <= 0:
+        plant["stage"] = "withered"
+    elif effective < 20:
+        plant["stage"] = "seed"
+    elif effective < 40:
+        plant["stage"] = "sprout"
+    elif effective < 70:
+        plant["stage"] = "growing"
+    else:
+        plant["stage"] = "blooming"
+    return effective
+
+def garden_enforce_cap(data, max_plants=200):
+    """Remove oldest plants if over cap. Prefer withered > non-blooming."""
+    plants = data["plants"]
+    if len(plants) <= max_plants: return
+    # Sort: withered first, then by createdAt (oldest first)
+    def sort_key(p):
+        is_withered = 0 if p.get("health", 0) <= 0 else 1
+        is_blooming = 1 if p.get("stage") == "blooming" else 0
+        return (is_withered, -is_blooming, p.get("createdAt", 0))
+    plants.sort(key=sort_key)
+    data["plants"] = plants[-(max_plants):]
+```
+
+- [ ] **Step 2: Add GET /garden/state handler in do_GET**
+
+After the `/posts` handler block (before the final `else:` in do_GET), insert:
+
+```python
+        elif self.path == "/garden/state":
+            data = garden_load()
+            # Apply decay to all plants before returning
+            now_ms = int(time.time() * 1000)
+            for p in data["plants"]:
+                garden_apply_decay(p, now_ms)
+            garden_check_glowing(data)
+            garden_check_mushroom_boom(data)
+            garden_enforce_cap(data)
+            garden_save(data)
+            self._json({
+                "totalVisits": data["totalVisits"],
+                "plants": data["plants"],
+                "season": garden_season(),
+                "month": time.localtime().tm_mon
+            })
+```
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add wall_api.py && git commit -m "feat(garden): add GET /garden/state with season and rare event logic"
+```
+
+---
+
+### Task 3: Backend — POST /garden/visit
+
+**Files:**
+- Modify: `wall_api.py` (do_POST method)
+
+- [ ] **Step 1: Add session rate-limit helper and visit handler in do_POST**
+
+In the `do_POST` method, before the final `else:` block, insert:
+
+```python
+        elif self.path == "/garden/visit":
+            import random
+            sid = self.headers.get("X-Session-Id", "anon")
+            data = garden_load()
+            # Check if this session visited in last hour
+            now = int(time.time() * 1000)
+            one_hour = 3600000
+            if now - data.get("lastVisitAt", 0) < one_hour:
+                # Still count totalVisits for new sessions only
+                # Actually let's always count visits but plants only for new sessions
+                pass
+            # Always increment total visits
+            data["totalVisits"] = data.get("totalVisits", 0) + 1
+            data["lastVisitAt"] = now
+
+            # Spawn new plant
+            ptype = garden_random_plant_type()
+            new_plant = {
+                "id": str(int(time.time() * 1000000)),
+                "type": ptype,
+                "x": random.random() * 0.8 + 0.1,
+                "y": random.random() * 0.45 + 0.25,
+                "size": random.random() * 0.5 + 0.3,
+                "health": 30,
+                "stage": "sprout",
+                "variant": random.randint(0, 2),
+                "createdAt": now,
+                "lastWateredAt": now,
+                "wateredBy": [sid]
+            }
+            data["plants"].append(new_plant)
+            garden_enforce_cap(data)
+            garden_save(data)
+            self._json({"ok": True, "totalVisits": data["totalVisits"], "newPlant": new_plant})
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add wall_api.py && git commit -m "feat(garden): add POST /garden/visit with season-weighted plant spawning"
+```
+
+---
+
+### Task 4: Backend — POST /garden/water
+
+**Files:**
+- Modify: `wall_api.py` (do_POST method)
+
+- [ ] **Step 1: Add water handler in do_POST**
+
+After the `/garden/visit` handler, insert:
+
+```python
+        elif self.path == "/garden/water":
+            sid = self.headers.get("X-Session-Id", "anon")
+            x = body.get("x", 0.5)
+            y = body.get("y", 0.5)
+            data = garden_load()
+            now = int(time.time() * 1000)
+
+            # Rate limit: track watering times per session
+            water_times = data.setdefault("_waterTimes", {})
+            times = water_times.get(sid, [])
+            # Clean old entries (>1 min)
+            times = [t for t in times if now - t < 60000]
+            if len(times) >= 3:
+                self.send_response(429)
+                self.end_headers()
+                self.wfile.write(b'{"error":"rate limited"}')
+                return
+            times.append(now)
+            water_times[sid] = times
+
+            # Update dailyWaterings
+            today = time.strftime("%Y-%m-%d")
+            dw = data.setdefault("dailyWaterings", {})
+            dw[today] = dw.get(today, 0) + 1
+            # Keep only last 14 days
+            keys = sorted(dw.keys())
+            if len(keys) > 14:
+                for k in keys[:-14]:
+                    del dw[k]
+
+            # Water plants within distance threshold
+            threshold = 0.08
+            watered = []
+            for p in data["plants"]:
+                # Apply decay first to get effective health
+                garden_apply_decay(p, now)
+                if p.get("health", 0) <= 0:
+                    continue  # skip withered (permanent)
+                dist = ((p["x"] - x) ** 2 + (p["y"] - y) ** 2) ** 0.5
+                if dist <= threshold * (1 + p.get("size", 0.5)):
+                    p["health"] = min(100, p["health"] + 20)
+                    p["lastWateredAt"] = now
+                    if p["health"] >= 70:
+                        p["stage"] = "blooming"
+                    elif p["health"] >= 40:
+                        p["stage"] = "growing"
+                    elif p["health"] >= 20:
+                        p["stage"] = "sprout"
+                    else:
+                        p["stage"] = "seed"
+                    sid_list = p.setdefault("wateredBy", [])
+                    if sid not in sid_list:
+                        sid_list.append(sid)
+                    watered.append({"id": p["id"], "health": p["health"], "stage": p["stage"]})
+
+            garden_save(data)
+            self._json({"ok": True, "watered": watered})
+```
+
+- [ ] **Step 2: Add garden route handling for OPTIONS preflight in do_OPTIONS**
+
+The existing `do_OPTIONS` already allows all methods and the X-Session-Id header, so no change needed. But verify the `Access-Control-Allow-Headers` includes `X-Session-Id` (added in Task 1).
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add wall_api.py && git commit -m "feat(garden): add POST /garden/water with rate limiting and daily tracking"
+```
+
+---
+
+### Task 5: Create moss-assets/ directory with placeholder
+
+**Files:**
+- Create: `moss-assets/.gitkeep`
+
+- [ ] **Step 1: Create directory and .gitkeep**
+
+```bash
+mkdir -p moss-assets
+touch moss-assets/.gitkeep
+```
+
+- [ ] **Step 2: Add to .gitignore for real assets but track directory**
+
+Verify `.gitignore` has these entries:
+
+```
+moss-assets/*.png
+!moss-assets/.gitkeep
+```
+
+Or simpler — just commit the .gitkeep and the user will add PNGs manually. We'll reference them by path in moss.html using emoji fallback rendering so the page works even without PNG assets.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add moss-assets/.gitkeep && git commit -m "chore: add moss-assets/ directory for plant sprites"
+```
+
+---
+
+### Task 6: Frontend — moss.html HTML structure + CSS
+
+**Files:**
+- Create: `moss.html`
+
+- [ ] **Step 1: Create moss.html with complete HTML structure and CSS**
+
+```html
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🌿 数字苔藓</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;font-family:"Noto Serif SC",Georgia,serif;background:#3d3027;touch-action:none}
+canvas{display:block;position:fixed;top:0;left:0;width:100%;height:100%}
+
+/* Top bar */
+#topBar{position:fixed;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:linear-gradient(rgba(61,48,39,.7),transparent);color:#fbf8f3;font-size:14px;letter-spacing:1px;pointer-events:none}
+#topBar>*{pointer-events:auto}
+#topBar .title{font-weight:700;font-size:16px}
+#topBar .title em{font-style:normal;font-size:12px;opacity:.6;margin-left:8px}
+#topBar button{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:16px;padding:4px 14px;font-size:12px;color:#fbf8f3;cursor:pointer;font-family:inherit;transition:all .2s}
+#topBar button:hover{background:rgba(255,255,255,.2)}
+
+/* Bottom right indicator */
+#gardenInfo{position:fixed;bottom:20px;right:20px;z-index:10;font-size:12px;color:rgba(251,248,243,.6);text-align:right;letter-spacing:1px;line-height:1.8;pointer-events:none}
+#gardenInfo .season-icon{font-size:28px;display:block;margin-bottom:4px}
+
+/* About modal */
+#aboutBg{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s}
+#aboutBg.show{opacity:1;pointer-events:auto}
+#aboutBox{background:#fbf8f3;color:#3d3027;border-radius:16px;padding:28px 24px;max-width:380px;width:90%;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,.3);line-height:1.8;font-size:14px}
+#aboutBox h3{font-size:20px;margin-bottom:12px;color:#8b6f4e}
+#aboutBox p{margin-bottom:8px;color:#a89880}
+#aboutBox button{background:#8b6f4e;color:#fff;border:none;border-radius:20px;padding:8px 28px;font-size:14px;cursor:pointer;font-family:inherit;margin-top:12px}
+
+/* Watering cursor hint */
+.water-cursor{cursor:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><text y='20' font-size='20'>💧</text></svg>") 12 20, auto}
+
+/* Toast */
+#toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:50;background:rgba(139,111,78,.9);color:#fff;padding:8px 20px;border-radius:20px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none}
+#toast.show{opacity:1}
+
+@media(max-width:480px){
+  #topBar{padding:10px 14px;font-size:12px}
+  #topBar .title{font-size:14px}
+  #gardenInfo{bottom:12px;right:12px;font-size:10px}
+}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<div id="topBar">
+  <span class="title">🌿 数字苔藓 <em id="visitCount">访问 0 次</em></span>
+  <button onclick="showAbout()">关于</button>
+</div>
+
+<div id="gardenInfo">
+  <span class="season-icon" id="seasonIcon">🌱</span>
+  <span id="plantSummary">0 株植物 · 0 朵盛开</span>
+</div>
+
+<div id="aboutBg" onclick="if(event.target===this)hideAbout()">
+  <div id="aboutBox">
+    <h3>🌿 数字苔藓</h3>
+    <p>一个活着的网页花园。<br>每次访问，土壤中都会长出新生命。</p>
+    <p>💧 <b>点击植物</b>浇水照料<br>被爱的植物会开花，被遗忘的会枯萎</p>
+    <p>🌸 春天花朵盛开<br>☀️ 夏天万物生长<br>🍂 秋天蘑菇爆发<br>❄️ 冬天雪花飘落</p>
+    <p style="font-size:11px;opacity:.5">连续7天浇水，会诞生发光的稀有植物 ✨</p>
+    <button onclick="hideAbout()">知道了</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// === Placeholder for JS tasks below ===
+// All JavaScript code will be placed here sequentially.
+</script>
+</body>
+</html>
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add moss.html && git commit -m "feat(garden): add moss.html HTML structure and CSS"
+```
+
+---
+
+### Task 7: Frontend — JS core (state, API client, season, asset loader)
+
+**Files:**
+- Modify: `moss.html` (replace the placeholder `<script>` block)
+
+- [ ] **Step 1: Replace the placeholder script block with core JS**
+
+Replace the comment `// === Placeholder for JS tasks below === ...` with:
+
+```javascript
+// ===== CONFIG =====
+var API = '/garden';
+var SID = sessionStorage._moss_sid || (sessionStorage._moss_sid = 'sess_' + Math.random().toString(36).slice(2, 10));
+var ASSET_BASE = 'moss-assets/';
+
+// ===== STATE =====
+var state = {
+  plants: [],
+  totalVisits: 0,
+  season: 'summer',
+  month: 6,
+  assets: {},        // Image objects keyed by name
+  assetsLoaded: false,
+  rainParticles: [],
+  snowParticles: [],
+  plantAnims: {},    // plantId -> {scale, targetScale, startTime}
+  clouds: [{x:0.1,y:0.05,s:1},{x:0.5,y:0.08,s:0.7},{x:0.8,y:0.03,s:1.2}],
+  lastFrame: 0
+};
+
+// ===== SEASON SYSTEM =====
+function getSeason(m) {
+  m = m || new Date().getMonth() + 1;
+  if (m >= 3 && m <= 5) return 'spring';
+  if (m >= 6 && m <= 8) return 'summer';
+  if (m >= 9 && m <= 11) return 'autumn';
+  return 'winter';
+}
+
+var SEASON_COLORS = {
+  spring: { sky: ['#d4e8d0','#e8f0dd'], ground: '#8b9e70', icon: '🌸' },
+  summer: { sky: ['#e8f0d0','#f0f5e0'], ground: '#7a8b50', icon: '☀️' },
+  autumn: { sky: ['#f0e0c8','#f0e8d8'], ground: '#a08060', icon: '🍂' },
+  winter: { sky: ['#e0e4e8','#eceff4'], ground: '#8a8078', icon: '❄️' }
+};
+
+// ===== API CLIENT =====
+async function apiGet(path) {
+  var r = await fetch(API + path, { headers: {'X-Session-Id': SID} });
+  return r.json();
+}
+
+async function apiPost(path, body) {
+  var r = await fetch(API + path, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-Session-Id': SID},
+    body: JSON.stringify(body || {})
+  });
+  return r.json();
+}
+
+// ===== ASSET LOADER =====
+var ASSET_LIST = [
+  'fern_0', 'fern_1', 'fern_2',
+  'flower_0', 'flower_1', 'flower_2',
+  'mushroom_0', 'mushroom_1', 'mushroom_2',
+  'grass_0', 'grass_1', 'grass_2',
+  'succulent_0', 'succulent_1', 'succulent_2',
+  'vine_0', 'vine_1', 'vine_2',
+  'ground', 'cloud_0', 'cloud_1', 'cloud_2', 'drop'
+];
+
+function loadAssets() {
+  var promises = ASSET_LIST.map(function(name) {
+    return new Promise(function(resolve) {
+      var img = new Image();
+      img.onload = function() { state.assets[name] = img; resolve(true); };
+      img.onerror = function() { resolve(false); }; // Graceful fallback
+      img.src = ASSET_BASE + name + '.png';
+    });
+  });
+  return Promise.all(promises).then(function() {
+    state.assetsLoaded = true;
+    console.log('Assets loaded: ' + Object.keys(state.assets).length + '/' + ASSET_LIST.length);
+  });
+}
+
+function getAsset(name) {
+  return state.assets[name] || null;
+}
+
+function getPlantSprite(type, variant) {
+  var key = type + '_' + (variant || 0);
+  return getAsset(key);
+}
+
+// ===== STAGE CALC =====
+function calcStage(plant) {
+  var h = plant.health;
+  if (typeof h === 'undefined') h = 30;
+  if (h <= 0) return 'withered';
+  if (h < 20) return 'seed';
+  if (h < 40) return 'sprout';
+  if (h < 70) return 'growing';
+  return 'blooming';
+}
+
+function stageScale(stage) {
+  if (stage === 'seed') return 0.1;
+  if (stage === 'sprout') return 0.3;
+  if (stage === 'growing') return 0.6;
+  if (stage === 'blooming') return 1.0;
+  return 0.6; // withered
+}
+
+function stageAlpha(stage) {
+  if (stage === 'withered') return 0.4;
+  return 1.0;
+}
+
+// ===== UI HELPERS =====
+function toast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, 2000);
+}
+
+function updateUI() {
+  document.getElementById('visitCount').textContent = '访问 ' + state.totalVisits + ' 次';
+  var blooming = state.plants.filter(function(p) { return calcStage(p) === 'blooming'; }).length;
+  var alive = state.plants.filter(function(p) { return calcStage(p) !== 'withered'; }).length;
+  document.getElementById('plantSummary').textContent = alive + ' 株植物 · ' + blooming + ' 朵盛开';
+  var colors = SEASON_COLORS[state.season] || SEASON_COLORS.summer;
+  document.getElementById('seasonIcon').textContent = colors.icon;
+}
+
+function showAbout() {
+  document.getElementById('aboutBg').classList.add('show');
+}
+
+function hideAbout() {
+  document.getElementById('aboutBg').classList.remove('show');
+}
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add moss.html && git commit -m "feat(garden): add core JS (state, API, season, asset loader)"
+```
+
+---
+
+### Task 8: Frontend — Canvas rendering (background layers + plants)
+
+**Files:**
+- Modify: `moss.html` (append to script block)
+
+- [ ] **Step 1: Append rendering functions to the script block**
+
+Before the closing `</script>` tag, append:
+
+```javascript
+// ===== CANVAS RENDERING =====
+var cv = document.getElementById('cv');
+var ctx = cv.getContext('2d');
+
+function resizeCanvas() {
+  cv.width = window.innerWidth;
+  cv.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+function normX(x) { return x * cv.width; }
+function normY(y) { return y * cv.height; }
+
+// Draw sky gradient
+function drawSky() {
+  var colors = SEASON_COLORS[state.season] || SEASON_COLORS.summer;
+  var grad = ctx.createLinearGradient(0, 0, 0, cv.height * 0.6);
+  grad.addColorStop(0, colors.sky[0]);
+  grad.addColorStop(1, colors.sky[1]);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, cv.width, cv.height * 0.6);
+}
+
+// Draw clouds
+function drawClouds() {
+  state.clouds.forEach(function(c) {
+    var img = getAsset('cloud_' + Math.floor(Math.abs(c.x * 10) % 3));
+    var cx = normX(c.x), cy = normY(c.y);
+    var w = 200 * c.s, h = 100 * c.s;
+    if (img) {
+      ctx.globalAlpha = 0.5;
+      ctx.drawImage(img, cx - w/2, cy - h/2, w, h);
+      ctx.globalAlpha = 1;
+    } else {
+      // Fallback: draw ellipse
+      ctx.fillStyle = 'rgba(255,255,255,0.2)';
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, w/2, h/2, 0, 0, Math.PI*2);
+      ctx.fill();
+    }
+  });
+}
+
+// Draw horizon line / distant hills
+function drawHorizon() {
+  var colors = SEASON_COLORS[state.season] || SEASON_COLORS.summer;
+  var h = cv.height * 0.55;
+  ctx.fillStyle = 'rgba(139,111,78,0.08)';
+  ctx.beginPath();
+  ctx.moveTo(0, h);
+  for (var x = 0; x <= cv.width; x += 100) {
+    var y = h - 40 - 20 * Math.sin(x * 0.003) - 10 * Math.sin(x * 0.007 + 1.5);
+    ctx.lineTo(x, y);
+  }
+  ctx.lineTo(cv.width, cv.height);
+  ctx.lineTo(0, cv.height);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// Draw ground
+function drawGround() {
+  var groundImg = getAsset('ground');
+  var h = cv.height * 0.55;
+  if (groundImg) {
+    // Tile the ground texture
+    var tw = groundImg.width, th = groundImg.height;
+    for (var x = 0; x < cv.width; x += tw) {
+      for (var y = h; y < cv.height; y += th) {
+        ctx.drawImage(groundImg, x, y, tw, th);
+      }
+    }
+    // Gradient overlay to blend
+    var grad = ctx.createLinearGradient(0, h, 0, h + 60);
+    grad.addColorStop(0, 'rgba(61,48,39,0.3)');
+    grad.addColorStop(1, 'rgba(61,48,39,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, h, cv.width, 60);
+  } else {
+    // Fallback: solid ground
+    var colors = SEASON_COLORS[state.season] || SEASON_COLORS.summer;
+    ctx.fillStyle = colors.ground;
+    ctx.fillRect(0, h, cv.width, cv.height - h);
+  }
+}
+
+// Sort plants by y for correct depth ordering
+function sortPlants() {
+  state.plants.sort(function(a, b) { return a.y - b.y; });
+}
+
+// Draw single plant
+function drawPlant(plant) {
+  var stage = calcStage(plant);
+  if (stage === 'seed') return; // invisible in soil
+
+  var px = normX(plant.x);
+  var py = normY(plant.y);
+  var s = plant.size || 0.6;
+
+  // Check for animation override
+  var animScale = 1;
+  if (state.plantAnims[plant.id]) {
+    var anim = state.plantAnims[plant.id];
+    var elapsed = (Date.now() - anim.startTime) / 1000;
+    if (elapsed < 0.4) {
+      // Spring bounce: 1.0 -> 1.15 -> 1.0
+      var t = elapsed / 0.4;
+      animScale = 1 + 0.15 * Math.sin(t * Math.PI) * Math.exp(-t * 5);
+    } else {
+      delete state.plantAnims[plant.id];
+    }
+  }
+
+  var baseScale = stageScale(stage);
+  var drawScale = s * baseScale * animScale;
+  var alpha = stageAlpha(stage);
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+
+  if (stage === 'withered') {
+    ctx.filter = 'grayscale(100%)';
+  }
+
+  var img = getPlantSprite(plant.type, plant.variant);
+
+  if (img) {
+    var iw = img.width, ih = img.height;
+    var dw = iw * drawScale * 1.2, dh = ih * drawScale * 1.2;
+    ctx.drawImage(img, px - dw/2, py - dh, dw, dh);
+  } else {
+    // Fallback: draw colored shape
+    drawFallbackPlant(plant, px, py, drawScale);
+  }
+
+  // Glowing plant halo
+  if (plant.type === 'glowing' && stage === 'blooming') {
+    ctx.filter = 'none';
+    var glowGrad = ctx.createRadialGradient(px, py - 100 * drawScale, 0, px, py - 100 * drawScale, 80 * drawScale);
+    glowGrad.addColorStop(0, 'rgba(255,215,0,0.5)');
+    glowGrad.addColorStop(1, 'rgba(255,215,0,0)');
+    ctx.fillStyle = glowGrad;
+    ctx.beginPath();
+    ctx.arc(px, py - 100 * drawScale, 80 * drawScale, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+// Fallback: draw plant shape without sprite
+function drawFallbackPlant(plant, px, py, scale) {
+  var colors = {
+    fern: '#4a7c3f', flower: '#e8a0b0', mushroom: '#c44b3b',
+    grass: '#6b8c42', succulent: '#7a9a7a', vine: '#3d6b34', glowing: '#ffd700'
+  };
+  var color = colors[plant.type] || '#6b8c42';
+
+  ctx.fillStyle = color;
+  ctx.beginPath();
+
+  switch(plant.type) {
+    case 'fern':
+      // Spiral curve
+      for (var i = 0; i < 20; i++) {
+        var a = i * 0.3, r = i * 3 * scale;
+        ctx.arc(px, py - r, 4 * scale, a, a + 0.5 * scale);
+      }
+      break;
+    case 'flower':
+      // Petal cluster
+      for (var j = 0; j < 6; j++) {
+        var angle = j * Math.PI / 3;
+        ctx.ellipse(px + Math.cos(angle) * 12 * scale, py - 30 * scale + Math.sin(angle) * 12 * scale, 8 * scale, 14 * scale, angle, 0, Math.PI * 2);
+      }
+      ctx.fillStyle = '#ffd700';
+      ctx.arc(px, py - 30 * scale, 6 * scale, 0, Math.PI * 2);
+      break;
+    case 'mushroom':
+      // Dome cap
+      ctx.ellipse(px, py - 25 * scale, 16 * scale, 10 * scale, 0, Math.PI, 0);
+      ctx.fill();
+      ctx.fillStyle = '#e8d8c8';
+      ctx.fillRect(px - 3 * scale, py - 25 * scale, 6 * scale, 20 * scale);
+      break;
+    case 'grass':
+      // Curved blades
+      for (var k = 0; k < 4; k++) {
+        ctx.moveTo(px, py);
+        ctx.quadraticCurveTo(px + (k-1.5) * 10 * scale, py - 20 * scale, px + (k-1.5) * 8 * scale, py - 35 * scale);
+      }
+      break;
+    case 'succulent':
+      // Layered rosette
+      for (var l = 4; l > 0; l--) {
+        ctx.ellipse(px, py - 15 * scale, l * 8 * scale, l * 5 * scale, 0, 0, Math.PI * 2);
+      }
+      break;
+    case 'vine':
+      // Winding tendril
+      ctx.moveTo(px, py);
+      for (var m = 0; m < 15; m++) {
+        ctx.lineTo(px + 8 * scale * Math.sin(m*0.5), py - m * 3 * scale);
+      }
+      break;
+    case 'glowing':
+      ctx.fillStyle = '#ffd700';
+      ctx.arc(px, py - 30 * scale, 15 * scale, 0, Math.PI*2);
+      break;
+  }
+  ctx.fill();
+}
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add moss.html && git commit -m "feat(garden): add Canvas rendering (sky, clouds, ground, plants with fallback)"
+```
+
+---
+
+### Task 9: Frontend — Particle systems + interaction handling
+
+**Files:**
+- Modify: `moss.html` (append to script block)
+
+- [ ] **Step 1: Append particle systems and interaction code**
+
+Before the closing `</script>` tag, append:
+
+```javascript
+// ===== PARTICLE SYSTEMS =====
+
+// Rain particles on water click
+function spawnRain(x, y) {
+  for (var i = 0; i < 12; i++) {
+    state.rainParticles.push({
+      x: x + (Math.random() - 0.5) * 60,
+      y: y,
+      vx: (Math.random() - 0.5) * 40,
+      vy: 80 + Math.random() * 120,
+      life: 0.6 + Math.random() * 0.4,
+      size: 3 + Math.random() * 4
+    });
+  }
+}
+
+function updateRain(dt) {
+  for (var i = state.rainParticles.length - 1; i >= 0; i--) {
+    var p = state.rainParticles[i];
+    p.y += p.vy * dt;
+    p.x += p.vx * dt;
+    p.life -= dt;
+    if (p.life <= 0) {
+      state.rainParticles.splice(i, 1);
+    }
+  }
+}
+
+function drawRain() {
+  state.rainParticles.forEach(function(p) {
+    var alpha = Math.max(0, p.life / 0.8);
+    var dropImg = getAsset('drop');
+    if (dropImg) {
+      ctx.globalAlpha = alpha;
+      ctx.drawImage(dropImg, p.x - 8, p.y - 8, 16, 16);
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.fillStyle = 'rgba(120,180,255,' + alpha + ')';
+      ctx.beginPath();
+      ctx.ellipse(p.x, p.y, p.size * 0.5, p.size, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
+}
+
+// Snow particles (winter only)
+function updateSnow(dt) {
+  if (state.season !== 'winter') {
+    state.snowParticles = [];
+    return;
+  }
+  // Spawn new snow
+  if (state.snowParticles.length < 40 && Math.random() < 0.3) {
+    state.snowParticles.push({
+      x: Math.random() * cv.width,
+      y: -10,
+      vx: (Math.random() - 0.5) * 20,
+      vy: 20 + Math.random() * 40,
+      size: 2 + Math.random() * 4,
+      wobble: Math.random() * Math.PI * 2
+    });
+  }
+  for (var i = state.snowParticles.length - 1; i >= 0; i--) {
+    var p = state.snowParticles[i];
+    p.y += p.vy * dt;
+    p.wobble += dt * 1.5;
+    p.x += Math.sin(p.wobble) * 15 * dt + p.vx * dt;
+    if (p.y > cv.height) {
+      state.snowParticles.splice(i, 1);
+    }
+  }
+}
+
+function drawSnow() {
+  state.snowParticles.forEach(function(p) {
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+// ===== INTERACTION =====
+var watering = false;
+
+function getCanvasPos(e) {
+  var rect = cv.getBoundingClientRect();
+  return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+}
+
+function handleWater(e) {
+  var pos = getCanvasPos(e);
+  var nx = pos.x / cv.width;
+  var ny = pos.y / cv.height;
+  spawnRain(pos.x, pos.y);
+
+  apiPost('/water', { x: nx, y: ny }).then(function(resp) {
+    if (resp.ok && resp.watered && resp.watered.length > 0) {
+      toast('💧 浇到了 ' + resp.watered.length + ' 株植物！');
+      // Trigger plant bounce animations
+      resp.watered.forEach(function(w) {
+        state.plantAnims[w.id] = { scale: 1.0, targetScale: 1.15, startTime: Date.now() };
+        // Update local plant data
+        var plant = state.plants.find(function(p) { return p.id === w.id; });
+        if (plant) {
+          plant.health = w.health;
+          plant.stage = w.stage;
+        }
+      });
+      updateUI();
+    } else if (resp.ok) {
+      toast('💧 这里没有植物...');
+    }
+  }).catch(function() {
+    // Offline or error — still show visual feedback
+  });
+}
+
+// Click/touch handlers
+cv.addEventListener('click', handleWater);
+cv.addEventListener('touchstart', function(e) {
+  if (e.touches.length === 1) {
+    handleWater(e.touches[0]);
+  }
+  e.preventDefault();
+}, { passive: false });
+
+// Cursor style
+cv.classList.add('water-cursor');
+
+// ===== KEYBOARD =====
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') hideAbout();
+});
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add moss.html && git commit -m "feat(garden): add particle systems (rain, snow) and click/touch water interaction"
+```
+
+---
+
+### Task 10: Frontend — Animation loop + init + cloud drift
+
+**Files:**
+- Modify: `moss.html` (append to script block)
+
+- [ ] **Step 1: Append animation loop and initialization**
+
+Before the closing `</script>` tag, append:
+
+```javascript
+// ===== CLOUD DRIFT =====
+function updateClouds(dt) {
+  state.clouds.forEach(function(c) {
+    c.x += dt * 0.015;
+    if (c.x > 1.15) c.x = -0.15;
+  });
+}
+
+// ===== MAIN RENDER =====
+function drawAll() {
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  drawSky();
+  drawClouds();
+  drawHorizon();
+  drawGround();
+  drawSnow(); // Below plants
+  sortPlants();
+  state.plants.forEach(function(p) { drawPlant(p); });
+  drawRain(); // Above plants
+}
+
+// ===== ANIMATION LOOP =====
+function loop(timestamp) {
+  if (!state.lastFrame) state.lastFrame = timestamp;
+  var dt = Math.min(0.1, (timestamp - state.lastFrame) / 1000);
+  state.lastFrame = timestamp;
+
+  updateClouds(dt);
+  updateRain(dt);
+  updateSnow(dt);
+  drawAll();
+
+  requestAnimationFrame(loop);
+}
+
+// ===== INIT =====
+async function init() {
+  try {
+    // Load garden state
+    var data = await apiGet('/state');
+    state.plants = data.plants || [];
+    state.totalVisits = data.totalVisits || 0;
+    state.season = data.season || getSeason();
+    state.month = data.month || (new Date().getMonth() + 1);
+    updateUI();
+
+    // Register visit (only once per session)
+    if (!sessionStorage._moss_visited) {
+      sessionStorage._moss_visited = '1';
+      var visitResp = await apiPost('/visit');
+      if (visitResp.ok && visitResp.newPlant) {
+        state.plants.push(visitResp.newPlant);
+        state.totalVisits = visitResp.totalVisits;
+        updateUI();
+        toast('🌱 一株新植物破土而出！');
+      }
+    }
+  } catch (e) {
+    console.warn('Garden API unavailable, running offline');
+  }
+
+  // Load assets in background (non-blocking)
+  loadAssets().then(function() {
+    console.log('All assets ready');
+  });
+
+  // Start render loop immediately (without assets = fallback shapes)
+  requestAnimationFrame(loop);
+}
+
+// Periodic state refresh (every 60s, for other people's plants)
+setInterval(async function() {
+  try {
+    var data = await apiGet('/state');
+    if (data.plants) {
+      state.plants = data.plants;
+      state.totalVisits = data.totalVisits;
+      updateUI();
+    }
+  } catch(e) {}
+}, 60000);
+
+init();
+```
+
+- [ ] **Step 2: Verify the complete file structure**
+
+At this point `moss.html` should have the full structure:
+- `<head>` with meta, title, and complete `<style>` block
+- `<body>` with canvas, topBar, gardenInfo, aboutBg, toast
+- `<script>` with all JS from Tasks 7-10
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add moss.html && git commit -m "feat(garden): add animation loop, cloud drift, init sequence"
+```
+
+---
+
+### Task 11: Test locally and deploy
+
+**Files:**
+- Modify: `wall_api.py` (verify all changes)
+
+- [ ] **Step 1: Start Python backend locally**
+
+```bash
+cd /opt/blog/nginx 2>/dev/null || cd .
+python3 wall_api.py &
+```
+
+Test endpoints:
+```bash
+curl -s http://localhost:8089/garden/state | head -c 200
+curl -s -X POST http://localhost:8089/garden/visit -H "X-Session-Id: test123" -H "Content-Type: application/json" -d '{}'
+curl -s -X POST http://localhost:8089/garden/water -H "X-Session-Id: test123" -H "Content-Type: application/json" -d '{"x":0.5,"y":0.5}'
+```
+
+Expected: All return valid JSON with no errors.
+
+- [ ] **Step 2: Start HTTP server for frontend and test in browser**
+
+```bash
+python3 -m http.server 8080 &
+```
+
+Open `http://localhost:8080/moss.html` in browser:
+- Canvas renders with sky, clouds, ground
+- Click/touch produces rain particles
+- Top bar shows visit count
+- About modal opens/closes
+- Bottom right shows plant summary
+
+- [ ] **Step 3: Deploy to server**
+
+```bash
+scp moss.html root@10.42.78.75:/opt/blog/nginx/
+scp wall_api.py root@10.42.78.75:/opt/blog/nginx/
+scp -r moss-assets/ root@10.42.78.75:/opt/blog/nginx/
+ssh root@10.42.78.75 "kill \$(pgrep -f wall_api.py); cd /opt/blog/nginx && nohup python3 wall_api.py &>/dev/null &"
+```
+
+- [ ] **Step 4: Verify deployed site**
+
+Open `http://10.42.78.75/moss.html` in browser and verify:
+- Page loads without console errors
+- Click watering works (check Network tab for API calls)
+- About modal accessible
+- Season indicator correct for current month
+
+- [ ] **Step 5: Add link from blog to garden**
+
+In `yushe-blog.html`, add a garden link in the header actions area. Find the line:
+
+```html
+<button onclick="renderAbout()">关于</button>
+```
+
+Add after it:
+
+```html
+<a href="/moss.html" style="text-decoration:none;color:inherit"><button>🌿 花园</button></a>
+```
+
+- [ ] **Step 6: Final commit**
+
+```bash
+git add moss.html wall_api.py yushe-blog.html moss-assets/
+git commit -m "feat(garden): Digital Moss complete — deploy to server"
+git push
+```
