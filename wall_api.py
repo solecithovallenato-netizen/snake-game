@@ -433,6 +433,64 @@ class Handler(BaseHTTPRequestHandler):
             garden_save(data)
             self._json({"ok": True, "totalVisits": data["totalVisits"], "newPlant": new_plant})
 
+        elif self.path == "/garden/water":
+            sid = self.headers.get("X-Session-Id", "anon")
+            x = body.get("x", 0.5)
+            y = body.get("y", 0.5)
+            data = garden_load()
+            now = int(time.time() * 1000)
+
+            # Rate limit: track watering times per session (max 3 per minute)
+            water_times = data.setdefault("_waterTimes", {})
+            times = water_times.get(sid, [])
+            # Clean old entries (>1 min)
+            times = [t for t in times if now - t < 60000]
+            if len(times) >= 3:
+                self.send_response(429)
+                self.end_headers()
+                self.wfile.write(b'{"error":"rate limited"}')
+                return
+            times.append(now)
+            water_times[sid] = times
+
+            # Update dailyWaterings
+            today = time.strftime("%Y-%m-%d")
+            dw = data.setdefault("dailyWaterings", {})
+            dw[today] = dw.get(today, 0) + 1
+            # Keep only last 14 days
+            keys = sorted(dw.keys())
+            if len(keys) > 14:
+                for k in keys[:-14]:
+                    del dw[k]
+
+            # Water plants within distance threshold
+            threshold = 0.08
+            watered = []
+            for p in data["plants"]:
+                # Apply decay first to get effective health
+                garden_apply_decay(p, now)
+                if p.get("health", 0) <= 0:
+                    continue  # skip withered (permanent)
+                dist = ((p["x"] - x) ** 2 + (p["y"] - y) ** 2) ** 0.5
+                if dist <= threshold * (1 + p.get("size", 0.5)):
+                    p["health"] = min(100, p["health"] + 20)
+                    p["lastWateredAt"] = now
+                    if p["health"] >= 70:
+                        p["stage"] = "blooming"
+                    elif p["health"] >= 40:
+                        p["stage"] = "growing"
+                    elif p["health"] >= 20:
+                        p["stage"] = "sprout"
+                    else:
+                        p["stage"] = "seed"
+                    sid_list = p.setdefault("wateredBy", [])
+                    if sid not in sid_list:
+                        sid_list.append(sid)
+                    watered.append({"id": p["id"], "health": p["health"], "stage": p["stage"]})
+
+            garden_save(data)
+            self._json({"ok": True, "watered": watered})
+
         else:
             self.send_response(404); self.end_headers()
 
