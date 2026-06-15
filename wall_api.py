@@ -133,7 +133,7 @@ def garden_enforce_cap(data, max_plants=200):
     def sort_key(p):
         is_withered = 0 if p.get("health", 0) <= 0 else 1
         is_blooming = 1 if p.get("stage") == "blooming" else 0
-        return (is_withered, -is_blooming, p.get("createdAt", 0))
+        return (is_withered, is_blooming, p.get("createdAt", 0))
     plants.sort(key=sort_key)
     data["plants"] = plants[-(max_plants):]
 
