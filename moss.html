@@ -175,7 +175,7 @@ var signQuotes=[
   '阅读是随身携带的避难所',
   '程序员的浪漫，是把一行行代码写成诗'
 ];
-var signboard={x:.22,quoteIdx:0,timer:0,alpha:1};
+var signboard={x:.22,quoteIdx:0,timer:0,alpha:1,shake:0,shakeT:0,leafParticles:[]};
 
 // Butterfly
 var butterfly={x:.5,y:.4,vx:0,vy:0,targetX:.5,targetY:.4,ph:0,wing:0,timer:0};
@@ -332,12 +332,39 @@ function drawButterfly(){
 // Signboard — polished wooden notice board
 function updateSignboard(dt){
   var sb=signboard;sb.timer+=dt;
-  if(sb.timer>22){sb.timer=0;sb.alpha=0;sb.quoteIdx=(sb.quoteIdx+1)%signQuotes.length}
-  if(sb.alpha<1)sb.alpha=Math.min(1,sb.alpha+dt*.6);
+  // Auto-rotate every 22s if not shaking
+  if(sb.shake<=0&&sb.timer>22){sb.timer=0;sb.alpha=0;sb.quoteIdx=(sb.quoteIdx+1)%signQuotes.length}
+  if(sb.alpha<1&&sb.shake<=0)sb.alpha=Math.min(1,sb.alpha+dt*.6);
+  // Shake animation
+  if(sb.shake>0){
+    sb.shakeT+=dt;
+    sb.shake=Math.exp(-sb.shakeT*6)*Math.sin(sb.shakeT*25)*12; // decaying oscillation
+    if(sb.shakeT>.8){sb.shake=0;sb.shakeT=0} // end shake
+  }
+  // Leaf particles from shake
+  for(var i=sb.leafParticles.length-1;i>=0;i--){
+    var lp=sb.leafParticles[i];lp.y+=lp.vy*dt;lp.x+=lp.vx*dt;lp.vy+=60*dt;lp.rot+=lp.rv*dt;lp.life-=dt;
+    if(lp.life<=0||lp.y>earthY(lp.x/cv.width))sb.leafParticles.splice(i,1);
+  }
+}
+function shakeSignboard(){
+  var sb=signboard;
+  if(sb.shake>0)return; // already shaking
+  sb.shake=1;sb.shakeT=0;
+  // Change quote
+  sb.alpha=0;sb.quoteIdx=(sb.quoteIdx+1)%signQuotes.length;
+  // Spawn leaf particles
+  var sx=X(sb.x),sy=earthY(sb.x)-70;
+  for(var i=0;i<8;i++){
+    sb.leafParticles.push({
+      x:sx+(Math.random()-.5)*60,y:sy,r:2+Math.random()*3,rot:Math.random()*Math.PI*2,
+      vx:(Math.random()-.5)*80,vy:-40-Math.random()*60,rv:(Math.random()-.5)*8,life:1+Math.random()*1.5
+    });
+  }
 }
 function drawSignboard(){
   var sb=signboard,dp=dayPhase();
-  var sx=X(sb.x),sy=earthY(sb.x);
+  var sx=X(sb.x)+sb.shake,sy=earthY(sb.x);
   var ph=65; // post height in px
 
   // Shadow under post
@@ -413,6 +440,14 @@ function drawSignboard(){
   }else{
     ctx.fillText(txt,sx,by+bh/2);
   }
+
+  // Leaf particles from shake
+  sb.leafParticles.forEach(function(lp){
+    ctx.save();ctx.translate(lp.x,lp.y);ctx.rotate(lp.rot);
+    ctx.fillStyle='rgba(140,110,60,'+(lp.life*.5)+')';
+    ctx.beginPath();ctx.ellipse(0,0,lp.r*2.5,lp.r,0,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+  });
 }
 
 // Stars (night only)
@@ -667,8 +702,24 @@ function handleWater(e){
     }
   }).catch(function(){})
 }
-cv.addEventListener('click',handleWater);
-cv.addEventListener('touchstart',function(e){if(e.touches.length===1){handleWater(e.touches[0]);e.preventDefault()}},{passive:false});
+// Signboard hit test
+function hitSignboard(mx,my){
+  var sb=signboard,sx=X(sb.x),sy=earthY(sb.x);
+  return mx>sx-60&&mx<sx+60&&my>sy-110&&my<sy+10;
+}
+var lastSignClick=0;
+function onCanvasClick(e){
+  var pos=getPos(e);
+  if(hitSignboard(pos.x,pos.y)){
+    var now=Date.now();
+    if(now-lastSignClick<400){shakeSignboard();lastSignClick=0}
+    else lastSignClick=now;
+    return; // don't water when clicking signboard
+  }
+  handleWater(e);
+}
+cv.addEventListener('click',onCanvasClick);
+cv.addEventListener('touchstart',function(e){if(e.touches.length===1){onCanvasClick(e.touches[0]);e.preventDefault()}},{passive:false});
 cv.addEventListener('mousemove',function(e){
   var pos=getPos(e),p=findHovered(pos.x,pos.y);
   if(p!==S.hovered)updateTooltip(p,e);
