@@ -6,40 +6,34 @@
 <title>🌿 数字苔藓</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{width:100%;height:100%;overflow:hidden;font-family:"Noto Serif SC",Georgia,serif;background:#3d3027;touch-action:none}
+html,body{width:100%;height:100%;overflow:hidden;font-family:"Noto Serif SC",Georgia,serif;background:#3d3027;touch-action:none;user-select:none;-webkit-user-select:none}
 canvas{display:block;position:fixed;top:0;left:0;width:100%;height:100%}
 
-/* Top bar */
-#topBar{position:fixed;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:linear-gradient(rgba(61,48,39,.7),transparent);color:#fbf8f3;font-size:14px;letter-spacing:1px;pointer-events:none}
+#topBar{position:fixed;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:14px 24px;pointer-events:none}
 #topBar>*{pointer-events:auto}
-#topBar .title{font-weight:700;font-size:16px}
-#topBar .title em{font-style:normal;font-size:12px;opacity:.6;margin-left:8px}
-#topBar button{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:16px;padding:4px 14px;font-size:12px;color:#fbf8f3;cursor:pointer;font-family:inherit;transition:all .2s}
-#topBar button:hover{background:rgba(255,255,255,.2)}
+#topBar .title{font-weight:700;font-size:17px;color:#fbf8f3;text-shadow:0 1px 4px rgba(0,0,0,.3);letter-spacing:2px}
+#topBar .title em{font-style:normal;font-size:11px;opacity:.55;margin-left:10px;letter-spacing:1px}
+#topBar button{background:rgba(255,255,255,.08);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.15);border-radius:18px;padding:5px 16px;font-size:12px;color:rgba(255,255,255,.8);cursor:pointer;font-family:inherit;transition:all .25s}
+#topBar button:hover{background:rgba(255,255,255,.18);color:#fff}
 
-/* Bottom right indicator */
-#gardenInfo{position:fixed;bottom:20px;right:20px;z-index:10;font-size:12px;color:rgba(251,248,243,.6);text-align:right;letter-spacing:1px;line-height:1.8;pointer-events:none}
-#gardenInfo .season-icon{font-size:28px;display:block;margin-bottom:4px}
+#gardenInfo{position:fixed;bottom:24px;right:24px;z-index:10;font-size:11px;color:rgba(251,248,243,.5);text-align:right;letter-spacing:1px;line-height:1.9;pointer-events:none;text-shadow:0 1px 3px rgba(0,0,0,.3)}
+#gardenInfo .season-icon{font-size:32px;display:block;margin-bottom:2px}
 
-/* About modal */
-#aboutBg{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s}
+#aboutBg{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.4);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .35s}
 #aboutBg.show{opacity:1;pointer-events:auto}
-#aboutBox{background:#fbf8f3;color:#3d3027;border-radius:16px;padding:28px 24px;max-width:380px;width:90%;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,.3);line-height:1.8;font-size:14px}
-#aboutBox h3{font-size:20px;margin-bottom:12px;color:#8b6f4e}
-#aboutBox p{margin-bottom:8px;color:#a89880}
-#aboutBox button{background:#8b6f4e;color:#fff;border:none;border-radius:20px;padding:8px 28px;font-size:14px;cursor:pointer;font-family:inherit;margin-top:12px}
+#aboutBox{background:#fbf8f3;color:#3d3027;border-radius:20px;padding:32px 28px;max-width:380px;width:90%;text-align:center;box-shadow:0 12px 48px rgba(0,0,0,.25);line-height:1.9;font-size:14px}
+#aboutBox h3{font-size:22px;margin-bottom:14px;color:#8b6f4e}
+#aboutBox p{margin-bottom:6px;color:#a89880}
+#aboutBox button{background:#8b6f4e;color:#fff;border:none;border-radius:22px;padding:9px 30px;font-size:14px;cursor:pointer;font-family:inherit;margin-top:14px;transition:all .2s}
+#aboutBox button:hover{background:#7a5f3e}
 
-/* Watering cursor hint */
-.water-cursor{cursor:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><text y='20' font-size='20'>💧</text></svg>") 12 20, auto}
-
-/* Toast */
-#toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:50;background:rgba(139,111,78,.9);color:#fff;padding:8px 20px;border-radius:20px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none}
+#toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:50;background:rgba(139,111,78,.92);color:#fff;padding:9px 22px;border-radius:22px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 #toast.show{opacity:1}
 
 @media(max-width:480px){
-  #topBar{padding:10px 14px;font-size:12px}
-  #topBar .title{font-size:14px}
-  #gardenInfo{bottom:12px;right:12px;font-size:10px}
+  #topBar{padding:10px 14px}
+  #topBar .title{font-size:15px}
+  #gardenInfo{bottom:14px;right:14px;font-size:10px}
 }
 </style>
 </head>
@@ -52,7 +46,7 @@ canvas{display:block;position:fixed;top:0;left:0;width:100%;height:100%}
 </div>
 
 <div id="gardenInfo">
-  <span class="season-icon" id="seasonIcon">🌱</span>
+  <span class="season-icon" id="seasonIcon">☀️</span>
   <span id="plantSummary">0 株植物 · 0 朵盛开</span>
 </div>
 
@@ -61,7 +55,7 @@ canvas{display:block;position:fixed;top:0;left:0;width:100%;height:100%}
     <h3>🌿 数字苔藓</h3>
     <p>一个活着的网页花园。<br>每次访问，土壤中都会长出新生命。</p>
     <p>💧 <b>点击植物</b>浇水照料<br>被爱的植物会开花，被遗忘的会枯萎</p>
-    <p>🌸 春天花朵盛开<br>☀️ 夏天万物生长<br>🍂 秋天蘑菇爆发<br>❄️ 冬天雪花飘落</p>
+    <p>🌸 春天花朵盛开 &nbsp;☀️ 夏天万物生长<br>🍂 秋天蘑菇爆发 &nbsp;❄️ 冬天雪花飘落</p>
     <p style="font-size:11px;opacity:.5">连续7天浇水，会诞生发光的稀有植物 ✨</p>
     <button onclick="hideAbout()">知道了</button>
   </div>
@@ -81,561 +75,282 @@ var state = {
   totalVisits: 0,
   season: 'summer',
   month: 6,
-  assets: {},        // Image objects keyed by name
+  assets: {},
   assetsLoaded: false,
   rainParticles: [],
   snowParticles: [],
-  plantAnims: {},    // plantId -> {scale, targetScale, startTime}
-  clouds: [{x:0.1,y:0.05,s:1},{x:0.5,y:0.08,s:0.7},{x:0.8,y:0.03,s:1.2}],
-  lastFrame: 0
+  plantAnims: {},
+  clouds: [{x:0.08,y:0.04,r:0.5},{x:0.35,y:0.02,r:0.35},{x:0.62,y:0.06,r:0.6},{x:0.9,y:0.03,r:0.4}],
+  time: 0
 };
 
-// ===== SEASON SYSTEM =====
-function getSeason(m) {
-  m = m || new Date().getMonth() + 1;
-  if (m >= 3 && m <= 5) return 'spring';
-  if (m >= 6 && m <= 8) return 'summer';
-  if (m >= 9 && m <= 11) return 'autumn';
-  return 'winter';
-}
+// ===== SEASON =====
+function getSeason(m) { m = m || new Date().getMonth() + 1; if (m >= 3 && m <= 5) return 'spring'; if (m >= 6 && m <= 8) return 'summer'; if (m >= 9 && m <= 11) return 'autumn'; return 'winter'; }
 
-var SEASON_COLORS = {
-  spring: { sky: ['#d4e8d0','#e8f0dd'], ground: '#8b9e70', icon: '🌸' },
-  summer: { sky: ['#e8f0d0','#f0f5e0'], ground: '#7a8b50', icon: '☀️' },
-  autumn: { sky: ['#f0e0c8','#f0e8d8'], ground: '#a08060', icon: '🍂' },
-  winter: { sky: ['#e0e4e8','#eceff4'], ground: '#8a8078', icon: '❄️' }
+var SEASON = {
+  spring: { skyTop: '#c8dcc0', skyBot: '#e8f0dd', hillNear: '#7a9660', hillFar: '#8faa78', ground: '#6b8050', accent: '#d4a0b0', icon: '🌸' },
+  summer: { skyTop: '#c8dcc0', skyBot: '#eef5e0', hillNear: '#6d8a50', hillFar: '#85a068', ground: '#5c7840', accent: '#e8c860', icon: '☀️' },
+  autumn: { skyTop: '#d8c8b0', skyBot: '#f0e4d0', hillNear: '#8a7a60', hillFar: '#a09078', ground: '#7a6a50', accent: '#d49040', icon: '🍂' },
+  winter: { skyTop: '#d0d4d8', skyBot: '#e8ecf0', hillNear: '#8a8578', hillFar: '#9e9a90', ground: '#6e6a60', accent: '#a0b0c0', icon: '❄️' }
 };
 
-// ===== API CLIENT =====
-async function apiGet(path) {
-  var r = await fetch(API + path, { headers: {'X-Session-Id': SID} });
-  return r.json();
-}
+// ===== API =====
+async function apiGet(path) { var r = await fetch(API + path, { headers: {'X-Session-Id': SID} }); return r.json(); }
+async function apiPost(path, body) { var r = await fetch(API + path, { method: 'POST', headers: {'Content-Type': 'application/json', 'X-Session-Id': SID}, body: JSON.stringify(body || {}) }); return r.json(); }
 
-async function apiPost(path, body) {
-  var r = await fetch(API + path, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json', 'X-Session-Id': SID},
-    body: JSON.stringify(body || {})
-  });
-  return r.json();
-}
-
-// ===== ASSET LOADER =====
-var ASSET_LIST = [
-  'fern_0', 'fern_1', 'fern_2',
-  'flower_0', 'flower_1', 'flower_2',
-  'mushroom_0', 'mushroom_1', 'mushroom_2',
-  'grass_0', 'grass_1', 'grass_2',
-  'succulent_0', 'succulent_1', 'succulent_2',
-  'vine_0', 'vine_1', 'vine_2',
-  'ground', 'cloud_0', 'cloud_1', 'cloud_2', 'drop'
-];
+// ===== ASSETS =====
+var ASSET_LIST = ['fern_0','fern_1','fern_2','flower_0','flower_1','flower_2','mushroom_0','mushroom_1','mushroom_2','grass_0','grass_1','grass_2','succulent_0','succulent_1','succulent_2','vine_0','vine_1','vine_2','ground','cloud_0','cloud_1','cloud_2','drop'];
 
 function loadAssets() {
-  var promises = ASSET_LIST.map(function(name) {
-    return new Promise(function(resolve) {
-      var img = new Image();
-      img.onload = function() { state.assets[name] = img; resolve(true); };
-      img.onerror = function() { resolve(false); }; // Graceful fallback
-      img.src = ASSET_BASE + name + '.png';
-    });
+  var ps = ASSET_LIST.map(function(n) {
+    return new Promise(function(ok) { var m = new Image(); m.onload = function() { state.assets[n] = m; ok(true); }; m.onerror = function() { ok(false); }; m.src = ASSET_BASE + n + '.png'; });
   });
-  return Promise.all(promises).then(function() {
-    state.assetsLoaded = true;
-    console.log('Assets loaded: ' + Object.keys(state.assets).length + '/' + ASSET_LIST.length);
-  });
+  return Promise.all(ps).then(function() { state.assetsLoaded = true; });
 }
+function getAsset(n) { return state.assets[n] || null; }
+function getPlantSprite(t, v) { return getAsset(t + '_' + (v || 0)); }
 
-function getAsset(name) {
-  return state.assets[name] || null;
-}
+// ===== STAGE =====
+function calcStage(p) { var h = typeof p.health === 'undefined' ? 30 : p.health; if (h <= 0) return 'withered'; if (h < 20) return 'seed'; if (h < 40) return 'sprout'; if (h < 70) return 'growing'; return 'blooming'; }
+function stageScale(s) { if (s === 'seed') return 0.15; if (s === 'sprout') return 0.35; if (s === 'growing') return 0.6; if (s === 'blooming') return 0.85; return 0.5; }
 
-function getPlantSprite(type, variant) {
-  var key = type + '_' + (variant || 0);
-  return getAsset(key);
-}
-
-// ===== STAGE CALC =====
-function calcStage(plant) {
-  var h = plant.health;
-  if (typeof h === 'undefined') h = 30;
-  if (h <= 0) return 'withered';
-  if (h < 20) return 'seed';
-  if (h < 40) return 'sprout';
-  if (h < 70) return 'growing';
-  return 'blooming';
-}
-
-function stageScale(stage) {
-  if (stage === 'seed') return 0.1;
-  if (stage === 'sprout') return 0.3;
-  if (stage === 'growing') return 0.6;
-  if (stage === 'blooming') return 1.0;
-  return 0.6; // withered
-}
-
-function stageAlpha(stage) {
-  if (stage === 'withered') return 0.4;
-  return 1.0;
-}
-
-// ===== UI HELPERS =====
-function toast(msg) {
-  var t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(function() { t.classList.remove('show'); }, 2000);
-}
-
-function updateUI() {
-  document.getElementById('visitCount').textContent = '访问 ' + state.totalVisits + ' 次';
-  var blooming = state.plants.filter(function(p) { return calcStage(p) === 'blooming'; }).length;
-  var alive = state.plants.filter(function(p) { return calcStage(p) !== 'withered'; }).length;
-  document.getElementById('plantSummary').textContent = alive + ' 株植物 · ' + blooming + ' 朵盛开';
-  var colors = SEASON_COLORS[state.season] || SEASON_COLORS.summer;
-  document.getElementById('seasonIcon').textContent = colors.icon;
-}
-
-function showAbout() {
-  document.getElementById('aboutBg').classList.add('show');
-}
-
-function hideAbout() {
-  document.getElementById('aboutBg').classList.remove('show');
-}
-// ===== CANVAS RENDERING =====
+// ===== CANVAS =====
 var cv = document.getElementById('cv');
 var ctx = cv.getContext('2d');
+function resize() { cv.width = window.innerWidth * (window.devicePixelRatio || 1); cv.height = window.innerHeight * (window.devicePixelRatio || 1); }
+window.addEventListener('resize', resize); resize();
+function nx(x) { return x * cv.width; }
+function ny(y) { return y * cv.height; }
 
-function resizeCanvas() {
-  cv.width = window.innerWidth;
-  cv.height = window.innerHeight;
-}
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
-
-function normX(x) { return x * cv.width; }
-function normY(y) { return y * cv.height; }
-
-// Draw sky gradient
+// ===== DRAW: SKY =====
 function drawSky() {
-  var colors = SEASON_COLORS[state.season] || SEASON_COLORS.summer;
-  var grad = ctx.createLinearGradient(0, 0, 0, cv.height * 0.6);
-  grad.addColorStop(0, colors.sky[0]);
-  grad.addColorStop(1, colors.sky[1]);
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, cv.width, cv.height * 0.6);
+  var t = SEASON[state.season] || SEASON.summer;
+  var g = ctx.createLinearGradient(0, 0, 0, cv.height * 0.65);
+  g.addColorStop(0, t.skyTop); g.addColorStop(0.6, t.skyBot); g.addColorStop(1, '#e8e0d4');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, cv.width, cv.height);
 }
 
-// Draw clouds
+// ===== DRAW: FAR HILLS (layer 1) =====
+function drawFarHills() {
+  var t = SEASON[state.season] || SEASON.summer;
+  var base = cv.height * 0.52;
+  ctx.fillStyle = t.hillFar;
+  ctx.beginPath(); ctx.moveTo(0, cv.height);
+  for (var x = 0; x <= cv.width; x += 40) { ctx.lineTo(x, base - 60 - 25 * Math.sin(x * 0.0008 + 0.3) - 15 * Math.sin(x * 0.002 + 1.2)); }
+  ctx.lineTo(cv.width, cv.height); ctx.closePath(); ctx.fill();
+}
+
+// ===== DRAW: NEAR HILLS (layer 2) =====
+function drawNearHills() {
+  var t = SEASON[state.season] || SEASON.summer;
+  var base = cv.height * 0.56;
+  ctx.fillStyle = t.hillNear;
+  ctx.beginPath(); ctx.moveTo(0, cv.height);
+  for (var x = 0; x <= cv.width; x += 30) { ctx.lineTo(x, base - 30 - 18 * Math.sin(x * 0.0012 + 1.8) - 8 * Math.sin(x * 0.0035)); }
+  ctx.lineTo(cv.width, cv.height); ctx.closePath(); ctx.fill();
+}
+
+// ===== DRAW: GROUND =====
+function drawGround() {
+  var t = SEASON[state.season] || SEASON.summer;
+  var h = cv.height * 0.6;
+  var img = getAsset('ground');
+  if (img) {
+    var tw = img.width, th = img.height;
+    ctx.globalAlpha = 0.7;
+    for (var x = 0; x < cv.width; x += tw) {
+      for (var y = h; y < cv.height; y += th) {
+        ctx.drawImage(img, x, y, tw, th);
+      }
+    }
+    ctx.globalAlpha = 1;
+    // Soft blend from hills into ground
+    var g = ctx.createLinearGradient(0, h - 40, 0, h + 80);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(0.4, t.hillNear); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, h - 40, cv.width, 120);
+    // Darken lower ground
+    var g2 = ctx.createLinearGradient(0, h + 80, 0, cv.height);
+    g2.addColorStop(0, 'rgba(0,0,0,0)'); g2.addColorStop(1, 'rgba(0,0,0,0.25)');
+    ctx.fillStyle = g2; ctx.fillRect(0, h + 80, cv.width, cv.height - h - 80);
+  } else {
+    ctx.fillStyle = t.ground; ctx.fillRect(0, h, cv.width, cv.height - h);
+    // Top edge grass tufts
+    ctx.fillStyle = 'rgba(0,0,0,0.08)';
+    for (var x = 0; x < cv.width; x += 8) { var y = h - 3 - 4 * Math.sin(x * 0.05 + state.time * 0.3); ctx.fillRect(x, y, 6, 3 + Math.random() * 4); }
+  }
+}
+
+// ===== DRAW: CLOUDS =====
 function drawClouds() {
   state.clouds.forEach(function(c) {
-    var img = getAsset('cloud_' + Math.floor(Math.abs(c.x * 10) % 3));
-    var cx = normX(c.x), cy = normY(c.y);
-    var w = 200 * c.s, h = 100 * c.s;
-    if (img) {
-      ctx.globalAlpha = 0.5;
-      ctx.drawImage(img, cx - w/2, cy - h/2, w, h);
-      ctx.globalAlpha = 1;
-    } else {
-      // Fallback: draw ellipse
-      ctx.fillStyle = 'rgba(255,255,255,0.2)';
-      ctx.beginPath();
-      ctx.ellipse(cx, cy, w/2, h/2, 0, 0, Math.PI*2);
-      ctx.fill();
-    }
+    var img = getAsset('cloud_' + (Math.floor(c.x * 17) % 3));
+    var cx = nx(c.x), cy = ny(c.y);
+    var w = 180 * c.r, h = 90 * c.r;
+    if (img) { ctx.globalAlpha = 0.4; ctx.drawImage(img, cx - w/2, cy - h/2, w, h); ctx.globalAlpha = 1; }
+    else { ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.beginPath(); ctx.ellipse(cx, cy, w/2, h/2, 0, 0, Math.PI*2); ctx.fill(); }
   });
 }
 
-// Draw horizon line / distant hills
-function drawHorizon() {
-  var colors = SEASON_COLORS[state.season] || SEASON_COLORS.summer;
-  var h = cv.height * 0.55;
-  ctx.fillStyle = 'rgba(139,111,78,0.08)';
-  ctx.beginPath();
-  ctx.moveTo(0, h);
-  for (var x = 0; x <= cv.width; x += 100) {
-    var y = h - 40 - 20 * Math.sin(x * 0.003) - 10 * Math.sin(x * 0.007 + 1.5);
-    ctx.lineTo(x, y);
-  }
-  ctx.lineTo(cv.width, cv.height);
-  ctx.lineTo(0, cv.height);
-  ctx.closePath();
-  ctx.fill();
+// ===== DRAW: PLANT SHADOW =====
+function drawShadow(px, py, r) {
+  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  ctx.beginPath(); ctx.ellipse(px, py, r * 0.7, r * 0.25, 0, 0, Math.PI * 2); ctx.fill();
 }
 
-// Draw ground
-function drawGround() {
-  var groundImg = getAsset('ground');
-  var h = cv.height * 0.55;
-  if (groundImg) {
-    // Tile the ground texture
-    var tw = groundImg.width, th = groundImg.height;
-    for (var x = 0; x < cv.width; x += tw) {
-      for (var y = h; y < cv.height; y += th) {
-        ctx.drawImage(groundImg, x, y, tw, th);
-      }
-    }
-    // Gradient overlay to blend
-    var grad = ctx.createLinearGradient(0, h, 0, h + 60);
-    grad.addColorStop(0, 'rgba(61,48,39,0.3)');
-    grad.addColorStop(1, 'rgba(61,48,39,0)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, h, cv.width, 60);
-  } else {
-    // Fallback: solid ground
-    var colors = SEASON_COLORS[state.season] || SEASON_COLORS.summer;
-    ctx.fillStyle = colors.ground;
-    ctx.fillRect(0, h, cv.width, cv.height - h);
-  }
-}
-
-// Sort plants by y for correct depth ordering
-function sortPlants() {
-  state.plants.sort(function(a, b) { return a.y - b.y; });
-}
-
-// Draw single plant
+// ===== DRAW: PLANT =====
 function drawPlant(plant) {
   var stage = calcStage(plant);
-  if (stage === 'seed') return; // invisible in soil
+  if (stage === 'seed') return;
+  var px = nx(plant.x), py = ny(plant.y);
+  var size = plant.size || 0.5;
 
-  var px = normX(plant.x);
-  var py = normY(plant.y);
-  var s = plant.size || 0.6;
-
-  // Check for animation override
-  var animScale = 1;
+  var animBounce = 1;
   if (state.plantAnims[plant.id]) {
-    var anim = state.plantAnims[plant.id];
-    var elapsed = (Date.now() - anim.startTime) / 1000;
-    if (elapsed < 0.4) {
-      // Spring bounce: 1.0 -> 1.15 -> 1.0
-      var t = elapsed / 0.4;
-      animScale = 1 + 0.15 * Math.sin(t * Math.PI) * Math.exp(-t * 5);
-    } else {
-      delete state.plantAnims[plant.id];
-    }
+    var a = state.plantAnims[plant.id];
+    var el = (Date.now() - a.startTime) / 1000;
+    if (el < 0.4) { var tt = el / 0.4; animBounce = 1 + 0.2 * Math.sin(tt * Math.PI) * Math.exp(-tt * 5); }
+    else { delete state.plantAnims[plant.id]; }
   }
 
-  var baseScale = stageScale(stage);
-  var drawScale = s * baseScale * animScale;
-  var alpha = stageAlpha(stage);
+  var bs = stageScale(stage);
+  var ds = size * bs * animBounce * 0.55; // sprite is 200px -> ~110px max for blooming large
 
   ctx.save();
-  ctx.globalAlpha = alpha;
+  if (stage === 'withered') { ctx.filter = 'grayscale(100%)'; ctx.globalAlpha = 0.45; }
 
-  if (stage === 'withered') {
-    ctx.filter = 'grayscale(100%)';
-  }
+  // Soft shadow beneath plant
+  if (stage !== 'seed') drawShadow(px, py, ds * 80);
 
   var img = getPlantSprite(plant.type, plant.variant);
-
   if (img) {
-    var iw = img.width, ih = img.height;
-    var dw = iw * drawScale * 1.2, dh = ih * drawScale * 1.2;
+    var dw = img.width * ds, dh = img.height * ds;
     ctx.drawImage(img, px - dw/2, py - dh, dw, dh);
   } else {
-    // Fallback: draw colored shape
-    drawFallbackPlant(plant, px, py, drawScale);
+    drawFallback(plant, px, py, ds);
   }
 
-  // Glowing plant halo
-  if (plant.type === 'glowing' && stage === 'blooming') {
-    ctx.filter = 'none';
-    var glowGrad = ctx.createRadialGradient(px, py - 100 * drawScale, 0, px, py - 100 * drawScale, 80 * drawScale);
-    glowGrad.addColorStop(0, 'rgba(255,215,0,0.5)');
-    glowGrad.addColorStop(1, 'rgba(255,215,0,0)');
-    ctx.fillStyle = glowGrad;
-    ctx.beginPath();
-    ctx.arc(px, py - 100 * drawScale, 80 * drawScale, 0, Math.PI*2);
-    ctx.fill();
+  // Glow halo for glowing type
+  if (plant.type === 'glowing') {
+    ctx.filter = 'none'; ctx.globalAlpha = 0.5 + 0.3 * Math.sin(state.time * 2);
+    var gr3 = ctx.createRadialGradient(px, py - 60 * ds, 0, px, py - 60 * ds, 50 * ds);
+    gr3.addColorStop(0, 'rgba(255,220,100,0.5)'); gr3.addColorStop(1, 'rgba(255,220,100,0)');
+    ctx.fillStyle = gr3; ctx.beginPath(); ctx.arc(px, py - 60 * ds, 50 * ds, 0, Math.PI*2); ctx.fill();
   }
 
   ctx.restore();
 }
 
-// Fallback: draw plant shape without sprite
-function drawFallbackPlant(plant, px, py, scale) {
-  var colors = {
-    fern: '#4a7c3f', flower: '#e8a0b0', mushroom: '#c44b3b',
-    grass: '#6b8c42', succulent: '#7a9a7a', vine: '#3d6b34', glowing: '#ffd700'
-  };
-  var color = colors[plant.type] || '#6b8c42';
-
-  ctx.fillStyle = color;
+function drawFallback(p, px, py, s) {
+  var cs = { fern:'#5a8c3f', flower:'#e8a0b8', mushroom:'#c45a4a', grass:'#7a9c4a', succulent:'#8aaa7a', vine:'#4a7c3f', glowing:'#ffd700' };
+  ctx.fillStyle = cs[p.type] || '#6b8c42';
   ctx.beginPath();
-
-  switch(plant.type) {
-    case 'fern':
-      // Spiral curve
-      for (var i = 0; i < 20; i++) {
-        var a = i * 0.3, r = i * 3 * scale;
-        ctx.arc(px, py - r, 4 * scale, a, a + 0.5 * scale);
-      }
-      break;
-    case 'flower':
-      // Petal cluster
-      for (var j = 0; j < 6; j++) {
-        var angle = j * Math.PI / 3;
-        ctx.ellipse(px + Math.cos(angle) * 12 * scale, py - 30 * scale + Math.sin(angle) * 12 * scale, 8 * scale, 14 * scale, angle, 0, Math.PI * 2);
-      }
-      ctx.fillStyle = '#ffd700';
-      ctx.arc(px, py - 30 * scale, 6 * scale, 0, Math.PI * 2);
-      break;
-    case 'mushroom':
-      // Dome cap
-      ctx.ellipse(px, py - 25 * scale, 16 * scale, 10 * scale, 0, Math.PI, 0);
-      ctx.fill();
-      ctx.fillStyle = '#e8d8c8';
-      ctx.fillRect(px - 3 * scale, py - 25 * scale, 6 * scale, 20 * scale);
-      break;
-    case 'grass':
-      // Curved blades
-      for (var k = 0; k < 4; k++) {
-        ctx.moveTo(px, py);
-        ctx.quadraticCurveTo(px + (k-1.5) * 10 * scale, py - 20 * scale, px + (k-1.5) * 8 * scale, py - 35 * scale);
-      }
-      break;
-    case 'succulent':
-      // Layered rosette
-      for (var l = 4; l > 0; l--) {
-        ctx.ellipse(px, py - 15 * scale, l * 8 * scale, l * 5 * scale, 0, 0, Math.PI * 2);
-      }
-      break;
-    case 'vine':
-      // Winding tendril
-      ctx.moveTo(px, py);
-      for (var m = 0; m < 15; m++) {
-        ctx.lineTo(px + 8 * scale * Math.sin(m*0.5), py - m * 3 * scale);
-      }
-      break;
-    case 'glowing':
-      ctx.fillStyle = '#ffd700';
-      ctx.arc(px, py - 30 * scale, 15 * scale, 0, Math.PI*2);
-      break;
+  switch(p.type) {
+    case 'fern': for (var i=0;i<15;i++){var a=i*0.35,r=i*2.5*s;ctx.arc(px,py-r,3*s,a,a+0.4*s);}break;
+    case 'flower': for (var j=0;j<5;j++){var an=j*Math.PI*0.4;ctx.ellipse(px+Math.cos(an)*10*s,py-28*s+Math.sin(an)*10*s,7*s,12*s,an,0,Math.PI*2);}ctx.fillStyle='#ffd700';ctx.arc(px,py-28*s,5*s,0,Math.PI*2);break;
+    case 'mushroom': ctx.ellipse(px,py-22*s,14*s,9*s,Math.PI,0,0);ctx.fill();ctx.fillStyle='#e8d8c0';ctx.fillRect(px-2.5*s,py-22*s,5*s,18*s);break;
+    case 'grass': for (var k=0;k<3;k++){ctx.moveTo(px,py);ctx.quadraticCurveTo(px+(k-1)*8*s,py-18*s,px+(k-1)*6*s,py-30*s);}break;
+    case 'succulent': for (var l=3;l>=0;l--){ctx.ellipse(px,py-12*s,l*7*s,l*4*s,0,0,Math.PI*2);}break;
+    case 'vine': ctx.moveTo(px,py);for(var m=0;m<12;m++){ctx.lineTo(px+7*s*Math.sin(m*0.6),py-m*2.5*s);}break;
+    case 'glowing': ctx.fillStyle='#ffd700';ctx.arc(px,py-25*s,12*s,0,Math.PI*2);break;
   }
   ctx.fill();
 }
 
-// ===== PARTICLE SYSTEMS =====
-
-// Rain particles on water click
+// ===== PARTICLES =====
 function spawnRain(x, y) {
-  for (var i = 0; i < 12; i++) {
-    state.rainParticles.push({
-      x: x + (Math.random() - 0.5) * 60,
-      y: y,
-      vx: (Math.random() - 0.5) * 40,
-      vy: 80 + Math.random() * 120,
-      life: 0.6 + Math.random() * 0.4,
-      size: 3 + Math.random() * 4
-    });
-  }
+  for (var i = 0; i < 15; i++) { state.rainParticles.push({ x: x + (Math.random() - 0.5) * 50, y: y, vy: 60 + Math.random() * 100, vx: (Math.random() - 0.5) * 30, life: 0.5 + Math.random() * 0.5, r: 2 + Math.random() * 3 }); }
 }
-
 function updateRain(dt) {
-  for (var i = state.rainParticles.length - 1; i >= 0; i--) {
-    var p = state.rainParticles[i];
-    p.y += p.vy * dt;
-    p.x += p.vx * dt;
-    p.life -= dt;
-    if (p.life <= 0) {
-      state.rainParticles.splice(i, 1);
-    }
-  }
+  for (var i = state.rainParticles.length - 1; i >= 0; i--) { var p = state.rainParticles[i]; p.y += p.vy * dt; p.x += p.vx * dt; p.life -= dt; if (p.life <= 0) state.rainParticles.splice(i, 1); }
 }
-
 function drawRain() {
   state.rainParticles.forEach(function(p) {
-    var alpha = Math.max(0, p.life / 0.8);
-    var dropImg = getAsset('drop');
-    if (dropImg) {
-      ctx.globalAlpha = alpha;
-      ctx.drawImage(dropImg, p.x - 8, p.y - 8, 16, 16);
-      ctx.globalAlpha = 1;
-    } else {
-      ctx.fillStyle = 'rgba(120,180,255,' + alpha + ')';
-      ctx.beginPath();
-      ctx.ellipse(p.x, p.y, p.size * 0.5, p.size, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    var a = Math.max(0, p.life / 0.7);
+    var drop = getAsset('drop');
+    if (drop) { ctx.globalAlpha = a; ctx.drawImage(drop, p.x - 6, p.y - 6, 12, 12); ctx.globalAlpha = 1; }
+    else { ctx.fillStyle = 'rgba(140,190,240,' + a + ')'; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill(); }
   });
 }
 
-// Snow particles (winter only)
 function updateSnow(dt) {
-  if (state.season !== 'winter') {
-    state.snowParticles = [];
-    return;
-  }
-  // Spawn new snow
-  if (state.snowParticles.length < 40 && Math.random() < 0.3) {
-    state.snowParticles.push({
-      x: Math.random() * cv.width,
-      y: -10,
-      vx: (Math.random() - 0.5) * 20,
-      vy: 20 + Math.random() * 40,
-      size: 2 + Math.random() * 4,
-      wobble: Math.random() * Math.PI * 2
-    });
-  }
-  for (var i = state.snowParticles.length - 1; i >= 0; i--) {
-    var p = state.snowParticles[i];
-    p.y += p.vy * dt;
-    p.wobble += dt * 1.5;
-    p.x += Math.sin(p.wobble) * 15 * dt + p.vx * dt;
-    if (p.y > cv.height) {
-      state.snowParticles.splice(i, 1);
-    }
-  }
+  if (state.season !== 'winter') { state.snowParticles = []; return; }
+  if (state.snowParticles.length < 50 && Math.random() < 0.4) { state.snowParticles.push({ x: Math.random() * cv.width, y: -10, vy: 15 + Math.random() * 30, vx: (Math.random() - 0.5) * 15, r: 2 + Math.random() * 3, w: Math.random() * Math.PI * 2 }); }
+  for (var i = state.snowParticles.length - 1; i >= 0; i--) { var s = state.snowParticles[i]; s.y += s.vy * dt; s.w += dt * 1.2; s.x += Math.sin(s.w) * 10 * dt + s.vx * dt; if (s.y > cv.height) state.snowParticles.splice(i, 1); }
 }
-
 function drawSnow() {
-  state.snowParticles.forEach(function(p) {
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-    ctx.fill();
-  });
+  state.snowParticles.forEach(function(s) { ctx.fillStyle = 'rgba(255,255,255,0.65)'; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.fill(); });
 }
 
 // ===== INTERACTION =====
-var watering = false;
-
-function getCanvasPos(e) {
-  var rect = cv.getBoundingClientRect();
-  return { x: e.clientX - rect.left, y: e.clientY - rect.top };
-}
-
+function getPos(e) { var r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * (cv.width / r.width), y: (e.clientY - r.top) * (cv.height / r.height) }; }
 function handleWater(e) {
-  var pos = getCanvasPos(e);
-  var nx = pos.x / cv.width;
-  var ny = pos.y / cv.height;
+  var pos = getPos(e); var nx = pos.x / cv.width, ny = pos.y / cv.height;
   spawnRain(pos.x, pos.y);
-
   apiPost('/water', { x: nx, y: ny }).then(function(resp) {
-    if (resp.ok && resp.watered && resp.watered.length > 0) {
+    if (resp.ok && resp.watered && resp.watered.length) {
       toast('💧 浇到了 ' + resp.watered.length + ' 株植物！');
-      // Trigger plant bounce animations
-      resp.watered.forEach(function(w) {
-        state.plantAnims[w.id] = { scale: 1.0, targetScale: 1.15, startTime: Date.now() };
-        // Update local plant data
-        var plant = state.plants.find(function(p) { return p.id === w.id; });
-        if (plant) {
-          plant.health = w.health;
-          plant.stage = w.stage;
-        }
-      });
+      resp.watered.forEach(function(w) { state.plantAnims[w.id] = { startTime: Date.now() }; var p = state.plants.find(function(pp) { return pp.id === w.id; }); if (p) { p.health = w.health; p.stage = w.stage; } });
       updateUI();
-    } else if (resp.ok) {
-      toast('💧 这里没有植物...');
-    }
-  }).catch(function() {
-    // Offline or error — still show visual feedback
-  });
+    } else if (resp.ok) { toast('💧 这里还没有植物...'); }
+  }).catch(function() {});
 }
-
-// Click/touch handlers
 cv.addEventListener('click', handleWater);
-cv.addEventListener('touchstart', function(e) {
-  if (e.touches.length === 1) {
-    handleWater(e.touches[0]);
-  }
-  e.preventDefault();
-}, { passive: false });
+cv.addEventListener('touchstart', function(e) { if (e.touches.length === 1) { handleWater(e.touches[0]); e.preventDefault(); } }, { passive: false });
 
-// Cursor style
-cv.classList.add('water-cursor');
+// ===== UI =====
+function toast(m) { var t = document.getElementById('toast'); t.textContent = m; t.classList.add('show'); setTimeout(function() { t.classList.remove('show'); }, 2000); }
+function updateUI() {
+  document.getElementById('visitCount').textContent = '访问 ' + state.totalVisits + ' 次';
+  var bl = state.plants.filter(function(p) { return calcStage(p) === 'blooming'; }).length;
+  var al = state.plants.filter(function(p) { return calcStage(p) !== 'withered' && calcStage(p) !== 'seed'; }).length;
+  document.getElementById('plantSummary').textContent = al + ' 株植物 · ' + bl + ' 朵盛开';
+  document.getElementById('seasonIcon').textContent = (SEASON[state.season] || SEASON.summer).icon;
+}
+function showAbout() { document.getElementById('aboutBg').classList.add('show'); }
+function hideAbout() { document.getElementById('aboutBg').classList.remove('show'); }
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') hideAbout(); });
+document.getElementById('aboutBg').addEventListener('click', function(e) { if (e.target === this) hideAbout(); });
 
-// ===== KEYBOARD =====
-document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape') hideAbout();
-});
-
-// ===== CLOUD DRIFT =====
+// ===== ANIMATION =====
 function updateClouds(dt) {
-  state.clouds.forEach(function(c) {
-    c.x += dt * 0.015;
-    if (c.x > 1.15) c.x = -0.15;
-  });
+  state.clouds.forEach(function(c) { c.x += dt * 0.01; if (c.x > 1.1) c.x = -0.1; });
 }
 
-// ===== MAIN RENDER =====
 function drawAll() {
   ctx.clearRect(0, 0, cv.width, cv.height);
   drawSky();
   drawClouds();
-  drawHorizon();
+  drawFarHills();
+  drawNearHills();
   drawGround();
-  drawSnow(); // Below plants
-  sortPlants();
+  drawSnow();
+  state.plants.sort(function(a, b) { return a.y - b.y; });
   state.plants.forEach(function(p) { drawPlant(p); });
-  drawRain(); // Above plants
+  drawRain();
 }
 
-// ===== ANIMATION LOOP =====
-function loop(timestamp) {
-  if (!state.lastFrame) state.lastFrame = timestamp;
-  var dt = Math.min(0.1, (timestamp - state.lastFrame) / 1000);
-  state.lastFrame = timestamp;
-
-  updateClouds(dt);
-  updateRain(dt);
-  updateSnow(dt);
-  drawAll();
-
+function loop(ts) {
+  var dt = Math.min(0.1, state.time ? (ts - state.time) / 1000 : 0.016);
+  state.time = ts;
+  updateClouds(dt); updateRain(dt); updateSnow(dt); drawAll();
   requestAnimationFrame(loop);
 }
 
 // ===== INIT =====
 async function init() {
   try {
-    // Load garden state
     var data = await apiGet('/state');
-    state.plants = data.plants || [];
-    state.totalVisits = data.totalVisits || 0;
-    state.season = data.season || getSeason();
-    state.month = data.month || (new Date().getMonth() + 1);
+    state.plants = data.plants || []; state.totalVisits = data.totalVisits || 0; state.season = data.season || getSeason();
     updateUI();
-
-    // Register visit (only once per session)
     if (!sessionStorage._moss_visited) {
       sessionStorage._moss_visited = '1';
-      var visitResp = await apiPost('/visit');
-      if (visitResp.ok && visitResp.newPlant) {
-        state.plants.push(visitResp.newPlant);
-        state.totalVisits = visitResp.totalVisits;
-        updateUI();
-        toast('🌱 一株新植物破土而出！');
-      }
+      var vr = await apiPost('/visit');
+      if (vr.ok && vr.newPlant) { state.plants.push(vr.newPlant); state.totalVisits = vr.totalVisits; updateUI(); toast('🌱 一株新植物破土而出！'); }
     }
-  } catch (e) {
-    console.warn('Garden API unavailable, running offline');
-  }
-
-  // Load assets in background (non-blocking)
-  loadAssets().then(function() {
-    console.log('All assets ready');
-  });
-
-  // Start render loop immediately (without assets = fallback shapes)
-  requestAnimationFrame(loop);
+  } catch(e) { console.warn('Offline'); }
+  loadAssets(); requestAnimationFrame(loop);
 }
-
-// Periodic state refresh (every 60s, for other people's plants)
-setInterval(async function() {
-  try {
-    var data = await apiGet('/state');
-    if (data.plants) {
-      state.plants = data.plants;
-      state.totalVisits = data.totalVisits;
-      updateUI();
-    }
-  } catch(e) {}
-}, 60000);
-
+setInterval(async function() { try { var d = await apiGet('/state'); if (d.plants) { state.plants = d.plants; state.totalVisits = d.totalVisits; updateUI(); } } catch(e) {} }, 60000);
 init();
 </script>
 </body>
