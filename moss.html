@@ -196,43 +196,84 @@ function drawPlant(p){
 }
 
 function drawPlantShape(t,v,px,py,s,bloom){
-  // s is 0~0.85 normalized, 1.0 ≈ full-size plant
-  var k=s*90; // pixel scale factor, ~0 to ~76 pixels
+  // s is 0~0.85 normalized, 1.0 ≈ full-size plant (~60px tall)
+  // Use direct pixel coords scaled linearly by s, so s=1 → plant fits in ~60px box
   var cs={fern:['#5a8c3f','#4a7c30','#6a9c4f'],flower:['#e8a0b8','#d490a8','#f0b8c8'],mushroom:['#c45a4a','#b04a3a','#d46a5a'],grass:['#7a9c4a','#6a8c3a','#8aac5a'],succulent:['#8aaa7a','#7a9a6a','#9aba8a'],vine:['#4a7c3f','#3a6c2f','#5a8c4f']};
-  var cl=cs[t]||['#6b8c42'],col=cl[v%3];
+  var col=cs[t]?cs[t][v%3]:'#6b8c42';
 
   switch(t){
   case'fern':
-    ctx.strokeStyle=col;ctx.lineWidth=2.5;ctx.lineCap='round';
-    for(var i=0;i<18;i++){var ang=i*.3,rad=i*2.8+.5;ctx.beginPath();ctx.arc(px,py-rad*k,2.5,ang,ang+.35);ctx.stroke()}
+    // Fiddlehead fern — curled spiral, max ~50px tall at s=1
+    ctx.strokeStyle=col;ctx.lineWidth=Math.max(1,2*s);ctx.lineCap='round';
+    ctx.beginPath();
+    var n=Math.floor(5+s*10); // 5 to 13 curls
+    for(var i=0;i<n;i++){
+      var a=(i/n)*Math.PI*1.5; // spiral angle
+      var r=3+i*(34/n)*s; // growing radius
+      var cx=px+Math.cos(a)*r*.35;
+      var cy=py-8-r*.7+Math.sin(a)*r*.15;
+      ctx.moveTo(cx,cy);
+      ctx.arc(cx,cy,Math.max(1,2.5*s),0,Math.PI*2);
+    }
+    ctx.stroke();
     break;
+
   case'flower':
-    var pc=bloom?6:4;
-    for(var j=0;j<pc;j++){var an=j*Math.PI*2/pc;ctx.fillStyle=col;ctx.beginPath();ctx.ellipse(px+Math.cos(an)*9,py-k*28+Math.sin(an)*9,7,12,an,0,Math.PI*2);ctx.fill()}
-    ctx.fillStyle='#ffe080';ctx.beginPath();ctx.arc(px,py-k*28,4,0,Math.PI*2);ctx.fill();
-    // Stem
-    ctx.strokeStyle='#6a8c3f';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(px,py-k*28);ctx.stroke();
+    // Flower with stem, max ~55px tall at s=1
+    var fh=30*s; // flower head y offset
+    ctx.strokeStyle='#7a9c50';ctx.lineWidth=Math.max(1,2*s);ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(px,py-fh);ctx.stroke();
+    var pc=bloom?Math.floor(4+s*4):Math.floor(3+s*2);
+    for(var j=0;j<pc;j++){
+      var an=j*Math.PI*2/pc;
+      ctx.fillStyle=col;
+      ctx.beginPath();ctx.ellipse(px+Math.cos(an)*6*s,py-fh+Math.sin(an)*6*s,Math.max(2,5*s),Math.max(2,8*s),an,0,Math.PI*2);ctx.fill();
+    }
+    ctx.fillStyle='#ffe080';ctx.beginPath();ctx.arc(px,py-fh,Math.max(1.5,3.5*s),0,Math.PI*2);ctx.fill();
     break;
+
   case'mushroom':
-    ctx.beginPath();ctx.ellipse(px,py-k*20,14,9,Math.PI,0,0);ctx.fill();
-    ctx.fillStyle='#e8d8c0';ctx.fillRect(px-2.5,py-k*20,5,k*16);
+    // Mushroom, max ~30px tall at s=1
+    var mh=20*s;
+    ctx.beginPath();ctx.ellipse(px,py-mh,Math.max(4,12*s),Math.max(3,8*s),Math.PI,0,0);ctx.fill();
+    ctx.fillStyle='#e8d8c0';ctx.fillRect(px-Math.max(1,3*s),py-mh,Math.max(2,6*s),mh);
     break;
+
   case'grass':
-    ctx.strokeStyle=col;ctx.lineWidth=2.5;ctx.lineCap='round';
-    for(var g=0;g<5;g++){ctx.beginPath();ctx.moveTo(px,py);ctx.quadraticCurveTo(px+(g-2)*7,py-k*18,px+(g-2)*5,py-k*32);ctx.stroke()}
+    // Grass blades, max ~45px tall at s=1
+    ctx.strokeStyle=col;ctx.lineWidth=Math.max(1,2.2*s);ctx.lineCap='round';
+    var bn=Math.floor(3+s*4);
+    for(var g=0;g<bn;g++){
+      ctx.beginPath();ctx.moveTo(px,py);
+      ctx.quadraticCurveTo(px+(g-(bn-1)/2)*6*s,py-20*s,px+(g-(bn-1)/2)*4*s,py-38*s);ctx.stroke();
+    }
     break;
+
   case'succulent':
-    for(var l=4;l>=0;l--){ctx.beginPath();ctx.ellipse(px,py-k*12,l*7,l*4,0,0,Math.PI*2);ctx.fill();ctx.fillStyle=col;ctx.globalAlpha=.7+.3*(l/4)}
+    // Rosette, max ~20px tall at s=1
+    var ll=Math.floor(2+s*3);
+    for(var l=ll;l>=0;l--){
+      var rr=Math.max(2,(l+1)*5*s);
+      ctx.beginPath();ctx.ellipse(px,py-8*s,rr,rr*.55,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle=col;ctx.globalAlpha=.6+.4*(l/ll);
+    }
     ctx.globalAlpha=1;
     break;
+
   case'vine':
-    ctx.strokeStyle=col;ctx.lineWidth=2.5;ctx.lineCap='round';ctx.beginPath();
-    ctx.moveTo(px,py);
-    for(var m=0;m<20;m++){ctx.lineTo(px+6*Math.sin(m*.5+.3),py-m*2.5)}
+    // Vine tendril, max ~40px tall at s=1
+    ctx.strokeStyle=col;ctx.lineWidth=Math.max(1,2*s);ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(px,py);
+    var vi=Math.floor(8+s*12);
+    for(var m=0;m<vi;m++){
+      ctx.lineTo(px+5*s*Math.sin(m*.6),py-m*(36/vi)*s);
+    }
     ctx.stroke();
-    // leaves
+    // small leaves
     ctx.fillStyle=col;
-    for(var m=2;m<18;m+=4){ctx.beginPath();ctx.arc(px+6*Math.sin(m*.5+.3)+4,py-m*2.5,3,0,Math.PI*2);ctx.fill()}
+    for(var m=2;m<vi-2;m+=Math.floor(vi/5)+1){
+      ctx.beginPath();ctx.arc(px+5*s*Math.sin(m*.6)+3*s,py-m*(36/vi)*s,Math.max(1,2.5*s),0,Math.PI*2);ctx.fill();
+    }
     break;
   }
 }
