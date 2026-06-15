@@ -6,7 +6,7 @@
 
 ## 一、素材清单
 
-所有图片放在 `moss-assets/` 目录下。共 **25 张 PNG**。
+所有图片放在 `moss-assets/` 目录下。共 **23 张 PNG**（18 植物 + 5 环境）。
 
 ### 1.1 植物精灵（18 张）
 
@@ -253,7 +253,23 @@ Transparent background. 32x32 PNG.
 
 ## 四、生成后操作
 
-### 4.1 批量重命名（如果需要）
+### 4.1 确认数量
+
+23 张 PNG（18 植物 + 5 环境），清单：
+
+```
+fern_0.png  fern_1.png  fern_2.png
+flower_0.png  flower_1.png  flower_2.png
+mushroom_0.png  mushroom_1.png  mushroom_2.png
+grass_0.png  grass_1.png  grass_2.png
+succulent_0.png  succulent_1.png  succulent_2.png
+vine_0.png  vine_1.png  vine_2.png
+ground.png
+cloud_0.png  cloud_1.png  cloud_2.png
+drop.png
+```
+
+### 4.2 批量重命名（如果需要）
 
 如果 GPT 输出的文件名不匹配，用以下规则重命名：
 
@@ -271,7 +287,7 @@ vine 变体        → vine_0.png / vine_1.png / vine_2.png
 
 ### 4.2 放入项目
 
-将所有 25 张 PNG 复制到本项目的 `moss-assets/` 目录：
+将所有 23 张 PNG 复制到本项目的 `moss-assets/` 目录：
 ```bash
 # 假设 GPT 输出在 ~/Downloads/moss-sprites/
 cp ~/Downloads/moss-sprites/*.png moss-assets/
@@ -281,7 +297,7 @@ cp ~/Downloads/moss-sprites/*.png moss-assets/
 
 ```bash
 ls moss-assets/*.png | wc -l
-# 应该输出: 25
+# 应该输出: 23
 ```
 
 ### 4.4 部署到服务器
@@ -292,7 +308,7 @@ scp -r moss-assets/*.png root@10.42.78.75:/opt/blog/nginx/moss-assets/
 
 # 同步到 nginx 容器可访问的路径
 ssh root@10.42.78.75 "cp /opt/blog/nginx/moss-assets/*.png /usr/share/nginx/html/moss-assets/ 2>/dev/null; ls /opt/blog/nginx/moss-assets/ | wc -l"
-# 应该输出: 25（或 26 含 .gitkeep）
+# 应该输出: 23（或 24 含 .gitkeep）
 
 # 重载 nginx
 ssh root@10.42.78.75 "kill -HUP \$(pgrep -f 'nginx.*master')"
