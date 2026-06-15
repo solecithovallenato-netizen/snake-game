@@ -30,6 +30,11 @@ canvas{display:block;position:fixed;top:0;left:0;width:100%;height:100%}
 #toast{position:fixed;top:72px;left:50%;transform:translateX(-50%);z-index:50;background:rgba(192,168,128,.9);color:#1a1815;padding:8px 20px;border-radius:20px;font-size:12px;opacity:0;transition:opacity .3s;pointer-events:none}
 #toast.show{opacity:1}
 
+/* Plant tooltip */
+#plantTip{position:fixed;z-index:20;pointer-events:none;opacity:0;transition:opacity .15s;background:rgba(36,32,27,.92);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:10px 14px;color:#d5cdc4;font-size:12px;line-height:1.7;max-width:200px;backdrop-filter:blur(8px)}
+#plantTip .pt-name{font-size:14px;font-weight:700;color:#c0a880;margin-bottom:4px}
+#plantTip .pt-bar{height:3px;border-radius:2px;margin-top:4px;background:rgba(255,255,255,.1)}
+
 @media(max-width:480px){#topBar{padding:12px 14px}#topBar .title{font-size:14px}#gardenInfo{bottom:18px;right:16px;font-size:10px}}
 </style>
 </head>
@@ -38,7 +43,7 @@ canvas{display:block;position:fixed;top:0;left:0;width:100%;height:100%}
 
 <div id="topBar">
   <span class="title">数字苔藓<em id="visitCount">访问 0 次</em></span>
-  <button onclick="showAbout()">关于</button>
+  <span><button onclick="location.href='/'">← 博客</button><button onclick="showAbout()" style="margin-left:6px">关于</button></span>
 </div>
 
 <div id="gardenInfo">
@@ -52,12 +57,13 @@ canvas{display:block;position:fixed;top:0;left:0;width:100%;height:100%}
     <p>一个活着的网页花园<br>每次访问，土壤中都会长出新生命</p>
     <p>💧 <b>点击</b>浇水照料<br>被爱的植物开花，被遗忘的枯萎</p>
     <p>🌸 春 &nbsp;☀️ 夏 &nbsp;🍂 秋 &nbsp;❄️ 冬</p>
-    <p style="font-size:11px;opacity:.4">连续7天浇水，诞生发光的稀有植物 ✨</p>
+    <p style="font-size:11px;opacity:.4">悬停植物查看信息 · 连续7天浇水诞生稀有植物 ✨</p>
     <button onclick="hideAbout()">知道了</button>
   </div>
 </div>
 
 <div id="toast"></div>
+<div id="plantTip"><div class="pt-name"></div><div class="pt-info"></div><div class="pt-bar"><div class="pt-fill"></div></div></div>
 
 <script>
 // ===== CONFIG =====
@@ -68,18 +74,51 @@ var S={
   plants:[],totalVisits:0,season:'summer',month:6,
   assets:{},loaded:false,
   rain:[],snow:[],fireflies:[],
-  anims:{},time:0
+  anims:{},time:0,
+  mouse:{x:0,y:0},hovered:null,
+  snail:{x:.3,dir:1,ph:0,trail:[]} // snail state
 };
+
+// ===== DAY/NIGHT CYCLE =====
+function dayPhase(){
+  var h=new Date().getHours()+new Date().getMinutes()/60;
+  // 6am=0, 12pm=0.5, 6pm=1, 12am=0.5 (night), 6am=0
+  var p=Math.sin((h-6)/24*Math.PI*2)*.5+.5; // 0=night peak(12am), 0.5=transition, 1=day peak(12pm)
+  return Math.max(0,Math.min(1,p));
+}
 
 // ===== SEASON =====
 function getSeason(m){m=m||new Date().getMonth()+1;if(m>=3&&m<=5)return'spring';if(m>=6&&m<=8)return'summer';if(m>=9&&m<=11)return'autumn';return'winter'}
 
-var PAL={
-  spring:{sky1:'#1a2820',sky2:'#1e3028',earth:'#3a4830',earthHi:'#4a5a3a',leaf:'#6b9048',flower:'#d4a0b0',light:'#e8d8a0',icon:'🌸'},
-  summer:{sky1:'#1a2418',sky2:'#1e2c20',earth:'#384528',earthHi:'#485a35',leaf:'#5a8838',flower:'#e8c860',light:'#f0e0a0',icon:'☀️'},
-  autumn:{sky1:'#1c1a15',sky2:'#241e18',earth:'#403020',earthHi:'#504030',leaf:'#8a6830',flower:'#d49040',light:'#f0d090',icon:'🍂'},
-  winter:{sky1:'#181a1c',sky2:'#1e2024',earth:'#383430',earthHi:'#484440',leaf:'#6a7868',flower:'#a0b0c0',light:'#e0e4e8',icon:'❄️'}
+// Day palette (noon) and night palette (midnight) — blended by dayPhase()
+var PAL_DAY={
+  spring:{sky1:'#1a2820',sky2:'#1e3028',earth:'#3a4830',earthHi:'#4a5a3a',light:'#e8d8a0',icon:'🌸'},
+  summer:{sky1:'#1a2418',sky2:'#1e2c20',earth:'#384528',earthHi:'#485a35',light:'#f0e0a0',icon:'☀️'},
+  autumn:{sky1:'#1c1a15',sky2:'#241e18',earth:'#403020',earthHi:'#504030',light:'#f0d090',icon:'🍂'},
+  winter:{sky1:'#181a1c',sky2:'#1e2024',earth:'#383430',earthHi:'#484440',light:'#e0e4e8',icon:'❄️'}
 };
+var PAL_NIGHT={
+  spring:{sky1:'#0d1418',sky2:'#101a20',earth:'#1a2018',earthHi:'#222a20',light:'#8090c0',icon:'🌸'},
+  summer:{sky1:'#0d1210',sky2:'#101a18',earth:'#182018',earthHi:'#202820',light:'#8090c0',icon:'☀️'},
+  autumn:{sky1:'#0e0d10',sky2:'#121018',earth:'#1a1410',earthHi:'#221c14',light:'#8090c0',icon:'🍂'},
+  winter:{sky1:'#0c0e10',sky2:'#101218',earth:'#181a18',earthHi:'#202220',light:'#8090c0',icon:'❄️'}
+};
+
+function pal(){
+  var dp=dayPhase();
+  var d=PAL_DAY[S.season]||PAL_DAY.summer;
+  var n=PAL_NIGHT[S.season]||PAL_NIGHT.summer;
+  // Blend between night and day
+  function blend(a,b,t){var ah=parseInt(a.slice(1),16),bh=parseInt(b.slice(1),16);
+    var ar=ah>>16,ag=(ah>>8)&255,ab=ah&255,br=bh>>16,bg=(bh>>8)&255,bb=bh&255;
+    var rr=Math.round(ar+(br-ar)*t),rg=Math.round(ag+(bg-ag)*t),rb=Math.round(ab+(bb-ab)*t);
+    return '#'+((rr<<16)|(rg<<8)|rb).toString(16).padStart(6,'0');}
+  return {
+    sky1:blend(n.sky1,d.sky1,dp),sky2:blend(n.sky2,d.sky2,dp),
+    earth:blend(n.earth,d.earth,dp),earthHi:blend(n.earthHi,d.earthHi,dp),
+    light:blend(n.light,d.light,dp),icon:d.icon
+  };
+}
 
 // ===== API =====
 async function G(p){var r=await fetch(API+p,{headers:{'X-Session-Id':SID}});return r.json()}
@@ -87,7 +126,9 @@ async function P(p,b){var r=await fetch(API+p,{method:'POST',headers:{'Content-T
 
 // ===== STAGE =====
 function stage(p){var h=p.health==null?30:p.health;if(h<=0)return'w';if(h<20)return'd';if(h<40)return's';if(h<70)return'g';return'b'}
-function sSize(s){if(s==='d')return 0;if(s==='s')return.35;if(s==='g')return.6;if(s==='b')return.85;return.5}
+function sSize(s){if(s==='d')return 0;if(s==='s')return.55;if(s==='g')return.8;if(s==='b')return 1;return.5}
+var TYPE_NAMES={fern:'蕨',flower:'花',mushroom:'蘑菇',grass:'草',succulent:'多肉',vine:'藤蔓',glowing:'✨光'};
+var STAGE_NAMES={d:'种子',s:'嫩芽',g:'成长中',b:'盛开',w:'枯萎'};
 
 // ===== CANVAS =====
 var cv=document.getElementById('cv'),ctx=cv.getContext('2d');
@@ -96,96 +137,91 @@ window.addEventListener('resize',R);R();
 function X(x){return x*cv.width}
 function Y(y){return y*cv.height}
 
-// ===== RENDER =====
-var ff=[]; // fireflies state
+// ===== FIREFLIES =====
+var ff=[];
+(function initFF(){for(var i=0;i<25;i++)ff.push({x:Math.random(),y:.5+Math.random()*.4,z:.3+Math.random()*.7,ph:Math.random()*Math.PI*2,sp:.3+Math.random()*.7})})();
 
-function initFF(){
-  for(var i=0;i<25;i++){ff.push({x:Math.random(),y:.5+Math.random()*.4,z:.3+Math.random()*.7,ph:Math.random()*Math.PI*2,sp:.3+Math.random()*.7})}
+// Earth surface curve function — returns y for given normalized x
+function earthY(nx){
+  var w=cv.width,h=cv.height,baseY=h*.48,moundH=h*.52;
+  return baseY-moundH*.35*Math.sin(nx*w*.0008+.3)-moundH*.15*Math.sin(nx*w*.002+1.8)-moundH*.08*Math.sin(nx*w*.005);
 }
-initFF();
 
+// ===== DRAW: BACKGROUND =====
 function drawBG(){
-  var p=PAL[S.season]||PAL.summer;
+  var p=pal();
   var g=ctx.createRadialGradient(cv.width*.5,cv.height*.25,0,cv.width*.5,cv.height*.6,cv.height*1.1);
   g.addColorStop(0,p.sky1);g.addColorStop(1,p.sky2);
   ctx.fillStyle=g;ctx.fillRect(0,0,cv.width,cv.height);
 }
 
-// Warm light source (subtle sun/moon glow)
 function drawLight(){
-  var p=PAL[S.season]||PAL.summer;
+  var p=pal(),dp=dayPhase();
+  var a=.08+dp*.1; // brighter during day
   var g=ctx.createRadialGradient(cv.width*.5,cv.height*.15,cv.width*.01,cv.width*.5,cv.height*.4,cv.width*.6);
-  g.addColorStop(0,p.light+'15');g.addColorStop(.5,p.light+'05');g.addColorStop(1,'transparent');
+  g.addColorStop(0,p.light+Math.round(a*255).toString(16).padStart(2,'0'));
+  g.addColorStop(.5,p.light+'05');g.addColorStop(1,'transparent');
   ctx.fillStyle=g;ctx.fillRect(0,0,cv.width,cv.height);
 }
 
-// Earth mound
+// ===== DRAW: EARTH =====
 function drawEarth(){
-  var p=PAL[S.season]||PAL.summer;
-  var w=cv.width,h=cv.height;
-  var baseY=h*.48, moundH=h*.52;
+  var p=pal(),w=cv.width,h=cv.height,baseY=h*.48,moundH=h*.52;
 
-  // Main earth body - gentle curved mound
   var g=ctx.createLinearGradient(0,baseY,0,h);
   g.addColorStop(0,p.earthHi);g.addColorStop(.15,p.earth);g.addColorStop(1,'#1a1815');
   ctx.fillStyle=g;
-  ctx.beginPath();
-  ctx.moveTo(0,h);
-  // Rolling terrain
-  for(var x=0;x<=w;x+=3){
-    var y=baseY-moundH*.35*Math.sin(x*.0008+.3)-moundH*.15*Math.sin(x*.002+1.8)-moundH*.08*Math.sin(x*.005);
-    ctx.lineTo(x,y);
-  }
+  ctx.beginPath();ctx.moveTo(0,h);
+  for(var x=0;x<=w;x+=3)ctx.lineTo(x,earthY(x/w));
   ctx.lineTo(w,h);ctx.closePath();ctx.fill();
 
-  // Grass-line highlight
-  ctx.strokeStyle=p.earthHi+'60';
-  ctx.lineWidth=1.5;
+  // Highlight edge
+  ctx.strokeStyle=p.earthHi+'40';ctx.lineWidth=1.5;
   ctx.beginPath();
-  for(var x=0;x<=w;x+=3){
-    var y=baseY-moundH*.35*Math.sin(x*.0008+.3)-moundH*.15*Math.sin(x*.002+1.8)-moundH*.08*Math.sin(x*.005);
-    if(x===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
-  }
+  for(var x=0;x<=w;x+=3){var y=earthY(x/w);if(x===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)}
   ctx.stroke();
 
-  // Subtle dirt layers (horizontal sediment lines)
-  for(var ly=0;ly<8;ly++){
+  // Sediment
+  for(var ly=0;ly<6;ly++){
     var ly2=baseY+moundH*.08+ly*moundH*.1;
-    ctx.strokeStyle='rgba(0,0,0,'+(.04+ly*.01)+')';
-    ctx.lineWidth=1;
+    ctx.strokeStyle='rgba(0,0,0,'+(.03+ly*.01)+')';ctx.lineWidth=1;
     ctx.beginPath();
-    for(var x=0;x<=w;x+=20){
-      var dy=ly2+moundH*.02*Math.sin(x*.001+ly);
-      if(x===0)ctx.moveTo(x,dy);else ctx.lineTo(x,dy);
-    }
+    for(var x=0;x<=w;x+=20){var dy=ly2+moundH*.02*Math.sin(x*.001+ly);if(x===0)ctx.moveTo(x,dy);else ctx.lineTo(x,dy)}
     ctx.stroke();
+  }
+
+  // Small grass tufts along edge
+  for(var x=0;x<w;x+=14){
+    var ey=earthY(x/w),ex=x;
+    ctx.strokeStyle='rgba(180,200,160,.12)';ctx.lineWidth=1;
+    for(var gx=0;gx<3;gx++){
+      ctx.beginPath();ctx.moveTo(ex+gx*3,ey);
+      ctx.quadraticCurveTo(ex+gx*3+1,ey-3,ex+gx*3+2,ey-6-Math.random()*3);ctx.stroke();
+    }
   }
 }
 
-// Sort plants
 function sortP(){S.plants.sort(function(a,b){return a.y-b.y})}
 
-// Draw a single plant
+// ===== DRAW: PLANT =====
 function drawPlant(p){
   var st=stage(p),sz=p.size||.5;
   if(st==='d')return;
   var px=X(p.x),py=Y(p.y);
-  var bs=sSize(st),t=sz*bs; // t = 0~0.85 normalized plant scale
+  var bs=sSize(st),t=sz*bs;
   var a=S.anims[p.id];
   if(a){var el=(Date.now()-a.t)/1000;if(el<.4){var tt=el/.4;t*=1+.2*Math.sin(tt*Math.PI)*Math.exp(-tt*5)}else delete S.anims[p.id]}
 
   ctx.save();
   if(st==='w'){ctx.globalAlpha=.35;ctx.filter='grayscale(100%)'}
 
-  // Shadow — width proportional to plant size
+  // Shadow
   var sw=t*55+5;
   ctx.fillStyle='rgba(0,0,0,.12)';
   ctx.beginPath();ctx.ellipse(px,py,sw,sw*.3,0,0,Math.PI*2);ctx.fill();
 
-  // Draw plant body
   drawPlantShape(p.type,p.variant,px,py,t);
 
-  // Blooming glow — subtle
   if(st==='blooming'){
     var gr=ctx.createRadialGradient(px,py-t*55,0,px,py-t*55,t*28);
     gr.addColorStop(0,'rgba(240,220,140,.12)');gr.addColorStop(1,'rgba(240,220,140,0)');
@@ -193,93 +229,91 @@ function drawPlant(p){
   }
 
   ctx.restore();
+
+  // Highlight if hovered
+  if(S.hovered&&S.hovered.id===p.id){
+    ctx.strokeStyle='rgba(255,255,255,.25)';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.arc(px,py-25*t,sw+8,0,Math.PI*2);ctx.stroke();
+  }
 }
 
 function drawPlantShape(t,v,px,py,s,bloom){
-  // s is 0~0.85 normalized, 1.0 ≈ full-size plant (~60px tall)
-  // Use direct pixel coords scaled linearly by s, so s=1 → plant fits in ~60px box
   var cs={fern:['#5a8c3f','#4a7c30','#6a9c4f'],flower:['#e8a0b8','#d490a8','#f0b8c8'],mushroom:['#c45a4a','#b04a3a','#d46a5a'],grass:['#7a9c4a','#6a8c3a','#8aac5a'],succulent:['#8aaa7a','#7a9a6a','#9aba8a'],vine:['#4a7c3f','#3a6c2f','#5a8c4f']};
   var col=cs[t]?cs[t][v%3]:'#6b8c42';
 
   switch(t){
   case'fern':
-    // Fiddlehead fern — curled spiral, max ~50px tall at s=1
-    ctx.strokeStyle=col;ctx.lineWidth=Math.max(1,2*s);ctx.lineCap='round';
-    ctx.beginPath();
-    var n=Math.floor(5+s*10); // 5 to 13 curls
-    for(var i=0;i<n;i++){
-      var a=(i/n)*Math.PI*1.5; // spiral angle
-      var r=3+i*(34/n)*s; // growing radius
-      var cx=px+Math.cos(a)*r*.35;
-      var cy=py-8-r*.7+Math.sin(a)*r*.15;
-      ctx.moveTo(cx,cy);
-      ctx.arc(cx,cy,Math.max(1,2.5*s),0,Math.PI*2);
-    }
-    ctx.stroke();
-    break;
-
+    ctx.strokeStyle=col;ctx.lineWidth=Math.max(1,2*s);ctx.lineCap='round';ctx.beginPath();
+    var n=Math.floor(5+s*10);
+    for(var i=0;i<n;i++){var a=(i/n)*Math.PI*1.5,r=3+i*(34/n)*s,cx=px+Math.cos(a)*r*.35,cy=py-8-r*.7+Math.sin(a)*r*.15;ctx.moveTo(cx,cy);ctx.arc(cx,cy,Math.max(1,2.5*s),0,Math.PI*2)}
+    ctx.stroke();break;
   case'flower':
-    // Flower with stem, max ~55px tall at s=1
-    var fh=30*s; // flower head y offset
-    ctx.strokeStyle='#7a9c50';ctx.lineWidth=Math.max(1,2*s);ctx.lineCap='round';
-    ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(px,py-fh);ctx.stroke();
+    var fh=30*s;
+    ctx.strokeStyle='#7a9c50';ctx.lineWidth=Math.max(1,2*s);ctx.lineCap='round';ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(px,py-fh);ctx.stroke();
     var pc=bloom?Math.floor(4+s*4):Math.floor(3+s*2);
-    for(var j=0;j<pc;j++){
-      var an=j*Math.PI*2/pc;
-      ctx.fillStyle=col;
-      ctx.beginPath();ctx.ellipse(px+Math.cos(an)*6*s,py-fh+Math.sin(an)*6*s,Math.max(2,5*s),Math.max(2,8*s),an,0,Math.PI*2);ctx.fill();
-    }
-    ctx.fillStyle='#ffe080';ctx.beginPath();ctx.arc(px,py-fh,Math.max(1.5,3.5*s),0,Math.PI*2);ctx.fill();
-    break;
-
+    for(var j=0;j<pc;j++){var an=j*Math.PI*2/pc;ctx.fillStyle=col;ctx.beginPath();ctx.ellipse(px+Math.cos(an)*6*s,py-fh+Math.sin(an)*6*s,Math.max(2,5*s),Math.max(2,8*s),an,0,Math.PI*2);ctx.fill()}
+    ctx.fillStyle='#ffe080';ctx.beginPath();ctx.arc(px,py-fh,Math.max(1.5,3.5*s),0,Math.PI*2);ctx.fill();break;
   case'mushroom':
-    // Mushroom, max ~30px tall at s=1
-    var mh=20*s;
-    ctx.beginPath();ctx.ellipse(px,py-mh,Math.max(4,12*s),Math.max(3,8*s),Math.PI,0,0);ctx.fill();
-    ctx.fillStyle='#e8d8c0';ctx.fillRect(px-Math.max(1,3*s),py-mh,Math.max(2,6*s),mh);
-    break;
-
+    var mh=20*s;ctx.beginPath();ctx.ellipse(px,py-mh,Math.max(4,12*s),Math.max(3,8*s),Math.PI,0,0);ctx.fill();
+    ctx.fillStyle='#e8d8c0';ctx.fillRect(px-Math.max(1,3*s),py-mh,Math.max(2,6*s),mh);break;
   case'grass':
-    // Grass blades, max ~45px tall at s=1
-    ctx.strokeStyle=col;ctx.lineWidth=Math.max(1,2.2*s);ctx.lineCap='round';
-    var bn=Math.floor(3+s*4);
-    for(var g=0;g<bn;g++){
-      ctx.beginPath();ctx.moveTo(px,py);
-      ctx.quadraticCurveTo(px+(g-(bn-1)/2)*6*s,py-20*s,px+(g-(bn-1)/2)*4*s,py-38*s);ctx.stroke();
-    }
-    break;
-
+    ctx.strokeStyle=col;ctx.lineWidth=Math.max(1,2.2*s);ctx.lineCap='round';var bn=Math.floor(3+s*4);
+    for(var g=0;g<bn;g++){ctx.beginPath();ctx.moveTo(px,py);ctx.quadraticCurveTo(px+(g-(bn-1)/2)*6*s,py-20*s,px+(g-(bn-1)/2)*4*s,py-38*s);ctx.stroke()}break;
   case'succulent':
-    // Rosette, max ~20px tall at s=1
     var ll=Math.floor(2+s*3);
-    for(var l=ll;l>=0;l--){
-      var rr=Math.max(2,(l+1)*5*s);
-      ctx.beginPath();ctx.ellipse(px,py-8*s,rr,rr*.55,0,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle=col;ctx.globalAlpha=.6+.4*(l/ll);
-    }
-    ctx.globalAlpha=1;
-    break;
-
+    for(var l=ll;l>=0;l--){var rr=Math.max(2,(l+1)*5*s);ctx.beginPath();ctx.ellipse(px,py-8*s,rr,rr*.55,0,0,Math.PI*2);ctx.fill();ctx.fillStyle=col;ctx.globalAlpha=.6+.4*(l/ll)}
+    ctx.globalAlpha=1;break;
   case'vine':
-    // Vine tendril, max ~40px tall at s=1
-    ctx.strokeStyle=col;ctx.lineWidth=Math.max(1,2*s);ctx.lineCap='round';
-    ctx.beginPath();ctx.moveTo(px,py);
+    ctx.strokeStyle=col;ctx.lineWidth=Math.max(1,2*s);ctx.lineCap='round';ctx.beginPath();ctx.moveTo(px,py);
     var vi=Math.floor(8+s*12);
-    for(var m=0;m<vi;m++){
-      ctx.lineTo(px+5*s*Math.sin(m*.6),py-m*(36/vi)*s);
-    }
-    ctx.stroke();
-    // small leaves
-    ctx.fillStyle=col;
-    for(var m=2;m<vi-2;m+=Math.floor(vi/5)+1){
-      ctx.beginPath();ctx.arc(px+5*s*Math.sin(m*.6)+3*s,py-m*(36/vi)*s,Math.max(1,2.5*s),0,Math.PI*2);ctx.fill();
-    }
+    for(var m=0;m<vi;m++)ctx.lineTo(px+5*s*Math.sin(m*.6),py-m*(36/vi)*s);
+    ctx.stroke();ctx.fillStyle=col;
+    for(var m=2;m<vi-2;m+=Math.floor(vi/5)+1)ctx.beginPath(),ctx.arc(px+5*s*Math.sin(m*.6)+3*s,py-m*(36/vi)*s,Math.max(1,2.5*s),0,Math.PI*2),ctx.fill();
     break;
   }
 }
 
-// Fireflies
+// ===== SNAIL =====
+function updateSnail(dt){
+  var sn=S.snail;
+  sn.ph+=dt;
+  sn.x+=sn.dir*dt*.015;
+  if(sn.x>1.05){sn.dir=-1;sn.x=1.05}
+  if(sn.x<-.05){sn.dir=1;sn.x=-.05}
+  // Trail
+  sn.trail.push({x:sn.x,y:earthY(sn.x)/cv.height,t:sn.ph});
+  if(sn.trail.length>60)sn.trail.shift();
+}
+function drawSnail(){
+  var sn=S.snail;
+  var sx=X(sn.x),sy=earthY(sn.x)-3;
+  // Trail
+  for(var i=0;i<sn.trail.length;i++){
+    var tr=sn.trail[i],age=(sn.ph-tr.t)/4; // age in seconds
+    if(age>3)continue;
+    var a=Math.max(0,.15*(1-age/3));
+    ctx.fillStyle='rgba(200,200,180,'+a+')';
+    ctx.beginPath();ctx.arc(X(tr.x),Y(tr.y)-2,2,0,Math.PI*2);ctx.fill();
+  }
+  // Shell
+  ctx.fillStyle='#8a7a60';
+  ctx.beginPath();ctx.arc(sx,sy-5,6,Math.PI,0,0);ctx.fill();
+  // Swirl
+  ctx.strokeStyle='#6a5a40';ctx.lineWidth=1;
+  ctx.beginPath();ctx.arc(sx,sy-5,4,Math.PI,Math.PI*1.5,0);ctx.stroke();
+  ctx.beginPath();ctx.arc(sx,sy-5,2,Math.PI,Math.PI*1.5,0);ctx.stroke();
+  // Body
+  ctx.fillStyle='#b0a080';
+  ctx.beginPath();ctx.ellipse(sx-3*sn.dir,sy+1,4,2,0,0,Math.PI*2);ctx.fill();
+  // Antennae
+  ctx.strokeStyle='#b0a080';ctx.lineWidth=.8;
+  ctx.beginPath();ctx.moveTo(sx-6*sn.dir,sy);ctx.lineTo(sx-8*sn.dir,sy-4);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(sx-5*sn.dir,sy-1);ctx.lineTo(sx-6*sn.dir,sy-5);ctx.stroke();
+}
+
+// ===== FIREFLIES =====
 function updateFF(dt){
+  var dp=dayPhase();
   ff.forEach(function(f){
     f.ph+=dt*f.sp*1.5;
     f.x+=Math.sin(f.ph)*dt*.02;
@@ -288,30 +322,61 @@ function updateFF(dt){
   });
 }
 function drawFF(){
+  var dp=dayPhase(),brightness=.08+Math.max(0,1-dp*2)*.2; // brighter at night
   ff.forEach(function(f){
-    var a=.06+.12*Math.sin(f.ph*2+S.time*.001);
+    var a=brightness*.5+brightness*.5*Math.sin(f.ph*2+S.time*.001);
     var px=X(f.x),py=Y(f.y);
     ctx.fillStyle='rgba(240,220,140,'+a+')';
     ctx.beginPath();ctx.arc(px,py,f.z*1.5,0,Math.PI*2);ctx.fill();
-    // subtle glow
     var g=ctx.createRadialGradient(px,py,0,px,py,f.z*8);
     g.addColorStop(0,'rgba(240,220,140,'+(a*.3)+')');g.addColorStop(1,'rgba(240,220,140,0)');
     ctx.fillStyle=g;ctx.beginPath();ctx.arc(px,py,f.z*8,0,Math.PI*2);ctx.fill();
   });
 }
 
-// Rain
+// ===== RAIN =====
 function spawnRain(x,y){for(var i=0;i<14;i++)S.rain.push({x:x+(Math.random()-.5)*40,y:y,vy:50+Math.random()*80,vx:(Math.random()-.5)*20,life:.4+Math.random()*.4,r:1.5+Math.random()*2})}
 function upRain(dt){for(var i=S.rain.length-1;i>=0;i--){var p=S.rain[i];p.y+=p.vy*dt;p.x+=p.vx*dt;p.life-=dt;if(p.life<=0)S.rain.splice(i,1)}}
 function drRain(){S.rain.forEach(function(p){var a=Math.max(0,p.life/.6);ctx.fillStyle='rgba(140,190,240,'+a+')';ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill()})}
 
-// Snow
+// ===== SNOW =====
 function upSnow(dt){
   if(S.season!=='winter'){S.snow=[];return}
   if(S.snow.length<40&&Math.random()<.4)S.snow.push({x:Math.random()*cv.width,y:-5,vy:12+Math.random()*25,vx:(Math.random()-.5)*12,r:1.5+Math.random()*3,w:Math.random()*Math.PI*2})
   for(var i=S.snow.length-1;i>=0;i--){var s=S.snow[i];s.y+=s.vy*dt;s.w+=dt;s.x+=Math.sin(s.w)*8*dt+s.vx*dt;if(s.y>cv.height)S.snow.splice(i,1)}
 }
 function drSnow(){S.snow.forEach(function(s){ctx.fillStyle='rgba(255,255,255,.55)';ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill()})}
+
+// ===== HOVER DETECTION =====
+function findHovered(mx,my){
+  var best=null,bestDist=Infinity;
+  for(var i=S.plants.length-1;i>=0;i--){
+    var p=S.plants[i];
+    if(stage(p)==='d')continue;
+    var px=X(p.x),py=Y(p.y),dx=mx-px,dy=my-py+15;
+    var dist=Math.sqrt(dx*dx+dy*dy);
+    var rad=25+(p.size||.5)*40;
+    if(dist<rad&&dist<bestDist){bestDist=dist;best=p}
+  }
+  return best;
+}
+
+function updateTooltip(p,e){
+  var tip=document.getElementById('plantTip');
+  if(!p){tip.style.opacity='0';S.hovered=null;return}
+  S.hovered=p;
+  var st=stage(p);
+  var age=Math.floor((Date.now()-p.createdAt)/86400000);
+  var ageStr=age<1?'今天':age+' 天前';
+  var health=Math.round(Math.max(0,p.health));
+  var hColor=health>70?'#8bc080':health>40?'#c0a860':health>20?'#c08040':'#c05050';
+  tip.querySelector('.pt-name').textContent=(TYPE_NAMES[p.type]||p.type)+' · '+STAGE_NAMES[st];
+  tip.querySelector('.pt-info').innerHTML='💚 '+health+'% &nbsp;📅 '+ageStr+'<br>💧 '+((p.wateredBy||[]).length)+' 次浇水';
+  tip.querySelector('.pt-fill').style.cssText='width:'+health+'%;background:'+hColor;
+  tip.style.opacity='1';
+  tip.style.left=(e.clientX+18)+'px';
+  tip.style.top=(e.clientY-70)+'px';
+}
 
 // ===== INTERACTION =====
 function getPos(e){var r=cv.getBoundingClientRect();return{x:(e.clientX-r.left),y:(e.clientY-r.top)}}
@@ -328,6 +393,11 @@ function handleWater(e){
 }
 cv.addEventListener('click',handleWater);
 cv.addEventListener('touchstart',function(e){if(e.touches.length===1){handleWater(e.touches[0]);e.preventDefault()}},{passive:false});
+cv.addEventListener('mousemove',function(e){
+  var pos=getPos(e),p=findHovered(pos.x,pos.y);
+  if(p!==S.hovered)updateTooltip(p,e);
+});
+cv.addEventListener('mouseleave',function(){updateTooltip(null)});
 
 // ===== UI =====
 function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2000)}
@@ -336,7 +406,7 @@ function updUI(){
   var bl=S.plants.filter(function(p){return stage(p)==='b'}).length;
   var al=S.plants.filter(function(p){var s=stage(p);return s!=='w'&&s!=='d'}).length;
   document.getElementById('plantSummary').textContent=al+' 株 · '+bl+' 朵盛开';
-  document.getElementById('seasonIcon').textContent=(PAL[S.season]||PAL.summer).icon
+  document.getElementById('seasonIcon').textContent=(PAL_DAY[S.season]||PAL_DAY.summer).icon
 }
 function showAbout(){document.getElementById('aboutBg').classList.add('show')}
 function hideAbout(){document.getElementById('aboutBg').classList.remove('show')}
@@ -350,6 +420,7 @@ function drawAll(){
   drSnow();drRain();
   updateFF(.016);
   drawFF();
+  drawSnail();
   sortP();
   S.plants.forEach(function(p){drawPlant(p)})
 }
@@ -357,7 +428,7 @@ function drawAll(){
 function loop(ts){
   var dt=Math.min(.1,S.time?(ts-S.time)/1000:.016);
   S.time=ts;
-  upRain(dt);upSnow(dt);drawAll();
+  upRain(dt);upSnow(dt);updateSnail(dt);drawAll();
   requestAnimationFrame(loop)
 }
 
