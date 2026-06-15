@@ -162,6 +162,21 @@ var dews=[];
 var wildMushrooms=[];
 (function initWild(){for(var i=0;i<5;i++)wildMushrooms.push({x:.05+Math.random()*.9,y:.52+Math.random()*.42,r:3+Math.random()*6})})();
 
+// Signboard
+var signQuotes=[
+  '万物有裂痕，那是光照进来的地方',
+  '安静地写，慢慢地读，深深地想',
+  '要么写值得读的东西，要么做值得写的事',
+  '简单是最高级的复杂',
+  '写作是为了知道自己在想什么',
+  '好的代码像一首诗，好的文章像一个人',
+  '一个人只拥有此生是不够的，还应有诗意的世界',
+  '思而不学则殆，学而不思则罔',
+  '阅读是随身携带的避难所',
+  '程序员的浪漫，是把一行行代码写成诗'
+];
+var signboard={x:.22,quoteIdx:0,timer:0,alpha:1};
+
 // Butterfly
 var butterfly={x:.5,y:.4,vx:0,vy:0,targetX:.5,targetY:.4,ph:0,wing:0,timer:0};
 
@@ -312,6 +327,92 @@ function drawButterfly(){
   ctx.beginPath();ctx.ellipse(px-5,py-5,6,3,-wa,0,Math.PI*2);ctx.fill();
   ctx.fillStyle='rgba(240,220,180,.3)';
   ctx.beginPath();ctx.ellipse(px,py,2,4,0,0,Math.PI*2);ctx.fill();
+}
+
+// Signboard — polished wooden notice board
+function updateSignboard(dt){
+  var sb=signboard;sb.timer+=dt;
+  if(sb.timer>22){sb.timer=0;sb.alpha=0;sb.quoteIdx=(sb.quoteIdx+1)%signQuotes.length}
+  if(sb.alpha<1)sb.alpha=Math.min(1,sb.alpha+dt*.6);
+}
+function drawSignboard(){
+  var sb=signboard,dp=dayPhase();
+  var sx=X(sb.x),sy=earthY(sb.x);
+  var ph=65; // post height in px
+
+  // Shadow under post
+  ctx.fillStyle='rgba(0,0,0,.1)';
+  ctx.beginPath();ctx.ellipse(sx,sy+1,8,3,0,0,Math.PI*2);ctx.fill();
+
+  // Wood post — draw grain with multiple lines
+  var postGrad=ctx.createLinearGradient(sx-4,0,sx+4,0);
+  postGrad.addColorStop(0,'#5a3a20');postGrad.addColorStop(.3,'#7a5030');postGrad.addColorStop(.5,'#8a6040');postGrad.addColorStop(.7,'#7a5030');postGrad.addColorStop(1,'#4a2a10');
+  ctx.fillStyle=postGrad;
+  ctx.fillRect(sx-4,sy-ph,8,ph);
+  // Wood grain lines
+  for(var gi=0;gi<8;gi++){
+    var gy=sy-ph+5+gi*8,goff=1.5*Math.sin(gi*1.7);
+    ctx.strokeStyle='rgba(0,0,0,'+(.06+Math.random()*.04)+')';ctx.lineWidth=.6;
+    ctx.beginPath();ctx.moveTo(sx-3+goff,gy);ctx.lineTo(sx+3-goff,gy+2);ctx.stroke();
+  }
+  // Post top — slight round
+  ctx.fillStyle='#6a4028';
+  ctx.beginPath();ctx.ellipse(sx,sy-ph,4,2,0,0,Math.PI*2);ctx.fill();
+
+  // Board
+  var bw=105,bh=38,bx=sx-bw/2,by=sy-ph-bh+8;
+  // Board shadow on post
+  ctx.fillStyle='rgba(0,0,0,.08)';
+  ctx.fillRect(bx+2,by+3,bw,bh);
+
+  // Board body — subtle wood gradient
+  var bGrad=ctx.createLinearGradient(0,by,0,by+bh);
+  bGrad.addColorStop(0,'#c4a878');bGrad.addColorStop(.3,'#d4b888');bGrad.addColorStop(.7,'#b89868');bGrad.addColorStop(1,'#a08058');
+  ctx.fillStyle=bGrad;
+  ctx.beginPath();ctx.roundRect(bx,by,bw,bh,3);ctx.fill();
+
+  // Board border — darker frame
+  ctx.strokeStyle='#8a6848';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.roundRect(bx,by,bw,bh,3);ctx.stroke();
+  // Inner border line
+  ctx.strokeStyle='rgba(0,0,0,.1)';ctx.lineWidth=.8;
+  ctx.beginPath();ctx.roundRect(bx+4,by+4,bw-8,bh-8,1);ctx.stroke();
+
+  // Wood grain on board
+  for(var bi=0;bi<5;bi++){
+    var by2=by+6+bi*7;
+    ctx.strokeStyle='rgba(0,0,0,'+(.02+bi*.005)+')';ctx.lineWidth=.5;
+    ctx.beginPath();ctx.moveTo(bx+6,by2+Math.sin(bi*2)*2);ctx.lineTo(bx+bw-6,by2+Math.sin(bi*3)*2);ctx.stroke();
+  }
+
+  // Nail heads — 4 corners
+  var nails=[[bx+8,by+6],[bx+bw-8,by+6],[bx+8,by+bh-6],[bx+bw-8,by+bh-6]];
+  nails.forEach(function(n){
+    ctx.fillStyle='#3a2a18';ctx.beginPath();ctx.arc(n[0],n[1],2.5,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.15)';ctx.beginPath();ctx.arc(n[0]-.5,n[1]-.5,1,0,Math.PI*2);ctx.fill();
+  });
+
+  // Glow behind text for readability
+  var glowCx=sx,glowCy=by+bh/2;
+  var gl=ctx.createRadialGradient(glowCx,glowCy,0,glowCx,glowCy,bw*.6);
+  gl.addColorStop(0,'rgba(20,15,8,'+(.25*sb.alpha)+')');gl.addColorStop(1,'rgba(20,15,8,0)');
+  ctx.fillStyle=gl;ctx.fillRect(bx-10,by-5,bw+20,bh+10);
+
+  // Text
+  var txt=signQuotes[sb.quoteIdx],txtAlpha=.7+dp*.2;
+  ctx.fillStyle='rgba(30,20,10,'+(txtAlpha*sb.alpha)+')';
+  ctx.font='bold 11px "Noto Serif SC",Georgia,serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  if(txt.length>12){
+    var mid=Math.ceil(txt.length/2);
+    ctx.fillText(txt.slice(0,mid),sx,by+bh/2-6);
+    ctx.fillText(txt.slice(mid),sx,by+bh/2+8);
+  }else if(txt.length>6){
+    var h1=Math.ceil(txt.length/2);
+    ctx.fillText(txt.slice(0,h1),sx,by+bh/2-5);
+    ctx.fillText(txt.slice(h1),sx,by+bh/2+7);
+  }else{
+    ctx.fillText(txt,sx,by+bh/2);
+  }
 }
 
 // Stars (night only)
@@ -594,8 +695,8 @@ function drawAll(){
   drawBG();drawStars();drawMoon();drawLight();drawTrees();
   drawEarth();drawPebbles();drawLeaves();drawWildMushrooms();drawDews();drawFog();
   drSnow();drRain();
-  updateFF(.016);drawFF();updateDrift(.016);drawDrift();updateButterfly(.016);drawButterfly();
-  drawSnail();
+  updateFF(.016);drawFF();updateDrift(.016);drawDrift();updateButterfly(.016);drawButterfly();updateSignboard(.016);
+  drawSnail();drawSignboard();
   sortP();S.plants.forEach(function(p){drawPlant(p)})
   drawVignette();
 }
