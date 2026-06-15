@@ -553,6 +553,90 @@ cv.classList.add('water-cursor');
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') hideAbout();
 });
+
+// ===== CLOUD DRIFT =====
+function updateClouds(dt) {
+  state.clouds.forEach(function(c) {
+    c.x += dt * 0.015;
+    if (c.x > 1.15) c.x = -0.15;
+  });
+}
+
+// ===== MAIN RENDER =====
+function drawAll() {
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  drawSky();
+  drawClouds();
+  drawHorizon();
+  drawGround();
+  drawSnow(); // Below plants
+  sortPlants();
+  state.plants.forEach(function(p) { drawPlant(p); });
+  drawRain(); // Above plants
+}
+
+// ===== ANIMATION LOOP =====
+function loop(timestamp) {
+  if (!state.lastFrame) state.lastFrame = timestamp;
+  var dt = Math.min(0.1, (timestamp - state.lastFrame) / 1000);
+  state.lastFrame = timestamp;
+
+  updateClouds(dt);
+  updateRain(dt);
+  updateSnow(dt);
+  drawAll();
+
+  requestAnimationFrame(loop);
+}
+
+// ===== INIT =====
+async function init() {
+  try {
+    // Load garden state
+    var data = await apiGet('/state');
+    state.plants = data.plants || [];
+    state.totalVisits = data.totalVisits || 0;
+    state.season = data.season || getSeason();
+    state.month = data.month || (new Date().getMonth() + 1);
+    updateUI();
+
+    // Register visit (only once per session)
+    if (!sessionStorage._moss_visited) {
+      sessionStorage._moss_visited = '1';
+      var visitResp = await apiPost('/visit');
+      if (visitResp.ok && visitResp.newPlant) {
+        state.plants.push(visitResp.newPlant);
+        state.totalVisits = visitResp.totalVisits;
+        updateUI();
+        toast('🌱 一株新植物破土而出！');
+      }
+    }
+  } catch (e) {
+    console.warn('Garden API unavailable, running offline');
+  }
+
+  // Load assets in background (non-blocking)
+  loadAssets().then(function() {
+    console.log('All assets ready');
+  });
+
+  // Start render loop immediately (without assets = fallback shapes)
+  requestAnimationFrame(loop);
+}
+
+// Periodic state refresh (every 60s, for other people's plants)
+setInterval(async function() {
+  try {
+    var data = await apiGet('/state');
+    if (data.plants) {
+      state.plants = data.plants;
+      state.totalVisits = data.totalVisits;
+      updateUI();
+    }
+  } catch(e) {}
+}, 60000);
+
+init();
 </script>
 </body>
 </html>
