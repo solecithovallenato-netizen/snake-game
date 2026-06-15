@@ -211,6 +211,19 @@ class Handler(BaseHTTPRequestHandler):
                     self.wfile.write(f.read())
             else:
                 self.send_response(404); self.end_headers()
+        elif self.path.startswith("/moss-assets/"):
+            asset_path = os.path.join(os.path.dirname(__file__), self.path.lstrip("/"))
+            if os.path.exists(asset_path) and os.path.isfile(asset_path):
+                ext = os.path.splitext(asset_path)[1].lower()
+                mimes = {".png":"image/png",".jpg":"image/jpeg",".svg":"image/svg+xml"}
+                self.send_response(200)
+                self.send_header("Content-Type", mimes.get(ext, "application/octet-stream"))
+                self.send_header("Cache-Control", "public, max-age=86400")
+                self.end_headers()
+                with open(asset_path, "rb") as f:
+                    self.wfile.write(f.read())
+            else:
+                self.send_response(404); self.end_headers()
         else:
             self.send_response(404); self.end_headers()
 
