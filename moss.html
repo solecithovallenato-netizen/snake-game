@@ -6,57 +6,53 @@
 <title>🌿 数字苔藓</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{width:100%;height:100%;overflow:hidden;font-family:"Noto Serif SC",Georgia,serif;background:#3d3027;touch-action:none;user-select:none;-webkit-user-select:none}
+html,body{width:100%;height:100%;overflow:hidden;background:#1a1815;font-family:"Noto Serif SC",Georgia,serif;touch-action:none;user-select:none}
 canvas{display:block;position:fixed;top:0;left:0;width:100%;height:100%}
 
-#topBar{position:fixed;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:14px 24px;pointer-events:none}
+#topBar{position:fixed;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:16px 24px;pointer-events:none}
 #topBar>*{pointer-events:auto}
-#topBar .title{font-weight:700;font-size:17px;color:#fbf8f3;text-shadow:0 1px 4px rgba(0,0,0,.3);letter-spacing:2px}
-#topBar .title em{font-style:normal;font-size:11px;opacity:.55;margin-left:10px;letter-spacing:1px}
-#topBar button{background:rgba(255,255,255,.08);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.15);border-radius:18px;padding:5px 16px;font-size:12px;color:rgba(255,255,255,.8);cursor:pointer;font-family:inherit;transition:all .25s}
-#topBar button:hover{background:rgba(255,255,255,.18);color:#fff}
+#topBar .title{font-size:16px;color:rgba(255,255,255,.7);letter-spacing:3px}
+#topBar .title em{font-style:normal;font-size:10px;opacity:.4;margin-left:10px;letter-spacing:1px}
+#topBar button{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:5px 14px;font-size:11px;color:rgba(255,255,255,.5);cursor:pointer;font-family:inherit;transition:all .25s}
+#topBar button:hover{background:rgba(255,255,255,.12);color:rgba(255,255,255,.8)}
 
-#gardenInfo{position:fixed;bottom:24px;right:24px;z-index:10;font-size:11px;color:rgba(251,248,243,.5);text-align:right;letter-spacing:1px;line-height:1.9;pointer-events:none;text-shadow:0 1px 3px rgba(0,0,0,.3)}
-#gardenInfo .season-icon{font-size:32px;display:block;margin-bottom:2px}
+#gardenInfo{position:fixed;bottom:28px;right:28px;z-index:10;font-size:11px;color:rgba(255,255,255,.35);text-align:right;letter-spacing:1px;line-height:2;pointer-events:none}
+#gardenInfo .s{font-size:24px;display:block}
 
-#aboutBg{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.4);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .35s}
+#aboutBg{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .35s}
 #aboutBg.show{opacity:1;pointer-events:auto}
-#aboutBox{background:#fbf8f3;color:#3d3027;border-radius:20px;padding:32px 28px;max-width:380px;width:90%;text-align:center;box-shadow:0 12px 48px rgba(0,0,0,.25);line-height:1.9;font-size:14px}
-#aboutBox h3{font-size:22px;margin-bottom:14px;color:#8b6f4e}
-#aboutBox p{margin-bottom:6px;color:#a89880}
-#aboutBox button{background:#8b6f4e;color:#fff;border:none;border-radius:22px;padding:9px 30px;font-size:14px;cursor:pointer;font-family:inherit;margin-top:14px;transition:all .2s}
-#aboutBox button:hover{background:#7a5f3e}
+#aboutBox{background:#24201b;color:#d5cdc4;border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:32px 28px;max-width:380px;width:90%;text-align:center;line-height:1.9;font-size:14px}
+#aboutBox h3{font-size:22px;margin-bottom:14px;color:#c0a880}
+#aboutBox p{margin-bottom:6px;color:#8a7e70}
+#aboutBox button{background:#8b6f4e;color:#fff;border:none;border-radius:20px;padding:9px 28px;font-size:14px;cursor:pointer;font-family:inherit;margin-top:14px;transition:all .2s}
+#aboutBox button:hover{background:#a08060}
 
-#toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:50;background:rgba(139,111,78,.92);color:#fff;padding:9px 22px;border-radius:22px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+#toast{position:fixed;top:72px;left:50%;transform:translateX(-50%);z-index:50;background:rgba(192,168,128,.9);color:#1a1815;padding:8px 20px;border-radius:20px;font-size:12px;opacity:0;transition:opacity .3s;pointer-events:none}
 #toast.show{opacity:1}
 
-@media(max-width:480px){
-  #topBar{padding:10px 14px}
-  #topBar .title{font-size:15px}
-  #gardenInfo{bottom:14px;right:14px;font-size:10px}
-}
+@media(max-width:480px){#topBar{padding:12px 14px}#topBar .title{font-size:14px}#gardenInfo{bottom:18px;right:16px;font-size:10px}}
 </style>
 </head>
 <body>
 <canvas id="cv"></canvas>
 
 <div id="topBar">
-  <span class="title">🌿 数字苔藓 <em id="visitCount">访问 0 次</em></span>
+  <span class="title">数字苔藓<em id="visitCount">访问 0 次</em></span>
   <button onclick="showAbout()">关于</button>
 </div>
 
 <div id="gardenInfo">
-  <span class="season-icon" id="seasonIcon">☀️</span>
-  <span id="plantSummary">0 株植物 · 0 朵盛开</span>
+  <span class="s" id="seasonIcon">☀️</span>
+  <span id="plantSummary">0 株 · 0 朵盛开</span>
 </div>
 
 <div id="aboutBg" onclick="if(event.target===this)hideAbout()">
   <div id="aboutBox">
     <h3>🌿 数字苔藓</h3>
-    <p>一个活着的网页花园。<br>每次访问，土壤中都会长出新生命。</p>
-    <p>💧 <b>点击植物</b>浇水照料<br>被爱的植物会开花，被遗忘的会枯萎</p>
-    <p>🌸 春天花朵盛开 &nbsp;☀️ 夏天万物生长<br>🍂 秋天蘑菇爆发 &nbsp;❄️ 冬天雪花飘落</p>
-    <p style="font-size:11px;opacity:.5">连续7天浇水，会诞生发光的稀有植物 ✨</p>
+    <p>一个活着的网页花园<br>每次访问，土壤中都会长出新生命</p>
+    <p>💧 <b>点击</b>浇水照料<br>被爱的植物开花，被遗忘的枯萎</p>
+    <p>🌸 春 &nbsp;☀️ 夏 &nbsp;🍂 秋 &nbsp;❄️ 冬</p>
+    <p style="font-size:11px;opacity:.4">连续7天浇水，诞生发光的稀有植物 ✨</p>
     <button onclick="hideAbout()">知道了</button>
   </div>
 </div>
@@ -65,292 +61,271 @@ canvas{display:block;position:fixed;top:0;left:0;width:100%;height:100%}
 
 <script>
 // ===== CONFIG =====
-var API = '/garden';
-var SID = sessionStorage._moss_sid || (sessionStorage._moss_sid = 'sess_' + Math.random().toString(36).slice(2, 10));
-var ASSET_BASE = 'moss-assets/';
+var API='/garden',SID=sessionStorage._moss_sid||(sessionStorage._moss_sid='sess_'+Math.random().toString(36).slice(2,10));
 
 // ===== STATE =====
-var state = {
-  plants: [],
-  totalVisits: 0,
-  season: 'summer',
-  month: 6,
-  assets: {},
-  assetsLoaded: false,
-  rainParticles: [],
-  snowParticles: [],
-  plantAnims: {},
-  clouds: [{x:0.08,y:0.04,r:0.5},{x:0.35,y:0.02,r:0.35},{x:0.62,y:0.06,r:0.6},{x:0.9,y:0.03,r:0.4}],
-  time: 0
+var S={
+  plants:[],totalVisits:0,season:'summer',month:6,
+  assets:{},loaded:false,
+  rain:[],snow:[],fireflies:[],
+  anims:{},time:0
 };
 
 // ===== SEASON =====
-function getSeason(m) { m = m || new Date().getMonth() + 1; if (m >= 3 && m <= 5) return 'spring'; if (m >= 6 && m <= 8) return 'summer'; if (m >= 9 && m <= 11) return 'autumn'; return 'winter'; }
+function getSeason(m){m=m||new Date().getMonth()+1;if(m>=3&&m<=5)return'spring';if(m>=6&&m<=8)return'summer';if(m>=9&&m<=11)return'autumn';return'winter'}
 
-var SEASON = {
-  spring: { skyTop: '#c8dcc0', skyBot: '#e8f0dd', hillNear: '#7a9660', hillFar: '#8faa78', ground: '#6b8050', accent: '#d4a0b0', icon: '🌸' },
-  summer: { skyTop: '#c8dcc0', skyBot: '#eef5e0', hillNear: '#6d8a50', hillFar: '#85a068', ground: '#5c7840', accent: '#e8c860', icon: '☀️' },
-  autumn: { skyTop: '#d8c8b0', skyBot: '#f0e4d0', hillNear: '#8a7a60', hillFar: '#a09078', ground: '#7a6a50', accent: '#d49040', icon: '🍂' },
-  winter: { skyTop: '#d0d4d8', skyBot: '#e8ecf0', hillNear: '#8a8578', hillFar: '#9e9a90', ground: '#6e6a60', accent: '#a0b0c0', icon: '❄️' }
+var PAL={
+  spring:{sky1:'#1a2820',sky2:'#1e3028',earth:'#3a4830',earthHi:'#4a5a3a',leaf:'#6b9048',flower:'#d4a0b0',light:'#e8d8a0',icon:'🌸'},
+  summer:{sky1:'#1a2418',sky2:'#1e2c20',earth:'#384528',earthHi:'#485a35',leaf:'#5a8838',flower:'#e8c860',light:'#f0e0a0',icon:'☀️'},
+  autumn:{sky1:'#1c1a15',sky2:'#241e18',earth:'#403020',earthHi:'#504030',leaf:'#8a6830',flower:'#d49040',light:'#f0d090',icon:'🍂'},
+  winter:{sky1:'#181a1c',sky2:'#1e2024',earth:'#383430',earthHi:'#484440',leaf:'#6a7868',flower:'#a0b0c0',light:'#e0e4e8',icon:'❄️'}
 };
 
 // ===== API =====
-async function apiGet(path) { var r = await fetch(API + path, { headers: {'X-Session-Id': SID} }); return r.json(); }
-async function apiPost(path, body) { var r = await fetch(API + path, { method: 'POST', headers: {'Content-Type': 'application/json', 'X-Session-Id': SID}, body: JSON.stringify(body || {}) }); return r.json(); }
-
-// ===== ASSETS =====
-var ASSET_LIST = ['fern_0','fern_1','fern_2','flower_0','flower_1','flower_2','mushroom_0','mushroom_1','mushroom_2','grass_0','grass_1','grass_2','succulent_0','succulent_1','succulent_2','vine_0','vine_1','vine_2','ground','cloud_0','cloud_1','cloud_2','drop'];
-
-function loadAssets() {
-  var ps = ASSET_LIST.map(function(n) {
-    return new Promise(function(ok) { var m = new Image(); m.onload = function() { state.assets[n] = m; ok(true); }; m.onerror = function() { ok(false); }; m.src = ASSET_BASE + n + '.png'; });
-  });
-  return Promise.all(ps).then(function() { state.assetsLoaded = true; });
-}
-function getAsset(n) { return state.assets[n] || null; }
-function getPlantSprite(t, v) { return getAsset(t + '_' + (v || 0)); }
+async function G(p){var r=await fetch(API+p,{headers:{'X-Session-Id':SID}});return r.json()}
+async function P(p,b){var r=await fetch(API+p,{method:'POST',headers:{'Content-Type':'application/json','X-Session-Id':SID},body:JSON.stringify(b||{})});return r.json()}
 
 // ===== STAGE =====
-function calcStage(p) { var h = typeof p.health === 'undefined' ? 30 : p.health; if (h <= 0) return 'withered'; if (h < 20) return 'seed'; if (h < 40) return 'sprout'; if (h < 70) return 'growing'; return 'blooming'; }
-function stageScale(s) { if (s === 'seed') return 0.15; if (s === 'sprout') return 0.35; if (s === 'growing') return 0.6; if (s === 'blooming') return 0.85; return 0.5; }
+function stage(p){var h=p.health==null?30:p.health;if(h<=0)return'w';if(h<20)return'd';if(h<40)return's';if(h<70)return'g';return'b'}
+function sSize(s){if(s==='d')return 0;if(s==='s')return.35;if(s==='g')return.6;if(s==='b')return.85;return.5}
 
 // ===== CANVAS =====
-var cv = document.getElementById('cv');
-var ctx = cv.getContext('2d');
-function resize() { cv.width = window.innerWidth * (window.devicePixelRatio || 1); cv.height = window.innerHeight * (window.devicePixelRatio || 1); }
-window.addEventListener('resize', resize); resize();
-function nx(x) { return x * cv.width; }
-function ny(y) { return y * cv.height; }
+var cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+function R(){cv.width=window.innerWidth;cv.height=window.innerHeight}
+window.addEventListener('resize',R);R();
+function X(x){return x*cv.width}
+function Y(y){return y*cv.height}
 
-// ===== DRAW: SKY =====
-function drawSky() {
-  var t = SEASON[state.season] || SEASON.summer;
-  var g = ctx.createLinearGradient(0, 0, 0, cv.height * 0.65);
-  g.addColorStop(0, t.skyTop); g.addColorStop(0.6, t.skyBot); g.addColorStop(1, '#e8e0d4');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, cv.width, cv.height);
+// ===== RENDER =====
+var ff=[]; // fireflies state
+
+function initFF(){
+  for(var i=0;i<25;i++){ff.push({x:Math.random(),y:.5+Math.random()*.4,z:.3+Math.random()*.7,ph:Math.random()*Math.PI*2,sp:.3+Math.random()*.7})}
+}
+initFF();
+
+function drawBG(){
+  var p=PAL[S.season]||PAL.summer;
+  var g=ctx.createRadialGradient(cv.width*.5,cv.height*.25,0,cv.width*.5,cv.height*.6,cv.height*1.1);
+  g.addColorStop(0,p.sky1);g.addColorStop(1,p.sky2);
+  ctx.fillStyle=g;ctx.fillRect(0,0,cv.width,cv.height);
 }
 
-// ===== DRAW: FAR HILLS (layer 1) =====
-function drawFarHills() {
-  var t = SEASON[state.season] || SEASON.summer;
-  var base = cv.height * 0.52;
-  ctx.fillStyle = t.hillFar;
-  ctx.beginPath(); ctx.moveTo(0, cv.height);
-  for (var x = 0; x <= cv.width; x += 40) { ctx.lineTo(x, base - 60 - 25 * Math.sin(x * 0.0008 + 0.3) - 15 * Math.sin(x * 0.002 + 1.2)); }
-  ctx.lineTo(cv.width, cv.height); ctx.closePath(); ctx.fill();
+// Warm light source (sun/moon glow)
+function drawLight(){
+  var p=PAL[S.season]||PAL.summer;
+  var g=ctx.createRadialGradient(cv.width*.5,cv.height*.2,cv.width*.02,cv.width*.5,cv.height*.2,cv.width*.8);
+  g.addColorStop(0,p.light+'30');g.addColorStop(.3,p.light+'10');g.addColorStop(1,'transparent');
+  ctx.fillStyle=g;ctx.fillRect(0,0,cv.width,cv.height);
 }
 
-// ===== DRAW: NEAR HILLS (layer 2) =====
-function drawNearHills() {
-  var t = SEASON[state.season] || SEASON.summer;
-  var base = cv.height * 0.56;
-  ctx.fillStyle = t.hillNear;
-  ctx.beginPath(); ctx.moveTo(0, cv.height);
-  for (var x = 0; x <= cv.width; x += 30) { ctx.lineTo(x, base - 30 - 18 * Math.sin(x * 0.0012 + 1.8) - 8 * Math.sin(x * 0.0035)); }
-  ctx.lineTo(cv.width, cv.height); ctx.closePath(); ctx.fill();
-}
+// Earth mound
+function drawEarth(){
+  var p=PAL[S.season]||PAL.summer;
+  var w=cv.width,h=cv.height;
+  var baseY=h*.48, moundH=h*.52;
 
-// ===== DRAW: GROUND =====
-function drawGround() {
-  var t = SEASON[state.season] || SEASON.summer;
-  var h = cv.height * 0.6;
-  var img = getAsset('ground');
-  if (img) {
-    var tw = img.width, th = img.height;
-    ctx.globalAlpha = 0.7;
-    for (var x = 0; x < cv.width; x += tw) {
-      for (var y = h; y < cv.height; y += th) {
-        ctx.drawImage(img, x, y, tw, th);
-      }
+  // Main earth body - gentle curved mound
+  var g=ctx.createLinearGradient(0,baseY,0,h);
+  g.addColorStop(0,p.earthHi);g.addColorStop(.15,p.earth);g.addColorStop(1,'#1a1815');
+  ctx.fillStyle=g;
+  ctx.beginPath();
+  ctx.moveTo(0,h);
+  // Rolling terrain
+  for(var x=0;x<=w;x+=3){
+    var y=baseY-moundH*.35*Math.sin(x*.0008+.3)-moundH*.15*Math.sin(x*.002+1.8)-moundH*.08*Math.sin(x*.005);
+    ctx.lineTo(x,y);
+  }
+  ctx.lineTo(w,h);ctx.closePath();ctx.fill();
+
+  // Grass-line highlight
+  ctx.strokeStyle=p.earthHi+'60';
+  ctx.lineWidth=1.5;
+  ctx.beginPath();
+  for(var x=0;x<=w;x+=3){
+    var y=baseY-moundH*.35*Math.sin(x*.0008+.3)-moundH*.15*Math.sin(x*.002+1.8)-moundH*.08*Math.sin(x*.005);
+    if(x===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+
+  // Subtle dirt layers (horizontal sediment lines)
+  for(var ly=0;ly<8;ly++){
+    var ly2=baseY+moundH*.08+ly*moundH*.1;
+    ctx.strokeStyle='rgba(0,0,0,'+(.04+ly*.01)+')';
+    ctx.lineWidth=1;
+    ctx.beginPath();
+    for(var x=0;x<=w;x+=20){
+      var dy=ly2+moundH*.02*Math.sin(x*.001+ly);
+      if(x===0)ctx.moveTo(x,dy);else ctx.lineTo(x,dy);
     }
-    ctx.globalAlpha = 1;
-    // Soft blend from hills into ground
-    var g = ctx.createLinearGradient(0, h - 40, 0, h + 80);
-    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(0.4, t.hillNear); g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = g; ctx.fillRect(0, h - 40, cv.width, 120);
-    // Darken lower ground
-    var g2 = ctx.createLinearGradient(0, h + 80, 0, cv.height);
-    g2.addColorStop(0, 'rgba(0,0,0,0)'); g2.addColorStop(1, 'rgba(0,0,0,0.25)');
-    ctx.fillStyle = g2; ctx.fillRect(0, h + 80, cv.width, cv.height - h - 80);
-  } else {
-    ctx.fillStyle = t.ground; ctx.fillRect(0, h, cv.width, cv.height - h);
-    // Top edge grass tufts
-    ctx.fillStyle = 'rgba(0,0,0,0.08)';
-    for (var x = 0; x < cv.width; x += 8) { var y = h - 3 - 4 * Math.sin(x * 0.05 + state.time * 0.3); ctx.fillRect(x, y, 6, 3 + Math.random() * 4); }
+    ctx.stroke();
   }
 }
 
-// ===== DRAW: CLOUDS =====
-function drawClouds() {
-  state.clouds.forEach(function(c) {
-    var img = getAsset('cloud_' + (Math.floor(c.x * 17) % 3));
-    var cx = nx(c.x), cy = ny(c.y);
-    var w = 180 * c.r, h = 90 * c.r;
-    if (img) { ctx.globalAlpha = 0.4; ctx.drawImage(img, cx - w/2, cy - h/2, w, h); ctx.globalAlpha = 1; }
-    else { ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.beginPath(); ctx.ellipse(cx, cy, w/2, h/2, 0, 0, Math.PI*2); ctx.fill(); }
-  });
-}
+// Sort plants
+function sortP(){S.plants.sort(function(a,b){return a.y-b.y})}
 
-// ===== DRAW: PLANT SHADOW =====
-function drawShadow(px, py, r) {
-  ctx.fillStyle = 'rgba(0,0,0,0.12)';
-  ctx.beginPath(); ctx.ellipse(px, py, r * 0.7, r * 0.25, 0, 0, Math.PI * 2); ctx.fill();
-}
-
-// ===== DRAW: PLANT =====
-function drawPlant(plant) {
-  var stage = calcStage(plant);
-  if (stage === 'seed') return;
-  var px = nx(plant.x), py = ny(plant.y);
-  var size = plant.size || 0.5;
-
-  var animBounce = 1;
-  if (state.plantAnims[plant.id]) {
-    var a = state.plantAnims[plant.id];
-    var el = (Date.now() - a.startTime) / 1000;
-    if (el < 0.4) { var tt = el / 0.4; animBounce = 1 + 0.2 * Math.sin(tt * Math.PI) * Math.exp(-tt * 5); }
-    else { delete state.plantAnims[plant.id]; }
-  }
-
-  var bs = stageScale(stage);
-  var ds = size * bs * animBounce * 0.55; // sprite is 200px -> ~110px max for blooming large
+// Draw a single plant
+function drawPlant(p){
+  var st=stage(p),sz=p.size||.5;
+  if(st==='d')return;
+  var px=X(p.x),py=Y(p.y);
+  var bs=sSize(st),ds=sz*bs*.7;
+  var a=S.anims[p.id];
+  if(a){var el=(Date.now()-a.t)/1000;if(el<.4){var tt=el/.4;ds*=1+.2*Math.sin(tt*Math.PI)*Math.exp(-tt*5)}else delete S.anims[p.id]}
 
   ctx.save();
-  if (stage === 'withered') { ctx.filter = 'grayscale(100%)'; ctx.globalAlpha = 0.45; }
+  if(st==='w'){ctx.globalAlpha=.35;ctx.filter='grayscale(100%)'}
 
-  // Soft shadow beneath plant
-  if (stage !== 'seed') drawShadow(px, py, ds * 80);
+  // Shadow
+  ctx.fillStyle='rgba(0,0,0,.15)';
+  ctx.beginPath();ctx.ellipse(px,py,ds*60,ds*20,0,0,Math.PI*2);ctx.fill();
 
-  var img = getPlantSprite(plant.type, plant.variant);
-  if (img) {
-    var dw = img.width * ds, dh = img.height * ds;
-    ctx.drawImage(img, px - dw/2, py - dh, dw, dh);
-  } else {
-    drawFallback(plant, px, py, ds);
-  }
+  // Draw plant body
+  drawPlantShape(p.type,p.variant,px,py,ds,st==='blooming');
 
-  // Glow halo for glowing type
-  if (plant.type === 'glowing') {
-    ctx.filter = 'none'; ctx.globalAlpha = 0.5 + 0.3 * Math.sin(state.time * 2);
-    var gr3 = ctx.createRadialGradient(px, py - 60 * ds, 0, px, py - 60 * ds, 50 * ds);
-    gr3.addColorStop(0, 'rgba(255,220,100,0.5)'); gr3.addColorStop(1, 'rgba(255,220,100,0)');
-    ctx.fillStyle = gr3; ctx.beginPath(); ctx.arc(px, py - 60 * ds, 50 * ds, 0, Math.PI*2); ctx.fill();
+  // Blooming glow
+  if(st==='blooming'){
+    var gl=ctx.createRadialGradient(px,py-ds*50,0,px,py-ds*50,ds*35);
+    gl.addColorStop(0,'rgba(240,220,140,.35)');gl.addColorStop(1,'rgba(240,220,140,0)');
+    ctx.fillStyle=gl;ctx.beginPath();ctx.arc(px,py-ds*50,ds*35,0,Math.PI*2);ctx.fill();
   }
 
   ctx.restore();
 }
 
-function drawFallback(p, px, py, s) {
-  var cs = { fern:'#5a8c3f', flower:'#e8a0b8', mushroom:'#c45a4a', grass:'#7a9c4a', succulent:'#8aaa7a', vine:'#4a7c3f', glowing:'#ffd700' };
-  ctx.fillStyle = cs[p.type] || '#6b8c42';
-  ctx.beginPath();
-  switch(p.type) {
-    case 'fern': for (var i=0;i<15;i++){var a=i*0.35,r=i*2.5*s;ctx.arc(px,py-r,3*s,a,a+0.4*s);}break;
-    case 'flower': for (var j=0;j<5;j++){var an=j*Math.PI*0.4;ctx.ellipse(px+Math.cos(an)*10*s,py-28*s+Math.sin(an)*10*s,7*s,12*s,an,0,Math.PI*2);}ctx.fillStyle='#ffd700';ctx.arc(px,py-28*s,5*s,0,Math.PI*2);break;
-    case 'mushroom': ctx.ellipse(px,py-22*s,14*s,9*s,Math.PI,0,0);ctx.fill();ctx.fillStyle='#e8d8c0';ctx.fillRect(px-2.5*s,py-22*s,5*s,18*s);break;
-    case 'grass': for (var k=0;k<3;k++){ctx.moveTo(px,py);ctx.quadraticCurveTo(px+(k-1)*8*s,py-18*s,px+(k-1)*6*s,py-30*s);}break;
-    case 'succulent': for (var l=3;l>=0;l--){ctx.ellipse(px,py-12*s,l*7*s,l*4*s,0,0,Math.PI*2);}break;
-    case 'vine': ctx.moveTo(px,py);for(var m=0;m<12;m++){ctx.lineTo(px+7*s*Math.sin(m*0.6),py-m*2.5*s);}break;
-    case 'glowing': ctx.fillStyle='#ffd700';ctx.arc(px,py-25*s,12*s,0,Math.PI*2);break;
+function drawPlantShape(t,v,px,py,s,bloom){
+  var cs={fern:['#5a8c3f','#4a7c30','#6a9c4f'],flower:['#e8a0b8','#d490a8','#f0b8c8'],mushroom:['#c45a4a','#b04a3a','#d46a5a'],grass:['#7a9c4a','#6a8c3a','#8aac5a'],succulent:['#8aaa7a','#7a9a6a','#9aba8a'],vine:['#4a7c3f','#3a6c2f','#5a8c4f']};
+  var c=cs[t]||['#6b8c42'];var cl=c[v%3];
+  ctx.fillStyle=cl;
+
+  switch(t){
+  case'fern':
+    ctx.strokeStyle=cl;ctx.lineWidth=2*s;ctx.lineCap='round';
+    for(var i=0;i<12;i++){var ang=i*.35,rad=i*4*s;ctx.beginPath();ctx.arc(px,py-rad,2.5*s,ang,ang+.4*s);ctx.stroke()}
+    break;
+  case'flower':
+    var pc=bloom?5:3;
+    for(var j=0;j<pc;j++){var an=j*Math.PI*2/pc;ctx.fillStyle=cl;ctx.beginPath();ctx.ellipse(px+Math.cos(an)*9*s,py-25*s+Math.sin(an)*9*s,6*s,11*s,an,0,Math.PI*2);ctx.fill()}
+    ctx.fillStyle='#ffe080';ctx.beginPath();ctx.arc(px,py-25*s,4*s,0,Math.PI*2);ctx.fill();
+    break;
+  case'mushroom':
+    ctx.beginPath();ctx.ellipse(px,py-20*s,13*s,8*s,Math.PI,0,0);ctx.fill();
+    ctx.fillStyle='#e8d8c0';ctx.fillRect(px-2*s,py-20*s,4*s,16*s);
+    break;
+  case'grass':
+    ctx.strokeStyle=cl;ctx.lineWidth=2.5*s;ctx.lineCap='round';
+    for(var k=0;k<4;k++){ctx.beginPath();ctx.moveTo(px,py);ctx.quadraticCurveTo(px+(k-1.5)*8*s,py-18*s,px+(k-1.5)*6*s,py-30*s);ctx.stroke()}
+    break;
+  case'succulent':
+    for(var l=4;l>=0;l--){ctx.beginPath();ctx.ellipse(px,py-13*s,l*7*s,l*4*s,0,0,Math.PI*2);ctx.fill();ctx.fillStyle=cl;ctx.globalAlpha=.7+.3*(l/4);}
+    ctx.globalAlpha=1;
+    break;
+  case'vine':
+    ctx.strokeStyle=cl;ctx.lineWidth=2.5*s;ctx.lineCap='round';ctx.beginPath();
+    ctx.moveTo(px,py);
+    for(var m=0;m<15;m++){ctx.lineTo(px+7*s*Math.sin(m*.55+.3),py-m*2.5*s)}
+    ctx.stroke();
+    // Small leaves
+    ctx.fillStyle=cl;
+    for(var m=2;m<13;m+=3){ctx.beginPath();ctx.arc(px+7*s*Math.sin(m*.55+.3)+3*s,py-m*2.5*s,2.5*s,0,Math.PI*2);ctx.fill()}
+    break;
   }
-  ctx.fill();
 }
 
-// ===== PARTICLES =====
-function spawnRain(x, y) {
-  for (var i = 0; i < 15; i++) { state.rainParticles.push({ x: x + (Math.random() - 0.5) * 50, y: y, vy: 60 + Math.random() * 100, vx: (Math.random() - 0.5) * 30, life: 0.5 + Math.random() * 0.5, r: 2 + Math.random() * 3 }); }
+// Fireflies
+function updateFF(dt){
+  ff.forEach(function(f){
+    f.ph+=dt*f.sp*1.5;
+    f.x+=Math.sin(f.ph)*dt*.02;
+    f.y+=Math.cos(f.ph*.7)*dt*.01+dt*.005;
+    if(f.y>.92)f.y=.48;if(f.x<0)f.x=1;if(f.x>1)f.x=0;
+  });
 }
-function updateRain(dt) {
-  for (var i = state.rainParticles.length - 1; i >= 0; i--) { var p = state.rainParticles[i]; p.y += p.vy * dt; p.x += p.vx * dt; p.life -= dt; if (p.life <= 0) state.rainParticles.splice(i, 1); }
-}
-function drawRain() {
-  state.rainParticles.forEach(function(p) {
-    var a = Math.max(0, p.life / 0.7);
-    var drop = getAsset('drop');
-    if (drop) { ctx.globalAlpha = a; ctx.drawImage(drop, p.x - 6, p.y - 6, 12, 12); ctx.globalAlpha = 1; }
-    else { ctx.fillStyle = 'rgba(140,190,240,' + a + ')'; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill(); }
+function drawFF(){
+  ff.forEach(function(f){
+    var a=.15+.25*Math.sin(f.ph*2+S.time*.001);
+    var px=X(f.x),py=Y(f.y);
+    ctx.fillStyle='rgba(240,220,140,'+a+')';
+    ctx.beginPath();ctx.arc(px,py,f.z*3,0,Math.PI*2);ctx.fill();
+    // glow
+    var g=ctx.createRadialGradient(px,py,0,px,py,f.z*12);
+    g.addColorStop(0,'rgba(240,220,140,'+(a*.4)+')');g.addColorStop(1,'rgba(240,220,140,0)');
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(px,py,f.z*12,0,Math.PI*2);ctx.fill();
   });
 }
 
-function updateSnow(dt) {
-  if (state.season !== 'winter') { state.snowParticles = []; return; }
-  if (state.snowParticles.length < 50 && Math.random() < 0.4) { state.snowParticles.push({ x: Math.random() * cv.width, y: -10, vy: 15 + Math.random() * 30, vx: (Math.random() - 0.5) * 15, r: 2 + Math.random() * 3, w: Math.random() * Math.PI * 2 }); }
-  for (var i = state.snowParticles.length - 1; i >= 0; i--) { var s = state.snowParticles[i]; s.y += s.vy * dt; s.w += dt * 1.2; s.x += Math.sin(s.w) * 10 * dt + s.vx * dt; if (s.y > cv.height) state.snowParticles.splice(i, 1); }
+// Rain
+function spawnRain(x,y){for(var i=0;i<14;i++)S.rain.push({x:x+(Math.random()-.5)*40,y:y,vy:50+Math.random()*80,vx:(Math.random()-.5)*20,life:.4+Math.random()*.4,r:1.5+Math.random()*2})}
+function upRain(dt){for(var i=S.rain.length-1;i>=0;i--){var p=S.rain[i];p.y+=p.vy*dt;p.x+=p.vx*dt;p.life-=dt;if(p.life<=0)S.rain.splice(i,1)}}
+function drRain(){S.rain.forEach(function(p){var a=Math.max(0,p.life/.6);ctx.fillStyle='rgba(140,190,240,'+a+')';ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill()})}
+
+// Snow
+function upSnow(dt){
+  if(S.season!=='winter'){S.snow=[];return}
+  if(S.snow.length<40&&Math.random()<.4)S.snow.push({x:Math.random()*cv.width,y:-5,vy:12+Math.random()*25,vx:(Math.random()-.5)*12,r:1.5+Math.random()*3,w:Math.random()*Math.PI*2})
+  for(var i=S.snow.length-1;i>=0;i--){var s=S.snow[i];s.y+=s.vy*dt;s.w+=dt;s.x+=Math.sin(s.w)*8*dt+s.vx*dt;if(s.y>cv.height)S.snow.splice(i,1)}
 }
-function drawSnow() {
-  state.snowParticles.forEach(function(s) { ctx.fillStyle = 'rgba(255,255,255,0.65)'; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.fill(); });
-}
+function drSnow(){S.snow.forEach(function(s){ctx.fillStyle='rgba(255,255,255,.55)';ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill()})}
 
 // ===== INTERACTION =====
-function getPos(e) { var r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * (cv.width / r.width), y: (e.clientY - r.top) * (cv.height / r.height) }; }
-function handleWater(e) {
-  var pos = getPos(e); var nx = pos.x / cv.width, ny = pos.y / cv.height;
-  spawnRain(pos.x, pos.y);
-  apiPost('/water', { x: nx, y: ny }).then(function(resp) {
-    if (resp.ok && resp.watered && resp.watered.length) {
-      toast('💧 浇到了 ' + resp.watered.length + ' 株植物！');
-      resp.watered.forEach(function(w) { state.plantAnims[w.id] = { startTime: Date.now() }; var p = state.plants.find(function(pp) { return pp.id === w.id; }); if (p) { p.health = w.health; p.stage = w.stage; } });
-      updateUI();
-    } else if (resp.ok) { toast('💧 这里还没有植物...'); }
-  }).catch(function() {});
+function getPos(e){var r=cv.getBoundingClientRect();return{x:(e.clientX-r.left),y:(e.clientY-r.top)}}
+function handleWater(e){
+  var pos=getPos(e),nx=pos.x/cv.width,ny=pos.y/cv.height;
+  spawnRain(pos.x,pos.y);
+  P('/water',{x:nx,y:ny}).then(function(r){
+    if(r.ok&&r.watered&&r.watered.length){
+      toast('💧 浇到了 '+r.watered.length+' 株植物');
+      r.watered.forEach(function(w){S.anims[w.id]={t:Date.now()};var p=S.plants.find(function(pp){return pp.id===w.id});if(p){p.health=w.health;p.stage=w.stage}})
+      updUI()
+    }
+  }).catch(function(){})
 }
-cv.addEventListener('click', handleWater);
-cv.addEventListener('touchstart', function(e) { if (e.touches.length === 1) { handleWater(e.touches[0]); e.preventDefault(); } }, { passive: false });
+cv.addEventListener('click',handleWater);
+cv.addEventListener('touchstart',function(e){if(e.touches.length===1){handleWater(e.touches[0]);e.preventDefault()}},{passive:false});
 
 // ===== UI =====
-function toast(m) { var t = document.getElementById('toast'); t.textContent = m; t.classList.add('show'); setTimeout(function() { t.classList.remove('show'); }, 2000); }
-function updateUI() {
-  document.getElementById('visitCount').textContent = '访问 ' + state.totalVisits + ' 次';
-  var bl = state.plants.filter(function(p) { return calcStage(p) === 'blooming'; }).length;
-  var al = state.plants.filter(function(p) { return calcStage(p) !== 'withered' && calcStage(p) !== 'seed'; }).length;
-  document.getElementById('plantSummary').textContent = al + ' 株植物 · ' + bl + ' 朵盛开';
-  document.getElementById('seasonIcon').textContent = (SEASON[state.season] || SEASON.summer).icon;
+function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2000)}
+function updUI(){
+  document.getElementById('visitCount').textContent='访问 '+S.totalVisits+' 次';
+  var bl=S.plants.filter(function(p){return stage(p)==='b'}).length;
+  var al=S.plants.filter(function(p){var s=stage(p);return s!=='w'&&s!=='d'}).length;
+  document.getElementById('plantSummary').textContent=al+' 株 · '+bl+' 朵盛开';
+  document.getElementById('seasonIcon').textContent=(PAL[S.season]||PAL.summer).icon
 }
-function showAbout() { document.getElementById('aboutBg').classList.add('show'); }
-function hideAbout() { document.getElementById('aboutBg').classList.remove('show'); }
-document.addEventListener('keydown', function(e) { if (e.key === 'Escape') hideAbout(); });
-document.getElementById('aboutBg').addEventListener('click', function(e) { if (e.target === this) hideAbout(); });
+function showAbout(){document.getElementById('aboutBg').classList.add('show')}
+function hideAbout(){document.getElementById('aboutBg').classList.remove('show')}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')hideAbout()});
+document.getElementById('aboutBg').addEventListener('click',function(e){if(e.target===this)hideAbout()});
 
-// ===== ANIMATION =====
-function updateClouds(dt) {
-  state.clouds.forEach(function(c) { c.x += dt * 0.01; if (c.x > 1.1) c.x = -0.1; });
-}
-
-function drawAll() {
-  ctx.clearRect(0, 0, cv.width, cv.height);
-  drawSky();
-  drawClouds();
-  drawFarHills();
-  drawNearHills();
-  drawGround();
-  drawSnow();
-  state.plants.sort(function(a, b) { return a.y - b.y; });
-  state.plants.forEach(function(p) { drawPlant(p); });
-  drawRain();
+// ===== LOOP =====
+function drawAll(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  drawBG();drawLight();drawEarth();
+  drSnow();drRain();
+  updateFF(.016);
+  drawFF();
+  sortP();
+  S.plants.forEach(function(p){drawPlant(p)})
 }
 
-function loop(ts) {
-  var dt = Math.min(0.1, state.time ? (ts - state.time) / 1000 : 0.016);
-  state.time = ts;
-  updateClouds(dt); updateRain(dt); updateSnow(dt); drawAll();
-  requestAnimationFrame(loop);
+function loop(ts){
+  var dt=Math.min(.1,S.time?(ts-S.time)/1000:.016);
+  S.time=ts;
+  upRain(dt);upSnow(dt);drawAll();
+  requestAnimationFrame(loop)
 }
 
 // ===== INIT =====
-async function init() {
-  try {
-    var data = await apiGet('/state');
-    state.plants = data.plants || []; state.totalVisits = data.totalVisits || 0; state.season = data.season || getSeason();
-    updateUI();
-    if (!sessionStorage._moss_visited) {
-      sessionStorage._moss_visited = '1';
-      var vr = await apiPost('/visit');
-      if (vr.ok && vr.newPlant) { state.plants.push(vr.newPlant); state.totalVisits = vr.totalVisits; updateUI(); toast('🌱 一株新植物破土而出！'); }
-    }
-  } catch(e) { console.warn('Offline'); }
-  loadAssets(); requestAnimationFrame(loop);
+async function init(){
+  try{
+    var d=await G('/state');S.plants=d.plants||[];S.totalVisits=d.totalVisits||0;S.season=d.season||getSeason();
+    updUI();
+    if(!sessionStorage._moss_visited){sessionStorage._moss_visited='1';var vr=await P('/visit');if(vr.ok&&vr.newPlant){S.plants.push(vr.newPlant);S.totalVisits=vr.totalVisits;updUI();toast('🌱 一株新植物破土而出！')}}
+  }catch(e){}
+  requestAnimationFrame(loop)
 }
-setInterval(async function() { try { var d = await apiGet('/state'); if (d.plants) { state.plants = d.plants; state.totalVisits = d.totalVisits; updateUI(); } } catch(e) {} }, 60000);
+setInterval(async function(){try{var d=await G('/state');if(d.plants){S.plants=d.plants;S.totalVisits=d.totalVisits;updUI()}}catch(e){}},60000);
 init();
 </script>
 </body>
