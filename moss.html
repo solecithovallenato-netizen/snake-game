@@ -338,8 +338,8 @@ function updateSignboard(dt){
   // Shake animation
   if(sb.shake>0){
     sb.shakeT+=dt;
-    sb.shake=Math.exp(-sb.shakeT*6)*Math.sin(sb.shakeT*25)*12; // decaying oscillation
-    if(sb.shakeT>.8){sb.shake=0;sb.shakeT=0} // end shake
+    sb.shake=Math.exp(-sb.shakeT*3)*Math.sin(sb.shakeT*10)*4; // gentle sway
+    if(sb.shakeT>1.2){sb.shake=0;sb.shakeT=0} // end shake
   }
   // Leaf particles from shake
   for(var i=sb.leafParticles.length-1;i>=0;i--){
@@ -355,10 +355,10 @@ function shakeSignboard(){
   sb.alpha=0;sb.quoteIdx=(sb.quoteIdx+1)%signQuotes.length;
   // Spawn leaf particles
   var sx=X(sb.x),sy=earthY(sb.x)-70;
-  for(var i=0;i<8;i++){
+  for(var i=0;i<5;i++){
     sb.leafParticles.push({
-      x:sx+(Math.random()-.5)*60,y:sy,r:2+Math.random()*3,rot:Math.random()*Math.PI*2,
-      vx:(Math.random()-.5)*80,vy:-40-Math.random()*60,rv:(Math.random()-.5)*8,life:1+Math.random()*1.5
+      x:sx+(Math.random()-.5)*40,y:sy,r:1.5+Math.random()*2,rot:Math.random()*Math.PI*2,
+      vx:(Math.random()-.5)*30,vy:-20-Math.random()*30,rv:(Math.random()-.5)*4,life:1.2+Math.random()*1.2
     });
   }
 }
