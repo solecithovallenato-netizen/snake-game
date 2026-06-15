@@ -256,13 +256,48 @@ function drawStars(){
 function drawMoon(){
   var dp=dayPhase();
   if(dp>.3)return;
-  var a=.35-dp; // stronger at night
+  var a=.35-dp;
   var mx=cv.width*.75,my=cv.height*.15;
   var g=ctx.createRadialGradient(mx,my,0,mx,my,60);
   g.addColorStop(0,'rgba(255,250,240,'+(.2*a)+')');g.addColorStop(1,'rgba(255,250,240,0)');
   ctx.fillStyle=g;ctx.beginPath();ctx.arc(mx,my,60,0,Math.PI*2);ctx.fill();
   ctx.fillStyle='rgba(255,250,240,'+(.6*a)+')';
   ctx.beginPath();ctx.arc(mx,my,20,0,Math.PI*2);ctx.fill();
+}
+
+// Ground fog along horizon
+function drawFog(){
+  var base=cv.height*.42;
+  var g=ctx.createLinearGradient(0,base-20,0,base+60);
+  g.addColorStop(0,'rgba(180,190,200,0)');g.addColorStop(.4,'rgba(180,190,200,.04)');g.addColorStop(1,'rgba(180,190,200,0)');
+  ctx.fillStyle=g;ctx.fillRect(0,base-20,cv.width,80);
+}
+
+// Vignette
+function drawVignette(){
+  var w=cv.width,h=cv.height;
+  var g=ctx.createRadialGradient(w*.5,h*.5,w*.3,w*.5,h*.5,w*.75);
+  g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(0,0,0,.35)');
+  ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+}
+
+// Drifting particles (pollen/spring, dust/summer, leaves/autumn, snow already done for winter)
+var drift=[];
+(function initDrift(){for(var i=0;i<20;i++)drift.push({x:Math.random(),y:.35+Math.random()*.6,vy:-3-Math.random()*8,vx:(Math.random()-.5)*6,r:.4+Math.random()*1.5,life:3+Math.random()*6,ph:Math.random()*Math.PI*2})})();
+function updateDrift(dt){
+  for(var i=drift.length-1;i>=0;i--){
+    var d=drift[i];d.y+=d.vy*dt;d.x+=d.vx*dt+Math.sin(d.ph+S.time*.001)*3*dt;d.ph+=dt;d.life-=dt;
+    if(d.life<=0){d.life=3+Math.random()*6;d.y=.42+Math.random()*.55;d.x=Math.random();}
+    if(d.y<.35){d.y=.42+Math.random()*.55;d.x=Math.random()}
+  }
+}
+function drawDrift(){
+  var dp=dayPhase();
+  var a=.03+dp*.06;
+  drift.forEach(function(d){
+    ctx.fillStyle='rgba(220,210,190,'+a+')';
+    ctx.beginPath();ctx.arc(X(d.x),Y(d.y),d.r,0,Math.PI*2);ctx.fill();
+  });
 }
 
 function sortP(){S.plants.sort(function(a,b){return a.y-b.y})}
@@ -481,13 +516,12 @@ document.getElementById('aboutBg').addEventListener('click',function(e){if(e.tar
 function drawAll(){
   ctx.clearRect(0,0,cv.width,cv.height);
   drawBG();drawStars();drawMoon();drawLight();drawTrees();
-  drawEarth();drawPebbles();
+  drawEarth();drawPebbles();drawFog();
   drSnow();drRain();
-  updateFF(.016);
-  drawFF();
+  updateFF(.016);drawFF();updateDrift(.016);drawDrift();
   drawSnail();
-  sortP();
-  S.plants.forEach(function(p){drawPlant(p)})
+  sortP();S.plants.forEach(function(p){drawPlant(p)})
+  drawVignette();
 }
 
 function loop(ts){
