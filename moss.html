@@ -165,21 +165,6 @@ var wildMushrooms=[];
 // Butterfly
 var butterfly={x:.5,y:.4,vx:0,vy:0,targetX:.5,targetY:.4,ph:0,wing:0,timer:0};
 
-// Signboard — displays rotating garden quotes
-var signQuotes=[
-  '万物有裂痕，那是光照进来的地方',
-  '安静地写，慢慢地读',
-  '要么写值得读的东西，要么做值得写的事',
-  '简单是最高级的复杂',
-  '写作是为了知道自己在想什么',
-  '好的代码像一首诗，好的文章像一个人',
-  '程序员的浪漫，是把代码写成诗',
-  '思而不学则殆，学而不思则罔',
-  '阅读是随身携带的避难所',
-  '一个人应该拥有诗意的世界'
-];
-var signboard={x:.18,quoteIdx:0,timer:0,alpha:1};
-
 // Earth surface curve function — returns y for given normalized x
 function earthY(nx){
   var w=cv.width,h=cv.height,baseY=h*.48,moundH=h*.52;
@@ -327,40 +312,6 @@ function drawButterfly(){
   ctx.beginPath();ctx.ellipse(px-5,py-5,6,3,-wa,0,Math.PI*2);ctx.fill();
   ctx.fillStyle='rgba(240,220,180,.3)';
   ctx.beginPath();ctx.ellipse(px,py,2,4,0,0,Math.PI*2);ctx.fill();
-}
-
-// Signboard
-function updateSignboard(dt){
-  var sb=signboard;sb.timer+=dt;
-  // Fade transition every 25s
-  if(sb.timer>25){sb.timer=0;sb.alpha=0;sb.quoteIdx=(sb.quoteIdx+1)%signQuotes.length}
-  if(sb.alpha<1)sb.alpha=Math.min(1,sb.alpha+dt*.8);
-}
-function drawSignboard(){
-  var sb=signboard;
-  var sx=X(sb.x),sy=earthY(sb.x)-3;
-  var postH=55;
-  // Wooden post
-  ctx.strokeStyle='rgba(140,110,70,.4)';ctx.lineWidth=4;ctx.lineCap='round';
-  ctx.beginPath();ctx.moveTo(sx,sy+3);ctx.lineTo(sx,sy-postH);ctx.stroke();
-  // Board
-  var bw=90,bh=32;
-  ctx.fillStyle='rgba(60,40,20,.7)';
-  ctx.beginPath();ctx.roundRect(sx-bw/2,sy-postH-bh,bw,bh,4);ctx.fill();
-  ctx.strokeStyle='rgba(140,110,70,.3)';ctx.lineWidth=1.5;
-  ctx.beginPath();ctx.roundRect(sx-bw/2,sy-postH-bh,bw,bh,4);ctx.stroke();
-  // Text
-  ctx.fillStyle='rgba(240,230,210,'+(sb.alpha*.8)+')';
-  ctx.font='11px "Noto Serif SC",Georgia,serif';ctx.textAlign='center';ctx.textBaseline='middle';
-  var txt=signQuotes[sb.quoteIdx];
-  // Wrap text if too long
-  if(txt.length>10){
-    var mid=Math.ceil(txt.length/2);
-    ctx.fillText(txt.slice(0,mid),sx,sy-postH-bh/2-5);
-    ctx.fillText(txt.slice(mid),sx,sy-postH-bh/2+8);
-  }else{
-    ctx.fillText(txt,sx,sy-postH-bh/2);
-  }
 }
 
 // Stars (night only)
@@ -643,8 +594,8 @@ function drawAll(){
   drawBG();drawStars();drawMoon();drawLight();drawTrees();
   drawEarth();drawPebbles();drawLeaves();drawWildMushrooms();drawDews();drawFog();
   drSnow();drRain();
-  updateFF(.016);drawFF();updateDrift(.016);drawDrift();updateButterfly(.016);drawButterfly();updateSignboard(.016);
-  drawSnail();drawSignboard();
+  updateFF(.016);drawFF();updateDrift(.016);drawDrift();updateButterfly(.016);drawButterfly();
+  drawSnail();
   sortP();S.plants.forEach(function(p){drawPlant(p)})
   drawVignette();
 }
