@@ -1,5 +1,5 @@
 from http.server import HTTPServer, BaseHTTPRequestHandler
-import json, os, time
+import json, os, time, random
 
 DATA_FILE = "/opt/blog/data/wall_posts.json"
 CHAT_FILE = "/opt/blog/data/wall_chat.json"
@@ -38,7 +38,6 @@ def garden_season_weights():
     return [("succulent", 0.40), ("grass", 0.40), ("fern", 0.05), ("flower", 0.05), ("mushroom", 0.05), ("vine", 0.05)]
 
 def garden_random_plant_type():
-    import random
     weights = garden_season_weights()
     r = random.random()
     acc = 0
@@ -75,7 +74,6 @@ def garden_apply_decay(plant, now_ms=None):
 
 def garden_check_glowing(data):
     """Check if last 7 consecutive days each have >=1 watering. If yes, add glowing plant."""
-    import random
     dw = data.get("dailyWaterings", {})
     # Check last 7 days
     t = time.time()
@@ -104,11 +102,14 @@ def garden_check_glowing(data):
     return False
 
 def garden_check_mushroom_boom(data):
-    """15% chance in autumn to spawn 5 extra mushrooms."""
-    import random
+    """15% chance in autumn to spawn 5 extra mushrooms. Max once per day."""
     s = garden_season()
     if s != "autumn": return False
+    last = data.get("lastMushroomBoomAt", 0)
+    if last > 0 and (int(time.time() * 1000) - last) < 86400000:
+        return False
     if random.random() > 0.15: return False
+    data["lastMushroomBoomAt"] = int(time.time() * 1000)
     for _ in range(5):
         data["plants"].append({
             "id": "boom-" + str(int(time.time()*1000000)) + "-" + str(_),
