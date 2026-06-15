@@ -43,7 +43,7 @@ canvas{display:block;position:fixed;top:0;left:0;width:100%;height:100%}
 
 <div id="topBar">
   <span class="title">数字苔藓<em id="visitCount">访问 0 次</em></span>
-  <span><button onclick="location.href='/'">← 博客</button><button onclick="showAbout()" style="margin-left:6px">关于</button></span>
+  <span><button onclick="location.href='/'">← 博客</button><button onclick="readRandom()" style="margin-left:6px">📖 读</button><button onclick="showAbout()" style="margin-left:6px">关于</button></span>
 </div>
 
 <div id="gardenInfo">
@@ -58,6 +58,7 @@ canvas{display:block;position:fixed;top:0;left:0;width:100%;height:100%}
     <p>💧 <b>点击</b>浇水照料<br>被爱的植物开花，被遗忘的枯萎</p>
     <p>🌸 春 &nbsp;☀️ 夏 &nbsp;🍂 秋 &nbsp;❄️ 冬</p>
     <p style="font-size:11px;opacity:.4">悬停植物查看信息 · 连续7天浇水诞生稀有植物 ✨</p>
+    <p style="font-size:12px;opacity:.6;margin-top:8px">📖 这里是<a href="/" style="color:#c0a880">虞舍博客</a>的后花园<br>每一株植物都是一次安静的到访</p>
     <button onclick="hideAbout()">知道了</button>
   </div>
 </div>
@@ -484,7 +485,9 @@ function handleWater(e){
   spawnRain(pos.x,pos.y);
   P('/water',{x:nx,y:ny}).then(function(r){
     if(r.ok&&r.watered&&r.watered.length){
-      toast('💧 浇到了 '+r.watered.length+' 株植物');
+      var bt=randomBlogTitle();
+      var msg=bt&&Math.random()<.4?'💧 「'+bt.slice(0,15)+'…」长出新芽':('💧 浇到了 '+r.watered.length+' 株植物');
+      toast(msg);
       r.watered.forEach(function(w){S.anims[w.id]={t:Date.now()};var p=S.plants.find(function(pp){return pp.id===w.id});if(p){p.health=w.health;p.stage=w.stage}})
       updUI()
     }
@@ -531,8 +534,23 @@ function loop(ts){
   requestAnimationFrame(loop)
 }
 
+// ===== BLOG INTEGRATION =====
+var blogPosts=[];
+async function loadBlogPosts(){
+  try{var r=await fetch('/api/blog/articles');blogPosts=await r.json()}catch(e){}
+}
+function randomBlogTitle(){
+  if(!blogPosts.length)return null;
+  return blogPosts[Math.floor(Math.random()*blogPosts.length)].title;
+}
+function readRandom(){
+  if(blogPosts.length){var p=blogPosts[Math.floor(Math.random()*blogPosts.length)];location.href='/?id='+p.id}
+  else location.href='/'
+}
+
 // ===== INIT =====
 async function init(){
+  loadBlogPosts(); // non-blocking
   try{
     var d=await G('/state');S.plants=d.plants||[];S.totalVisits=d.totalVisits||0;S.season=d.season||getSeason();
     updUI();
@@ -541,6 +559,8 @@ async function init(){
   requestAnimationFrame(loop)
 }
 setInterval(async function(){try{var d=await G('/state');if(d.plants){S.plants=d.plants;S.totalVisits=d.totalVisits;updUI()}}catch(e){}},60000);
+// Refresh blog posts every 5 min for random reading
+setInterval(function(){loadBlogPosts()},300000);
 init();
 </script>
 </body>
